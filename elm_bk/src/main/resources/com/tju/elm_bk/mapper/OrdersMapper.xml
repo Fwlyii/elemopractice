@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tju.elm_bk.mapper.OrdersMapper">
+    <resultMap id="orderVOResultMap" type="com.tju.elm_bk.vo.OrderVO">
+        <id property="id" column="id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updater" column="updater"/>
+        <result property="orderDate" column="order_date"/>
+        <result property="orderState" column="order_state"/>
+        <result property="orderTotal" column="order_total"/>
+        <association property="business" resultMap="businessVOResultMap"/>
+        <association property="customer" resultMap="customerUserVOResultMap"/>
+        <association property="deliveryAddress" resultMap="addressVOResultMap"/>
+    </resultMap>
+
+    <resultMap id="businessVOResultMap" type="com.tju.elm_bk.vo.BusinessVO">
+        <id property="id" column="business_id"/>
+        <result property="businessName" column="business_business_name"/>
+        <result property="businessAddress" column="business_business_address"/>
+        <result property="businessExplain" column="business_business_explain"/>
+        <result property="businessImg" column="business_business_img"/>
+        <result property="orderTypeId" column="business_order_type_id"/>
+        <result property="startPrice" column="business_start_price"/>
+        <result property="deliveryPrice" column="business_delivery_price"/>
+        <result property="remarks" column="business_remarks"/>
+        <result property="creator" column="business_creator"/>
+        <result property="updater" column="business_updater"/>
+        <result property="createTime" column="business_create_time"/>
+        <result property="updateTime" column="business_update_time"/>
+        <result property="isDeleted" column="business_deleted"/>
+        <association property="businessOwner" resultMap="businessUserVOResultMap"/>
+    </resultMap>
+
+    <resultMap id="businessUserVOResultMap" type="com.tju.elm_bk.vo.UserVO">
+        <id property="id" column="business_user_id"/>
+        <result property="username" column="business_user_username"/>
+        <result property="createTime" column="business_user_create_time"/>
+        <result property="creator" column="business_user_creator"/>
+        <result property="isDeleted" column="business_user_deleted"/>
+        <result property="updateTime" column="business_user_update_time"/>
+        <result property="updater" column="business_user_updater"/>
+        <collection property="authorities" ofType="com.tju.elm_bk.entity.Authority"
+                    select="selectBusinessUserAuthoritiesByUserId" column="name"/>
+    </resultMap>
+
+    <resultMap id="customerUserVOResultMap" type="com.tju.elm_bk.vo.UserVO">
+        <id property="id" column="customer_id"/>
+        <result property="username" column="customer_username"/>
+        <result property="createTime" column="customer_create_time"/>
+        <result property="creator" column="customer_creator"/>
+        <result property="isDeleted" column="customer_deleted"/>
+        <result property="updateTime" column="customer_update_time"/>
+        <result property="updater" column="customer_updater"/>
+        <collection property="authorities" ofType="com.tju.elm_bk.entity.Authority"
+                    select="selectCustomerUserAuthoritiesByUserId" column="name"/>
+    </resultMap>
+
+    <resultMap id="addressVOResultMap" type="com.tju.elm_bk.vo.AddressVO">
+        <id property="id" column="ad_id"/>
+
+        <result property="createTime" column="ad_create_time"/>
+        <result property="creator" column="ad_creator"/>
+        <result property="isDeleted" column="ad_is_deleted"/>
+        <result property="updateTime" column="ad_update_time"/>
+        <result property="updater" column="ad_updater"/>
+        <result property="address" column="ad_address"/>
+        <result property="contactName" column="ad_contact_name"/>
+        <result property="contactSex" column="ad_contact_sex"/>
+        <result property="contactTel" column="ad_contact_tel"/>
+<!--        <result property="userId" column="ad_user_id"/>-->
+
+    </resultMap>
+
+    <select id="selectBusinessUserAuthoritiesByUserId" resultType="com.tju.elm_bk.entity.Authority">
+        SELECT ua.authority_name as name FROM user_authority ua WHERE ua.user_id = #{business_user_id}
+    </select>
+
+    <select id="selectCustomerUserAuthoritiesByUserId" resultType="com.tju.elm_bk.entity.Authority">
+        SELECT ua.authority_name as name FROM user_authority ua WHERE ua.user_id = #{customer_id}
+    </select>
+
+    <select id="selectOrders" resultMap="orderVOResultMap">
+        SELECT O.id,
+               O.create_time,
+               O.creator,
+               O.is_deleted,
+               O.update_time,
+               O.updater,
+               O.order_date,
+               O.order_state,
+               O.order_total,
+               O.business_id,
+               O.customer_id,
+               O.address_id,
+
+               b.business_name as business_business_name,
+               b.business_address as business_business_address,
+               b.business_explain as business_business_explain,
+               b.business_img as business_business_img,
+               b.order_type_id as business_order_type_id,
+               b.start_price as business_start_price,
+               b.delivery_price as business_delivery_price,
+               b.remarks as business_remarks,
+               b.creator as business_creator,
+               b.updater as business_updater,
+               b.create_time as business_create_time,
+               b.update_time as business_update_time,
+               b.is_deleted as business_deleted,
+
+               u.id as customer_id,
+               u.username as customer_username,
+               u.create_time as customer_create_time,
+               u.creator as customer_creator,
+               u.is_deleted as customer_deleted,
+               u.update_time as customer_update_time,
+               u.updater as customer_updater,
+
+               ub.id as business_user_id,
+               ub.username as business_user_username,
+               ub.create_time as business_user_create_time,
+               ub.creator as business_user_creator,
+               ub.is_deleted as business_user_deleted,
+               ub.update_time as business_user_update_time,
+               ub.updater as business_user_updater,
+
+               ad.id as ad_id,
+               ad.create_time as ad_create_time,
+               ad.creator as ad_creator,
+               ad.is_deleted as ad_is_deleted,
+               ad.update_time as ad_update_time,
+               ad.updater as ad_updater,
+               ad.address as ad_address,
+               ad.contact_name as ad_contact_name,
+               ad.contact_sex as ad_contact_sex,
+               ad.contact_tel as ad_contact_tel,
+               ad.user_id as ad_user_id
+
+        FROM orders O
+        LEFT JOIN business b ON O.business_id = b.id AND b.is_deleted = 0
+        LEFT JOIN users ub ON b.user_id = ub.id AND ub.is_deleted = 0
+        LEFT JOIN users u ON u.id = O.customer_id AND u.is_deleted = 0
+        LEFT JOIN delivery_address ad ON ad.id = O.address_id AND ad.is_deleted = 0
+        WHERE O.customer_id =#{userId} AND O.is_deleted = 0
+    </select>
+
+
+    <select id="selectOrderById" resultMap="orderVOResultMap">
+        SELECT O.id,
+               O.create_time,
+               O.creator,
+               O.is_deleted,
+               O.update_time,
+               O.updater,
+               O.order_date,
+               O.order_state,
+               O.order_total,
+               O.business_id,
+               O.customer_id,
+               O.address_id,
+
+               b.business_name as business_business_name,
+               b.business_address as business_business_address,
+               b.business_explain as business_business_explain,
+               b.business_img as business_business_img,
+               b.order_type_id as business_order_type_id,
+               b.start_price as business_start_price,
+               b.delivery_price as business_delivery_price,
+               b.remarks as business_remarks,
+               b.creator as business_creator,
+               b.updater as business_updater,
+               b.create_time as business_create_time,
+               b.update_time as business_update_time,
+               b.is_deleted as business_deleted,
+
+               u.id as customer_id,
+               u.username as customer_username,
+               u.create_time as customer_create_time,
+               u.creator as customer_creator,
+               u.is_deleted as customer_deleted,
+               u.update_time as customer_update_time,
+               u.updater as customer_updater,
+
+               ub.id as business_user_id,
+               ub.username as business_user_username,
+               ub.create_time as business_user_create_time,
+               ub.creator as business_user_creator,
+               ub.is_deleted as business_user_deleted,
+               ub.update_time as business_user_update_time,
+               ub.updater as business_user_updater,
+
+               ad.id as ad_id,
+               ad.create_time as ad_create_time,
+               ad.creator as ad_creator,
+               ad.is_deleted as ad_is_deleted,
+               ad.update_time as ad_update_time,
+               ad.updater as ad_updater,
+               ad.address as ad_address,
+               ad.contact_name as ad_contact_name,
+               ad.contact_sex as ad_contact_sex,
+               ad.contact_tel as ad_contact_tel,
+               ad.user_id as ad_user_id
+
+        FROM orders O
+                 LEFT JOIN business b ON O.business_id = b.id AND b.is_deleted = 0
+                 LEFT JOIN users ub ON b.user_id = ub.id AND ub.is_deleted = 0
+                 LEFT JOIN users u ON u.id = O.customer_id AND u.is_deleted = 0
+                 LEFT JOIN delivery_address ad ON ad.id = O.address_id AND ad.is_deleted = 0
+        WHERE O.id =#{orderId} AND O.is_deleted = 0
+    </select>
+
+
+    <insert id="insertOrder" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders (create_time, creator, is_deleted, update_time, updater, order_date, order_state, order_total, business_id, customer_id, address_id)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{orderDate}, #{orderState}, #{orderTotal}, #{businessId}, #{customerId}, #{addressId})
+    </insert>
+
+
+
+
+
+
+    <insert id="insertOrderPlus" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders (create_time, creator, is_deleted, update_time, updater, order_date, order_state, order_total, business_id, customer_id, address_id,delivery_price)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{orderDate}, #{orderState}, #{orderTotal}, #{businessId}, #{customerId}, #{addressId},#{deliveryPrice})
+    </insert>
+</mapper>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tju.elm_bk.mapper.OrderDetailetMapper">
+    <insert id="saveOrderDetail" useGeneratedKeys="true" keyProperty="id">
+        insert into orderdetailet (create_time, creator, is_deleted, update_time, updater, quantity, food_id, order_id)
+        values (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{quantity}, #{foodId}, #{orderId})
+    </insert>
+
+
+
+
+    <insert id="saveOrderDetailPlus" useGeneratedKeys="true" keyProperty="id">
+        insert into orderdetailet (create_time, creator, is_deleted, update_time, updater, quantity, food_id, order_id,food_price)
+        values (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{quantity}, #{foodId}, #{orderId},#{foodPrice})
+    </insert>
+
+</mapper>

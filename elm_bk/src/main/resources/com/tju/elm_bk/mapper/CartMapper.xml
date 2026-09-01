@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tju.elm_bk.mapper.CartMapper">
+    <insert id="insertCart" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO cart (create_time, creator, is_deleted, update_time, updater, quantity, business_id, customer_id, food_id)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{quantity}, #{businessId}, #{customerId}, #{foodId})
+    </insert>
+
+</mapper>

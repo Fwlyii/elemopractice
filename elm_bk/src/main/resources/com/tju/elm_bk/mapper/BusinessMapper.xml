@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tju.elm_bk.mapper.BusinessMapper">
+
+    <resultMap id="businessVOResultMap" type="com.tju.elm_bk.vo.BusinessVO">
+        <id property="id" column="business_id"/>
+        <result property="businessName" column="business_name"/>
+        <result property="businessAddress" column="business_address"/>
+        <result property="businessExplain" column="business_explain"/>
+        <result property="businessImg" column="business_img"/>
+        <result property="orderTypeId" column="order_type_id"/>
+        <result property="startPrice" column="start_price"/>
+        <result property="deliveryPrice" column="delivery_price"/>
+        <result property="remarks" column="remarks"/>
+        <result property="creator" column="business_creator"/>
+        <result property="updater" column="business_updater"/>
+        <result property="createTime" column="business_create_time"/>
+        <result property="updateTime" column="business_update_time"/>
+        <result property="isDeleted" column="business_deleted"/>
+        <association property="businessOwner" resultMap="userVOResultMap"/>
+    </resultMap>
+
+    <resultMap id="userVOResultMap" type="com.tju.elm_bk.vo.UserVO">
+        <id property="id" column="user_id"/>
+        <result property="username" column="user_username"/>
+        <result property="createTime" column="user_create_time"/>
+        <result property="creator" column="user_creator"/>
+        <result property="isDeleted" column="user_deleted"/>
+        <result property="updateTime" column="user_update_time"/>
+        <result property="updater" column="user_updater"/>
+        <collection property="authorities" ofType="com.tju.elm_bk.entity.Authority"
+                    select="selectAuthoritiesByUserId" column="user_id"/>
+    </resultMap>
+
+    <select id="selectAuthoritiesByUserId" resultType="com.tju.elm_bk.entity.Authority">
+        SELECT ua.authority_name as name
+        FROM user_authority ua
+        WHERE ua.user_id = #{userId}
+    </select>
+
+    <select id="getBusinessById" resultMap="businessVOResultMap">
+        SELECT
+        b.id as business_id,
+        b.business_name,
+        b.business_address,
+        b.business_explain,
+        b.business_img,
+        b.order_type_id,
+        b.start_price,
+        b.delivery_price,
+        b.remarks,
+        b.creator as business_creator,
+        b.updater as business_updater,
+        b.create_time as business_create_time,
+        b.update_time as business_update_time,
+        b.is_deleted as business_deleted,
+
+        u.id as user_id,
+        u.username as user_username,
+        u.create_time as user_create_time,
+        u.creator as user_creator,
+        u.is_deleted as user_deleted,
+        u.update_time as user_update_time,
+        u.updater as user_updater
+        FROM business b
+        LEFT JOIN users u ON b.user_id = u.id
+        WHERE b.id = #{id} AND b.is_deleted = 0
+    </select>
+
+    <!-- 完全更新商户信息并返回完整对象 -->
+    <update id="updateBusiness" parameterType="map">
+        UPDATE business
+        SET
+            business_name = #{updateDto.businessName},
+            business_address = #{updateDto.businessAddress},
+            business_explain = #{updateDto.businessExplain},
+            business_img = #{updateDto.businessImg},
+            order_type_id = #{updateDto.orderTypeId, jdbcType=INTEGER},
+            start_price = #{updateDto.startPrice, jdbcType=DECIMAL},
+            delivery_price = #{updateDto.deliveryPrice, jdbcType=DECIMAL},
+            remarks = #{updateDto.remarks},
+            updater = #{updateDto.updater},
+            update_time = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+    <!-- 部分更新商户信息并返回完整对象 -->
+    <update id="patchBusiness" parameterType="map">
+        UPDATE business
+        <set>
+            <if test="updateDto.businessName != null and updateDto.businessName != ''">
+                business_name = #{updateDto.businessName},
+            </if>
+            <if test="updateDto.businessAddress != null and updateDto.businessAddress != ''">
+                business_address = #{updateDto.businessAddress},
+            </if>
+            <if test="updateDto.businessExplain != null and updateDto.businessExplain != ''">
+                business_explain = #{updateDto.businessExplain},
+            </if>
+            <if test="updateDto.businessImg != null and updateDto.businessImg != ''">
+                business_img = #{updateDto.businessImg},
+            </if>
+            <if test="updateDto.orderTypeId != null">
+                order_type_id = #{updateDto.orderTypeId},
+            </if>
+            <if test="updateDto.orderTypeId == null">
+                order_type_id = 1,
+            </if>
+            <if test="updateDto.startPrice != null">
+                start_price = #{updateDto.startPrice},
+            </if>
+            <if test="updateDto.deliveryPrice != null">
+                delivery_price = #{updateDto.deliveryPrice},
+            </if>
+            <if test="updateDto.remarks != null and updateDto.remarks != ''">
+                remarks = #{updateDto.remarks},
+            </if>
+            <if test="updateDto.updater != null">
+                updater = #{updateDto.updater},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <!-- 完全更新商户所有者信息 -->
+    <update id="updateBusinessOwner" parameterType="map">
+        UPDATE users u
+            JOIN business b ON u.id = b.user_id AND b.is_deleted = 0
+            SET
+                u.username = #{updateDto.businessOwner.username},
+                u.updater = #{updateDto.businessOwner.updater},
+                u.update_time = NOW()
+        WHERE b.id = #{id} AND u.is_deleted = 0
+    </update>
+    <!-- 部分更新商户所有者信息 -->
+    <update id="patchBusinessOwner" parameterType="map">
+        UPDATE users u
+        JOIN business b ON u.id = b.user_id AND b.is_deleted = 0
+        <set>
+            <if test="updateDto.businessOwner != null and updateDto.businessOwner.username != null and updateDto.businessOwner.username != ''">
+                u.username = #{updateDto.businessOwner.username},
+            </if>
+            <if test="updateDto.businessOwner != null and updateDto.businessOwner.updater != null">
+                u.updater = #{updateDto.businessOwner.updater},
+            </if>
+            u.update_time = NOW()
+        </set>
+        WHERE b.id = #{id} AND u.is_deleted = 0
+    </update>
+
+    <!-- 获取所有商户列表 -->
+    <select id="getBusinesses" resultMap="businessVOResultMap">
+        SELECT
+            b.id as business_id,
+            b.business_name,
+            b.business_address,
+            b.business_explain,
+            b.business_img,
+            b.order_type_id,
+            b.start_price,
+            b.delivery_price,
+            b.remarks,
+            b.creator as business_creator,
+            b.updater as business_updater,
+            b.create_time as business_create_time,
+            b.update_time as business_update_time,
+            b.is_deleted as business_deleted,
+
+            u.id as user_id,
+            u.username as user_username,
+            u.create_time as user_create_time,
+            u.creator as user_creator,
+            u.is_deleted as user_deleted,
+            u.update_time as user_update_time,
+            u.updater as user_updater
+        FROM business b
+                 LEFT JOIN users u ON b.user_id = u.id
+        WHERE b.is_deleted = 0
+        ORDER BY b.create_time DESC
+    </select>
+
+    <!-- 插入商户 -->
+    <insert id="insertBusiness" parameterType="com.tju.elm_bk.dto.BusinessDTO"
+            useGeneratedKeys="true" keyProperty="businessDto.id" keyColumn="id">
+        INSERT INTO business (
+            business_name,
+            business_address,
+            business_explain,
+            business_img,
+            order_type_id,
+            start_price,
+            delivery_price,
+            remarks,
+            user_id,
+            creator,
+            updater,
+            create_time,
+            update_time,
+            is_deleted
+        ) VALUES (
+                     #{businessDto.businessName},
+                     #{businessDto.businessAddress},
+                     #{businessDto.businessExplain},
+                     #{businessDto.businessImg},
+                     #{businessDto.orderTypeId},
+                     #{businessDto.startPrice},
+                     #{businessDto.deliveryPrice},
+                     #{businessDto.remarks},
+                     #{businessDto.businessOwner.id},
+                     #{businessDto.creator},
+                     #{businessDto.updater},
+                     NOW(),
+                     NOW(),
+                     0
+                 )
+    </insert>
+    <insert id="insertBusinessPermission" parameterType="com.tju.elm_bk.dto.BusinessPermissionDTO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO business
+        (
+        business_name,
+        business_address,
+        business_explain,
+        business_img,
+        order_type_id,
+        start_price,
+        delivery_price,
+        remarks,
+        user_id,
+        creator,
+        updater,
+        create_time,
+        update_time,
+        is_deleted,
+        status
+        ) VALUES (
+        #{businessName},
+        #{businessAddress},
+        #{businessExplain},
+        #{businessImg},
+        #{orderTypeId},
+        #{startPrice},
+        #{deliveryPrice},
+        #{remarks},
+        #{userId},
+        #{creator},
+        #{updater},
+        #{createTime},
+        #{updateTime},
+        0,
+        #{status}
+        )
+    </insert>
+
+    <select id="searchBusinesses" resultType="com.tju.elm_bk.vo.BusinessSearchVO">
+        SELECT
+        id,
+        business_name as businessName,
+        business_img as businessImg,
+        start_price as startPrice,
+        delivery_price as deliveryPrice
+        FROM business
+        WHERE is_deleted = 0 AND status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (business_name LIKE CONCAT('%', #{keyword}, '%')
+            OR business_explain LIKE CONCAT('%', #{keyword}, '%')
+            OR business_address LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+
+    <select id="getInteractionCounts" resultType="java.util.Map">
+        SELECT
+            COALESCE(SUM(CASE WHEN liked = 1 THEN 1 ELSE 0 END), 0) as likeCount,
+            COALESCE(SUM(CASE WHEN collected = 1 THEN 1 ELSE 0 END), 0) as collectCount
+        FROM merchant_interaction
+        WHERE merchant_id = #{businessId}
+    </select>
+
+    <insert id="applyForAddBusiness" parameterType="com.tju.elm_bk.entity.Business"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO business (
+            business_name,
+            business_address,
+            business_explain,
+            business_img,
+            delivery_price,
+            start_price,
+            order_type_id,
+            remarks,
+            create_time,
+            creator,
+            is_deleted,
+            update_time,
+            updater,
+            user_id,
+            status
+        ) VALUES (
+                     #{businessName},
+                     #{businessAddress},
+                     #{businessExplain},
+                     #{businessImg},
+                     #{deliveryPrice},
+                     #{startPrice},
+                     #{orderTypeId},
+                     #{remarks},
+                     #{createTime},
+                     #{creator},
+                     #{is_deleted},
+                     #{updateTime},
+                     #{updater},
+                     #{userId},
+                     #{status}
+                 )
+    </insert>
+
+
+</mapper>

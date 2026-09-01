@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tju.elm_bk.mapper.NotificationMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into notification (user_id, notification_type, notification_content, audit_result, is_read, create_time, read_time, is_deleted)
+        values (#{userId}, #{notificationType}, #{notificationContent}, #{auditResult}, #{isRead}, #{createTime}, #{readTime}, #{isDeleted})
+    </insert>
+</mapper>

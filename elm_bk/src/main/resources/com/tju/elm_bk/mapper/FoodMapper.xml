@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tju.elm_bk.mapper.FoodMapper">
+
+    <resultMap id="foodVOResultMap" type="com.tju.elm_bk.vo.FoodVO">
+        <id property="id" column="id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="creator" column="creator"/>
+        <result property="updater" column="updater"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="foodName" column="food_name"/>
+        <result property="foodExplain" column="food_explain"/>
+        <result property="foodImg" column="food_img"/>
+        <result property="foodPrice" column="food_price"/>
+        <result property="remarks" column="remarks"/>
+        <result property="foodPrice" column="food_price"/>
+        <association property="business" resultMap="businessVOResultMap"/>
+    </resultMap>
+
+    <resultMap id="businessVOResultMap" type="com.tju.elm_bk.vo.BusinessVO">
+        <id property="id" column="business_id"/>
+        <result property="businessName" column="business_business_name"/>
+        <result property="businessAddress" column="business_business_address"/>
+        <result property="businessExplain" column="business_business_explain"/>
+        <result property="businessImg" column="business_business_img"/>
+        <result property="orderTypeId" column="business_order_type_id"/>
+        <result property="startPrice" column="business_start_price"/>
+        <result property="deliveryPrice" column="business_delivery_price"/>
+        <result property="remarks" column="business_remarks"/>
+        <result property="creator" column="business_creator"/>
+        <result property="updater" column="business_updater"/>
+        <result property="createTime" column="business_create_time"/>
+        <result property="updateTime" column="business_update_time"/>
+        <result property="isDeleted" column="business_deleted"/>
+        <association property="businessOwner" resultMap="userVOResultMap"/>
+    </resultMap>
+
+    <resultMap id="userVOResultMap" type="com.tju.elm_bk.vo.UserVO">
+        <id property="id" column="user_id"/>
+        <result property="username" column="user_username"/>
+        <result property="createTime" column="user_create_time"/>
+        <result property="creator" column="user_creator"/>
+        <result property="isDeleted" column="user_deleted"/>
+        <result property="updateTime" column="user_update_time"/>
+        <result property="updater" column="user_updater"/>
+        <collection property="authorities" ofType="com.tju.elm_bk.entity.Authority"
+                    select="selectAuthoritiesByUserId" column="name"/>
+    </resultMap>
+
+    <select id="selectAuthoritiesByUserId" resultType="com.tju.elm_bk.entity.Authority">
+        SELECT ua.authority_name as name FROM user_authority ua WHERE ua.user_id = #{id}
+    </select>
+
+    <select id="selectFoodVOById" resultMap="foodVOResultMap">
+        SELECT
+            f.id,
+            f.create_time,
+            f.update_time,
+            f.creator,
+            f.updater,
+            f.is_deleted,
+            f.food_name,
+            f.food_explain,
+            f.food_img,
+            f.food_price,
+            f.remarks,
+            f.business_id,
+
+            b.business_name as business_business_name,
+            b.business_address as business_business_address,
+            b.business_explain as business_business_explain,
+            b.business_img as business_business_img,
+            b.order_type_id as business_order_type_id,
+            b.start_price as business_start_price,
+            b.delivery_price as business_delivery_price,
+            b.remarks as business_remarks,
+            b.creator as business_creator,
+            b.updater as business_updater,
+            b.create_time as business_create_time,
+            b.update_time as business_update_time,
+            b.is_deleted as business_deleted,
+
+            u.id as user_id,
+            u.username as user_username,
+            u.create_time as user_create_time,
+            u.creator as user_creator,
+            u.is_deleted as user_deleted,
+            u.update_time as user_update_time,
+            u.updater as user_updater
+        FROM food f
+            LEFT JOIN business b ON f.business_id = b.id
+            LEFT JOIN users u ON b.user_id = u.id
+        WHERE f.id = #{id} AND f.is_deleted = 0
+    </select>
+
+    <select id="selectFoodVOList" resultMap="foodVOResultMap">
+        SELECT
+        f.id,
+        f.create_time,
+        f.update_time,
+        f.creator,
+        f.updater,
+        f.is_deleted,
+        f.food_name,
+        f.food_explain,
+        f.food_img,
+        f.food_price,
+        f.remarks,
+        f.business_id,
+
+        b.business_name as business_business_name,
+        b.business_address as business_business_address,
+        b.business_explain as business_business_explain,
+        b.business_img as business_business_img,
+        b.order_type_id as business_order_type_id,
+        b.start_price as business_start_price,
+        b.delivery_price as business_delivery_price,
+        b.remarks as business_remarks,
+        b.creator as business_creator,
+        b.updater as business_updater,
+        b.create_time as business_create_time,
+        b.update_time as business_update_time,
+        b.is_deleted as business_deleted,
+
+        u.id as user_id,
+        u.username as user_username,
+        u.create_time as user_create_time,
+        u.creator as user_creator,
+        u.is_deleted as user_deleted,
+        u.update_time as user_update_time,
+        u.updater as user_updater
+        FROM food f
+        <if test="null != orderId">
+            RIGHT JOIN orderdetailet od ON od.food_id = f.id
+        </if>
+        LEFT JOIN business b ON f.business_id = b.id
+        LEFT JOIN users u ON b.user_id = u.id
+        WHERE f.is_deleted = 0
+        <if test="businessId != null">
+            AND f.business_id = #{businessId}
+        </if>
+        <if test="null != orderId">
+            AND od.order_id = #{orderId}
+        </if>
+        ORDER BY f.create_time DESC
+    </select>
+
+    <insert id="insertFood" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO food (create_time, creator, is_deleted, update_time, updater, food_explain, food_img, food_name, food_price, remarks, business_id)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{foodExplain}, #{foodImg}, #{foodName}, #{foodPrice}, #{remarks}, #{businessId})
+    </insert>
+
+
+
+
+    <select id="selectFoodItemVOList" resultType="com.tju.elm_bk.vo.FoodItemVO">
+        select f.*, b.business_name
+        from food f
+        left join business b on b.id = f.business_id and b.is_deleted = 0
+        <where>
+            f.is_deleted = 0 and b.id = #{businessId}
+            <if test="shelveStatus != null">
+                and f.shelve_status = #{shelveStatus}
+            </if>
+        </where>
+        order by f.shelve_status desc
+    </select>
+
+
+
+</mapper>
