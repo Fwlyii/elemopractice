@@ -1,7 +1,8 @@
-# 报告目录
+# 报告
 
-- `source/`：LaTeX 源码、图片和协作说明。
-- `result/tjumain.pdf`：当前可阅读版本。
-- `SRS协作与审阅清单.md`：文字、UML、其他示意图与发布检查项。
+- `source/tjumain.tex`：LaTeX 入口。
+- `source/body/srs/`：SRS 正文，各文件内容见目录内的 `README.md`。
+- `source/figures/srs/`：SRS 图片及待补图片清单。
+- `result/tjumain.pdf`：编译结果。
 
-编译和分文件编辑方法见 `source/README.md`。
+在 `source/` 目录运行 `make pdf` 即可重新生成 PDF。

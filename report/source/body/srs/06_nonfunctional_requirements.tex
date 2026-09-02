@@ -6,7 +6,7 @@
 
 系统采用浏览器访问的前后端分离结构：Vue 3 前端负责页面展示与交互，Spring Boot 后端负责身份认证、权限校验和业务规则，MySQL 保存持久化数据。AI、地图和对象存储由后端适配层统一封装，自动化测试使用可控的 Mock/Stub。系统部署关系见图~\ref{fig:system-deployment}。
 
-\srsfigure{figures/srs/17-system-deployment.pdf}{系统部署及外部依赖图}{fig:system-deployment}
+\srsfigure{figures/srs/17-system-deployment.pdf}{系统部署及外部依赖图}{UML 部署图}{fig:system-deployment}
 
 \begin{enumerate}
   \item 前端不得直接连接数据库或持有外部服务密钥；所有核心业务写操作通过后端完成。
@@ -71,11 +71,11 @@ AI 客服 & 10 秒超时并进入降级 & 使用可控延迟的测试适配器 \
 
 顾客端以店铺浏览、购物车、订单和个人中心为主导航；商家端以店铺、商品、订单和看板为主；骑手端以可接任务、当前任务和历史为主；管理端以审核、治理和平台看板为主。角色切换后进入相应工作台，不保留上一角色的私有页面状态。
 
-\srsfigure{figures/srs/15-page-information-architecture.pdf}{四端页面信息架构图}{fig:page-ia}
+\srsfigure{figures/srs/15-page-information-architecture.pdf}{四端页面信息架构图}{非 UML：信息架构图}{fig:page-ia}
 
 关键页面原型至少包含顾客 AI 点餐页、订单履约详情页、商家订单工作台、骑手当前任务页和管理员审核/看板页。原型用于约定信息层级和状态反馈，视觉色彩可以在不改变需求的前提下调整。
 
-\srsfigure{figures/srs/16-key-page-wireframes.pdf}{关键页面低保真原型组}{fig:key-wireframes}
+\srsfigure{figures/srs/16-key-page-wireframes.pdf}{关键页面低保真原型组}{非 UML：低保真原型}{fig:key-wireframes}
 
 \begin{longtable}{|L{0.17\linewidth}|L{0.31\linewidth}|L{0.42\linewidth}|}
 \caption{页面通用状态}\label{tab:ui-state}\\ \hline

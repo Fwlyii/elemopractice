@@ -4,7 +4,7 @@
 
 执行者是位于系统边界之外、通过系统获得业务价值或向系统提供服务的人或外部系统。图~\ref{fig:actor-analysis} 说明执行者之间的泛化与协作关系；同一个自然人在通过审核后可以拥有多个业务角色，但每次请求仍按当前角色及资源归属授权。
 
-\srsfigure{figures/srs/09-actor-analysis.pdf}{系统执行者分析图}{fig:actor-analysis}
+\srsfigure{figures/srs/09-actor-analysis.pdf}{系统执行者分析图}{UML 用例图}{fig:actor-analysis}
 
 \begin{longtable}{|L{0.16\linewidth}|L{0.26\linewidth}|L{0.48\linewidth}|}
 \caption{系统执行者说明}\label{tab:actors}\\ \hline
@@ -20,8 +20,6 @@
 
 \subsection{总用例}
 
-\srsfigure{figures/srs/10-system-use-case.pdf}{系统总用例图}{fig:system-use-case}
+\srsfigure{figures/srs/10-system-use-case.pdf}{系统总用例图}{UML 用例图}{fig:system-use-case}
 
-总用例图展示游客、四类登录角色和外部服务与一级用例的关系。角色内部的用例关系在后续分图与用例表中展开。每项需求使用稳定编号，接口、数据库、测试和验收材料应引用同一编号。
-
-用例描述字段参照《UML 大战需求分析》附录 1，包括编号、名称、执行者、优先级、描述、前置条件、基本流程、结束状况、可选流程、异常流程和说明；本项目额外保留“验收标准”字段，以便将需求直接映射到测试。无实际内容的字段可以省略。
+总用例图展示游客、四类登录角色和外部服务与一级用例的关系。角色用例在后续分图和用例表中展开，需求编号同时用于接口、数据库和测试材料。

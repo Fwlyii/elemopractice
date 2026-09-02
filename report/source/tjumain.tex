@@ -1,9 +1,5 @@
-% !Mode:: "TeX:UTF-8"
-
-\def\usewhat{xelatex}                                % 使用现代 XeTeX 兼容编译方式
-                                                     % 优先使用 macOS 中文字体，其他平台自动回退 Fandol。
+\def\usewhat{xelatex}
 \documentclass[12pt,openany,oneside,fontset=none]{ctexbook}
-                                                     % 本科生毕业论文通常采用单页排版
 \IfFontExistsTF{STSong}{
   \setCJKmainfont[BoldFont=STHeiti]{STSong}
   \setCJKsansfont[AutoFakeBold=2.5]{STHeiti}
@@ -21,39 +17,36 @@
   \setCJKfamilyfont{zhkai}{FandolKai-Regular}
   \setCJKfamilyfont{zhfs}{FandolFang-Regular}
 }
-\input{setup/package}                                % 定义本文所使用宏包
-\graphicspath{{figures/}{figures/srs/}}               % 报告公共图片与 SRS 图片目录
-\begin{document}                                     % 开始全文
-	\input{setup/format}                             % 完成对论文各个部分格式的设置
+\input{setup/package}
+\graphicspath{{figures/}{figures/srs/}}
+\begin{document}
+	\input{setup/format}
 	\input{setup/info}
-	\frontmatter                                     % 以下是论文导言部分，包括论文的封面，中英文摘要和中文目录
-	\hypersetup{pageanchor=false}                    % 前置页不创建重复的数字页锚点
-	\fancypagestyle{plain}{							 % 正文前均无页眉
+	\frontmatter
+	\hypersetup{pageanchor=false}
+	\fancypagestyle{plain}{
 		\fancyhf{}
 		\renewcommand{\headrulewidth}{0 pt}
 		\fancyfoot[C]{\song\xiaowu~\thepage~}
 	}
 
-	\makecover 			% 封面
+	\makecover
 
-	\input{setup/toc} % 目录
+	\input{setup/toc}
 
 	\mainmatter\hypersetup{pageanchor=true}\defaultfont\sloppy\raggedbottom
 	\makeatletter
-	\fancypagestyle{plain}{                              % 设置正文眉页脚风格
+	\fancypagestyle{plain}{
 		\fancyhf{}
-		\fancyhead[C]{\song\wuhao \@cheading}            % 页眉格式
-		\fancyfoot[C]{\song\xiaowu ~\thepage~}           % 页脚格式
+		\fancyhead[C]{\song\wuhao \@cheading}
+		\fancyfoot[C]{\song\xiaowu ~\thepage~}
 		\renewcommand{\headrulewidth}{0.5pt}
 		\renewcommand{\footrulewidth}{0pt}
 	}
 	\makeatother
-	\setcounter{page}{1}                                 % 单独从 1 开始编页码
-	\titleformat{\chapter}{\centering\xiaosan\hei}{\chaptername}{2em}{} % 恢复chapter标题格式要求
+	\setcounter{page}{1}
+	\titleformat{\chapter}{\centering\xiaosan\hei}{\chaptername}{2em}{}
 
-	%%%%%% 正文入口：章节内部再按主题拆分，便于并行协作 %%%%%%
 	\input{body/srs/index}
 
-	% \clearpage
-
-\end{document}                                 % 结束全文
+\end{document}

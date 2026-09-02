@@ -164,6 +164,7 @@
 \def\cauthor#1{\def\@cauthor{#1}}\def\@cauthor{}
 \def\cnumber#1{\def\@cnumber{#1}}\def\@cnumber{}
 \def\cstuid#1{\def\@cstuid{#1}}\def\@cstuid{}
+\def\cmembers#1{\def\@cmembers{#1}}\def\@cmembers{}
 \def\cdate#1{\def\@cdate{#1}}\def\@cdate{}
 \long\def\cabstract#1{\long\def\@cabstract{#1}}\long\def\@cabstract{}
 \long\def\eabstract#1{\long\def\@eabstract{#1}}\long\def\@eabstract{}
@@ -199,7 +200,7 @@
       \includegraphics[width=0.3\textwidth]{figures/Tjulogo}
       \end{figure}
 
-      \vspace*{60pt}
+      \vspace*{40pt}
       \renewcommand\arraystretch{1.5}
       \setlength{\@title@width}{8cm}
       {
@@ -208,12 +209,20 @@
             \textbf{学\qquad 院}  &  \underline{\makebox[\@title@width][c]{\textbf{\@caffil}}} \\
             \textbf{专\qquad 业}  &  \underline{\makebox[\@title@width][c]{\textbf{\@csubject}}} \\
             \textbf{年\qquad 级}  &  \underline{\makebox[\@title@width][c]{\textbf{\@cgrade}}}\\
-            \textbf{姓\qquad 名}  &  \underline{\makebox[\@title@width][c]{\textbf{\@cauthor}}}\\
-            \textbf{学\qquad 号}  &  \underline{\makebox[\@title@width][c]{\textbf{\@cstuid}}}\\
           \end{tabular}
         }
-    }
-    \vspace*{40pt}
+      }
+
+      \vspace*{8pt}
+      {\xiaosi\song
+        \renewcommand\arraystretch{1.25}
+        \begin{tabular}{|c|c|}
+          \hline
+          \makebox[4.2cm][c]{\textbf{学号}} & \makebox[3.2cm][c]{\textbf{姓名}} \\ \hline
+          \@cmembers
+        \end{tabular}
+      }
+    \vspace*{22pt}
 
     \song\sanhao{\textbf{\@cdate}}
     \end{center}

@@ -8,13 +8,13 @@
 
 \subsubsection{总体活动流程}
 
-\srsfigure{figures/srs/04-fulfillment-activity.pdf}{外卖订单履约活动图}{fig:fulfillment-activity}
+\srsfigure{figures/srs/04-fulfillment-activity.pdf}{外卖订单履约活动图}{UML 活动图}{fig:fulfillment-activity}
 
 图~\ref{fig:fulfillment-activity} 使用顾客、订单服务、商家、配送服务、骑手和通知服务六个泳道，包含库存不足、支付失败、商家拒单、用户取消和配送异常等分支。
 
 \subsubsection{订单状态}
 
-\srsfigure{figures/srs/05-order-state.pdf}{订单状态机图}{fig:order-state}
+\srsfigure{figures/srs/05-order-state.pdf}{订单状态机图}{UML 状态机图}{fig:order-state}
 
 \begin{longtable}{|L{0.16\linewidth}|L{0.18\linewidth}|L{0.18\linewidth}|L{0.38\linewidth}|}
 \caption{订单状态转换}\label{tab:order-state}\\ \hline
@@ -33,7 +33,7 @@
 
 \subsubsection{配送任务状态}
 
-\srsfigure{figures/srs/06-delivery-state.pdf}{配送任务状态机图}{fig:delivery-state}
+\srsfigure{figures/srs/06-delivery-state.pdf}{配送任务状态机图}{UML 状态机图}{fig:delivery-state}
 
 \begin{longtable}{|L{0.18\linewidth}|L{0.18\linewidth}|L{0.20\linewidth}|L{0.34\linewidth}|}
 \caption{配送任务状态转换}\label{tab:delivery-state}\\ \hline
@@ -62,12 +62,12 @@
 
 \subsubsection{结算与资产回退顺序}
 
-\srsfigure{figures/srs/07-settlement-sequence.pdf}{订单结算与资产处理顺序图}{fig:settlement-sequence}
+\srsfigure{figures/srs/07-settlement-sequence.pdf}{订单结算与资产处理顺序图}{UML 顺序图}{fig:settlement-sequence}
 
 结算顺序固定为“商品小计→会员折扣→优惠券→积分抵扣→钱包/模拟支付”。每单最多使用一张优惠券；优惠后应付金额不得小于零；订单取消时按原流水生成反向流水，不直接删除原记录。
 
 \subsection{AI 客服与智能点餐流程}
 
-\srsfigure{figures/srs/08-ai-assistant-sequence.pdf}{AI 客服与智能点餐顺序图}{fig:ai-assistant}
+\srsfigure{figures/srs/08-ai-assistant-sequence.pdf}{AI 客服与智能点餐顺序图}{UML 顺序图}{fig:ai-assistant}
 
 AI 客服可回答平台规则，也可在用户登录且后端通过资源归属校验后查询当前用户的订单状态。智能点餐根据预算、口味、忌口和当前可售菜单返回结构化候选商品；候选结果必须经商品服务二次校验，并由顾客明确确认后才能加入购物车。AI 不得直接支付、取消订单、修改库存或调整用户资产。

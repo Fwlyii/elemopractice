@@ -38,3 +38,7 @@ build/
 !.env.example
 application-local.yml
 application-local.yaml
+
+# macOS and local QA files
+.DS_Store
+tmp/
