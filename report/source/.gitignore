@@ -1,4 +1,5 @@
 *.pdf
+!figures/srs/*.pdf
 *.bat
 *.fls
 *.fdb_latexmk
@@ -10,3 +11,4 @@
 *.thm
 *.toc
 *.gz
+build/

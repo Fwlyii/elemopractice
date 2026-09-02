@@ -1,0 +1,50 @@
+\section{项目总体说明}
+
+\subsection{涉众分析}
+
+\begin{longtable}{|L{0.14\linewidth}|L{0.30\linewidth}|L{0.46\linewidth}|}
+\caption{涉众分析}\label{tab:stakeholders}\\ \hline
+\textbf{涉众} & \textbf{主要目标} & \textbf{待解决问题} \\ \hline
+顾客 & 高效、透明地完成点餐 & 快速查找合适菜品，理解优惠与应付金额，查看履约进度，处理取消、收货和评价。 \\ \hline
+商家 & 维护店铺并稳定履约 & 控制营业状态、商品和库存，按状态处理订单，与骑手完成取餐交接。 \\ \hline
+骑手 & 安全承接并完成配送 & 查看可接任务，避免重复抢单，按次序完成取餐、配送、送达和异常上报。 \\ \hline
+管理员 & 保证平台准入和运行秩序 & 审核商家、店铺和骑手，处理账号、评价和配送异常，查看平台统计。 \\ \hline
+验收人员 & 根据稳定基线复现结果 & 在统一环境和初始数据下，按需求编号验证正常、异常、权限和边界场景。 \\ \hline
+\end{longtable}
+
+\subsection{角色与权限边界}
+
+\begin{longtable}{|L{0.14\linewidth}|L{0.28\linewidth}|L{0.28\linewidth}|L{0.20\linewidth}|}
+\caption{角色权限边界}\label{tab:role-permission}\\ \hline
+\textbf{角色} & \textbf{可读数据} & \textbf{可写数据} & \textbf{禁止行为} \\ \hline
+顾客 & 公开店铺商品、本人订单与资产 & 本人资料、地址、购物车、订单和评价 & 访问他人订单、直接改价或跳过订单状态 \\ \hline
+商家 & 本人店铺、商品、订单和统计 & 本人店铺资源、合法的商家履约状态 & 操作非本店数据、修改顾客原评价 \\ \hline
+骑手 & 可接任务和本人活动/历史任务 & 本人任务的到店、取餐、送达与异常信息 & 查看非必要顾客资料、操作他人任务 \\ \hline
+管理员 & 审核材料、平台治理数据和汇总统计 & 审核、账号状态、评价展示状态和异常处理结果 & 直接覆盖资产流水或删除审计记录 \\ \hline
+\end{longtable}
+
+\subsection{系统范围与边界}
+
+\srsfigure{figures/srs/01-system-context.pdf}{系统上下文图}{fig:system-context}
+
+图~\ref{fig:system-context} 应展示四类登录角色、轻量级外卖服务平台以及 AI、地图和对象存储等外部依赖。外部服务仅提供候选结果或导航能力，不直接写入订单、库存和用户资产。
+
+\subsection{功能范围}
+
+\begin{longtable}{|L{0.12\linewidth}|L{0.24\linewidth}|L{0.54\linewidth}|}
+\caption{分级功能范围}\label{tab:scope}\\ \hline
+\textbf{级别} & \textbf{模块} & \textbf{范围} \\ \hline
+P0 & 核心交易 & 账号、地址、店铺商品、购物车、订单、模拟支付、取消、查询与确认收货。 \\ \hline
+P0 & 履约和治理 & 商家接单/制作/出餐，骑手申请/上线/接单/取餐/配送/异常，管理员准入审核与账号治理。 \\ \hline
+P1 & 智能体验 & 权限受控的 AI 客服、订单查询、菜单搜索和结构化智能点餐。 \\ \hline
+P1 & 增强业务 & 模拟钱包、积分、单张优惠券、固定会员权益、评价闭环、三类数据看板、地图导航入口和实时状态通知。 \\ \hline
+P2 & 可选增强 & 图片识菜、语音输入、每日幸运主题、AI 商家经营摘要和实时 GPS 轨迹。 \\ \hline
+\end{longtable}
+
+\subsection{范围外事项}
+
+本期不接入真实微信/支付宝资金清算，不实现复杂自动派单、骑手薪资与劳动关系、人工客服坐席、跨平台物流、任意组合的促销叠加和持续实时 GPS 轨迹。地图仅提供取餐和送餐导航入口，文本地址始终可用。
+
+\subsection{运行环境与假设}
+
+系统采用 Vue 3 前端、Spring Boot 后端和 MySQL 数据库。基线验收使用项目提供的演示账号与初始化数据，只要浏览器能访问项目服务即可完成基础业务。AI、地图和对象存储通过适配接口调用，其凭证只保存在后端环境变量中。

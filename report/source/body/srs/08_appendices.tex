@@ -1,0 +1,48 @@
+\section{附录}
+
+\subsection{基线业务配置}
+
+\begin{longtable}{|L{0.28\linewidth}|L{0.20\linewidth}|L{0.42\linewidth}|}
+\caption{基线业务配置}\label{tab:baseline-config}\\ \hline
+\textbf{配置项} & \textbf{基线值} & \textbf{说明} \\ \hline
+手机号 & 11 位数字 & 作为登录账号时全局唯一 \\ \hline
+密码长度 & 8--32 个字符 & 至少包含字母和数字，只保存安全哈希 \\ \hline
+待支付超时 & 15 分钟 & 超时后取消并释放预占库存/优惠券 \\ \hline
+送达后自动完成 & 24 小时 & 顾客未主动确认时由系统完成 \\ \hline
+顾客自助取消 & 待支付、待商家接单 & 商家接单进入制作中后不提供自助取消 \\ \hline
+评价评分/文字/图片 & 1--5 分；0--500 字；0--3 张 & 图片仅支持 JPG/PNG/WebP，单张最大 5 MB \\ \hline
+会员 & 30 天；95\% 折扣 & 只对商品小计打折，不对配送费打折 \\ \hline
+优惠券 & 每单最多 1 张 & 必须满足有效期、店铺/平台范围和最低金额 \\ \hline
+积分抵扣 & 100 积分 = 1 元；最多 20\% & 上限基于会员和优惠券计算后金额 \\ \hline
+积分发放 & 实付每满 1 元发 1 分 & 仅已完成订单发放，重复确认不重复发放 \\ \hline
+分页 & 默认 20，最大 100 & 页码从 1 开始 \\ \hline
+AI 超时 & 10 秒 & 超时返回降级结果，不自动修改购物车 \\ \hline
+\end{longtable}
+
+上述值可通过统一后端配置调整，但每次基线验收必须在测试报告中记录实际使用值，不得由前端页面各自写死不同规则。
+
+\subsection{业务错误类型}
+
+\begin{longtable}{|L{0.21\linewidth}|L{0.22\linewidth}|L{0.47\linewidth}|}
+\caption{业务错误类型}\label{tab:error-catalog}\\ \hline
+\textbf{类型} & \textbf{HTTP 状态} & \textbf{示例} \\ \hline
+参数错误 & 400 & 非法手机号、价格小于等于零、评分越界、日期范围错误 \\ \hline
+未认证 & 401 & 未提供凭证、凭证过期或签名无效 \\ \hline
+无权限 & 403 & 非管理员审核、非本店商家操作、非本任务骑手更新状态 \\ \hline
+资源不存在 & 404 & 订单、商品、地址或配送任务不存在 \\ \hline
+业务/并发冲突 & 409 & 重复注册、重复支付、非法状态转换、配送任务已被他人接取 \\ \hline
+外部服务不可用 & 503 & AI、地图或对象存储不可用；响应同时提供降级建议 \\ \hline
+\end{longtable}
+
+\subsection{配套交付物}
+
+SRS 后续应与数据库设计、REST 接口文档、自动化测试与覆盖率报告、需求变更记录、AI 辅助使用记录、部署说明和交叉验收记录保持需求编号一致。
+
+\section{版本修订记录}
+
+\begin{longtable}{|L{0.16\linewidth}|L{0.14\linewidth}|L{0.46\linewidth}|L{0.14\linewidth}|}
+\caption{版本修订记录}\label{tab:revision}\\ \hline
+\textbf{日期} & \textbf{作者} & \textbf{修订内容} & \textbf{版本} \\ \hline
+2026-09-02 & 项目组 & 形成覆盖四类角色、智能服务和质量要求的第一版文字稿。 & 1.0 \\ \hline
+2026-09-02 & 项目组 & 重构协作目录，收敛 P0/P1/P2 范围，明确订单、配送、资产和 AI 安全验收规则。 & 1.1 \\ \hline
+\end{longtable}

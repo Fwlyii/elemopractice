@@ -1,11 +1,28 @@
 % !Mode:: "TeX:UTF-8"
 
 \def\usewhat{xelatex}                                % 使用现代 XeTeX 兼容编译方式
-                                                     % 中文字体由 ctexbook 的 Fandol 字体方案提供。
-\documentclass[12pt,openany,oneside,fontset=fandol]{ctexbook}
+                                                     % 优先使用 macOS 中文字体，其他平台自动回退 Fandol。
+\documentclass[12pt,openany,oneside,fontset=none]{ctexbook}
                                                      % 本科生毕业论文通常采用单页排版
+\IfFontExistsTF{STSong}{
+  \setCJKmainfont[BoldFont=STHeiti]{STSong}
+  \setCJKsansfont[AutoFakeBold=2.5]{STHeiti}
+  \setCJKmonofont{STFangsong}
+  \setCJKfamilyfont{zhsong}[BoldFont=STHeiti]{STSong}
+  \setCJKfamilyfont{zhhei}[AutoFakeBold=2.5]{STHeiti}
+  \setCJKfamilyfont{zhkai}{STKaiti}
+  \setCJKfamilyfont{zhfs}{STFangsong}
+}{
+  \setCJKmainfont[BoldFont=FandolSong-Bold]{FandolSong-Regular}
+  \setCJKsansfont[BoldFont=FandolHei-Bold]{FandolHei-Regular}
+  \setCJKmonofont{FandolFang-Regular}
+  \setCJKfamilyfont{zhsong}[BoldFont=FandolSong-Bold]{FandolSong-Regular}
+  \setCJKfamilyfont{zhhei}[BoldFont=FandolHei-Bold]{FandolHei-Regular}
+  \setCJKfamilyfont{zhkai}{FandolKai-Regular}
+  \setCJKfamilyfont{zhfs}{FandolFang-Regular}
+}
 \input{setup/package}                                % 定义本文所使用宏包
-\graphicspath{{figures/}}                            % 定义所有的 .eps 文件在 figures 子目录下
+\graphicspath{{figures/}{figures/srs/}}               % 报告公共图片与 SRS 图片目录
 \begin{document}                                     % 开始全文
 	\input{setup/format}                             % 完成对论文各个部分格式的设置
 	\input{setup/info}
@@ -19,7 +36,7 @@
 
 	\makecover 			% 封面
 
-	\include{setup/toc} % 目录
+	\input{setup/toc} % 目录
 
 	\mainmatter\hypersetup{pageanchor=true}\defaultfont\sloppy\raggedbottom
 	\makeatletter
@@ -34,8 +51,8 @@
 	\setcounter{page}{1}                                 % 单独从 1 开始编页码
 	\titleformat{\chapter}{\centering\xiaosan\hei}{\chaptername}{2em}{} % 恢复chapter标题格式要求
 
-	%%%%%% 这里是正文，每个文件对应正文中的一章 %%%%%%
-	\include{body/srs}
+	%%%%%% 正文入口：章节内部再按主题拆分，便于并行协作 %%%%%%
+	\input{body/srs/index}
 
 	% \clearpage
 

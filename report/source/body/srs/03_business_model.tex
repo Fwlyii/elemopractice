@@ -1,0 +1,89 @@
+\section{业务模型与规则}
+
+\subsection{核心业务对象}
+
+\begin{longtable}{|L{0.19\linewidth}|L{0.25\linewidth}|L{0.46\linewidth}|}
+\caption{核心业务对象}\label{tab:domain-objects}\\ \hline
+\textbf{对象} & \textbf{责任} & \textbf{关键约束} \\ \hline
+User / Role & 保存账号、个人资料和角色 & 同一用户可具有多个角色；禁用账号不得登录。 \\ \hline
+Store / Product & 表示店铺、分类、商品和库存 & 未通过审核或休息店铺不可接收新订单；下架或库存为零的商品不可购买。 \\ \hline
+Cart / CartItem & 保存顾客当前待结算商品 & 一个购物车只包含同一店铺商品；金额仅供展示，提交订单时重新计算。 \\ \hline
+Order / OrderItem & 保存交易状态、金额和商品/地址快照 & 金额由后端计算；历史订单不因商品或地址修改而改变。 \\ \hline
+Payment\-Record & 记录模拟支付或钱包支付结果 & 支付状态与订单状态分离；同一订单仅有一次有效支付成功。 \\ \hline
+DeliveryTask & 保存履约状态、骑手和关键时间 & 一个订单可有多条历史配送尝试，但同一时刻最多一条活动任务。 \\ \hline
+Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人订单可评价；每个订单最多一条有效顾客评价。 \\ \hline
+\end{longtable}
+
+\srsfigure{figures/srs/02-core-domain-class.pdf}{核心交易与履约领域类图}{fig:core-domain-class}
+
+\subsection{营销资产与个性化对象}
+
+钱包、积分和优惠券均通过账户与流水追踪变化；会员保存方案、生效时间和到期时间；用户偏好仅影响展示、搜索和推荐，不改变历史订单。
+
+\srsfigure{figures/srs/03-assets-preference-class.pdf}{用户资产与个性化领域类图}{fig:assets-class}
+
+\subsection{外卖履约主流程}
+
+\srsfigure{figures/srs/04-fulfillment-activity.pdf}{外卖订单履约活动图}{fig:fulfillment-activity}
+
+图~\ref{fig:fulfillment-activity} 使用顾客、订单服务、商家、配送服务、骑手和通知服务六个泳道，必须包含库存不足、支付失败、商家拒单、用户取消和配送异常分支。
+
+\subsection{订单状态规则}
+
+\srsfigure{figures/srs/05-order-state.pdf}{订单状态机图}{fig:order-state}
+
+\begin{longtable}{|L{0.16\linewidth}|L{0.18\linewidth}|L{0.18\linewidth}|L{0.38\linewidth}|}
+\caption{订单状态转换}\label{tab:order-state}\\ \hline
+\textbf{当前状态} & \textbf{事件/执行者} & \textbf{目标状态} & \textbf{条件与副作用} \\ \hline
+无 & 提交订单/顾客 & 待支付 & 校验店铺、商品、地址和优惠；生成快照并预占库存与优惠券。 \\ \hline
+待支付 & 支付成功/顾客 & 待商家接单 & 确认支付流水和资产核销，向商家发送新订单通知。 \\ \hline
+待支付 & 主动取消或 15 分钟超时/顾客或系统 & 已取消 & 释放预占库存和优惠券，不生成扣款。 \\ \hline
+待商家接单 & 接单/商家 & 制作中 & 校验订单属于本店且未取消，记录接单时间。 \\ \hline
+待商家接单 & 拒单或顾客取消 & 已取消 & 记录取消方和原因，恢复库存并原路返还资产。 \\ \hline
+制作中 & 确认出餐/商家 & 待骑手接单 & 生成一条待接配送任务；顾客不再可自助取消。 \\ \hline
+待骑手接单 & 接单/骑手 & 待取餐 & 通过带状态条件的原子更新绑定唯一骑手。 \\ \hline
+待取餐 & 确认取餐/骑手 & 配送中 & 仅本任务骑手可操作，记录取餐时间。 \\ \hline
+配送中 & 确认送达/骑手 & 已送达 & 记录送达时间，向顾客发送确认收货提示。 \\ \hline
+已送达 & 确认收货或 24 小时超时/顾客或系统 & 已完成 & 纳入营业额和销量统计，发放积分并开放评价入口。 \\ \hline
+\end{longtable}
+
+\subsection{配送任务状态规则}
+
+\srsfigure{figures/srs/06-delivery-state.pdf}{配送任务状态机图}{fig:delivery-state}
+
+\begin{longtable}{|L{0.18\linewidth}|L{0.18\linewidth}|L{0.20\linewidth}|L{0.34\linewidth}|}
+\caption{配送任务状态转换}\label{tab:delivery-state}\\ \hline
+\textbf{当前状态} & \textbf{操作} & \textbf{目标状态} & \textbf{约束} \\ \hline
+待接单 & 骑手接单 & 已接单 & 骑手已审核、在线且无超出上限的活动任务；并发时仅一人成功。 \\ \hline
+已接单 & 确认到店 & 已接单 & 记录到店时间，不额外增加状态。 \\ \hline
+已接单 & 确认取餐 & 已取餐 & 商家已出餐，操作人为当前绑定骑手。 \\ \hline
+已取餐 & 开始配送 & 配送中 & 展示必要收货信息和地图导航入口。 \\ \hline
+配送中 & 确认送达 & 已送达 & 记录送达时间，完成后限制骑手继续读取敏感地址。 \\ \hline
+已接单/已取餐/配送中 & 上报异常 & 异常待处理 & 必须选择异常类型并填写说明，不允许骑手直接取消订单。 \\ \hline
+异常待处理 & 恢复/改派/终止 & 原状态/已取消 & 由管理员记录处理结果；改派时终止原任务并建立新任务。 \\ \hline
+\end{longtable}
+
+\subsection{订单与配送联动}
+
+\begin{longtable}{|L{0.20\linewidth}|L{0.22\linewidth}|L{0.20\linewidth}|L{0.28\linewidth}|}
+\caption{订单与配送联动矩阵}\label{tab:order-delivery-map}\\ \hline
+\textbf{订单状态} & \textbf{配送状态} & \textbf{可操作角色} & \textbf{主要操作} \\ \hline
+待支付/待商家接单/制作中 & 无 & 顾客/商家 & 支付、取消、接单、拒单、出餐 \\ \hline
+待骑手接单 & 待接单 & 骑手 & 查看任务、接单 \\ \hline
+待取餐 & 已接单 & 骑手/商家 & 到店、核对、取餐 \\ \hline
+配送中 & 已取餐/配送中 & 骑手 & 导航、送达、上报异常 \\ \hline
+已送达/已完成 & 已送达 & 顾客 & 确认收货、评价 \\ \hline
+已取消 & 无/已取消 & 系统/管理员 & 释放资源、保存取消和处理记录 \\ \hline
+\end{longtable}
+
+\subsection{资产结算与回退}
+
+\srsfigure{figures/srs/07-settlement-sequence.pdf}{订单结算与资产处理顺序图}{fig:settlement-sequence}
+
+结算顺序固定为“商品小计→会员折扣→优惠券→积分抵扣→钱包/模拟支付”。每单最多使用一张优惠券；优惠后应付金额不得小于零；订单取消时按原流水生成反向流水，不直接删除原记录。
+
+\subsection{AI 客服与智能点餐流程}
+
+\srsfigure{figures/srs/08-ai-assistant-sequence.pdf}{AI 客服与智能点餐顺序图}{fig:ai-assistant}
+
+AI 客服可回答平台规则，也可在登录且通过后端资源归属校验后查询当前用户的订单状态。智能点餐根据预算、口味、忌口和当前可售菜单返回结构化候选商品；候选结果必须经商品服务二次校验，并由顾客明确确认后才能加入购物车。AI 不得直接支付、取消订单、修改库存或调整用户资产。

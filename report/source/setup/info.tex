@@ -7,6 +7,10 @@
 %%  控制封面中下划线的长度。                                   %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% 交叉验收时将下行改为 \srsanonymoustrue，即可生成匿名封面与 PDF 元数据。
+\newif\ifsrsanonymous
+\srsanonymousfalse
+
 \cheading{软件工程综合实践~\textperiodcentered~需求分析附录~1}      % 正文页眉
 \ccovertitle{《软件工程综合实践》结课报告}                       % 封面标题
 
@@ -17,14 +21,18 @@
 \caffil{软件学院}       % 学院名称（已与页眉统一）
 \csubject{软件工程}     % 专业名称
 \cgrade{2024级}           % 年级
-\cauthor{范文丽、李承文、赵紫怡、仲禹潼}          % 学生姓名（按组员登记顺序）
-\cstuid{\xiaowu 3024244438、3024232129、3024244137、3024244140}     % 学号，与姓名顺序一致
+\ifsrsanonymous
+  \cauthor{匿名}
+  \cstuid{\xiaowu 匿名}
+\else
+  \cauthor{范文丽、李承文、赵紫怡、仲禹潼}          % 学生姓名（按组员登记顺序）
+  \cstuid{\xiaowu 3024244438、3024232129、3024244137、3024244140}     % 学号，与姓名顺序一致
+\fi
 
-\hypersetup{
-  pdftitle={轻量级外卖服务平台的需求规格说明书},
-  pdfauthor={范文丽、李承文、赵紫怡、仲禹潼},
-  pdfsubject={软件工程综合实践},
-  pdfkeywords={软件需求规格说明书, 外卖系统, 骑手配送}
-}
+\ifsrsanonymous
+  \hypersetup{pdftitle={轻量级外卖服务平台的需求规格说明书},pdfauthor={匿名},pdfsubject={软件工程综合实践},pdfkeywords={软件需求规格说明书, 外卖系统, 骑手配送}}
+\else
+  \hypersetup{pdftitle={轻量级外卖服务平台的需求规格说明书},pdfauthor={范文丽、李承文、赵紫怡、仲禹潼},pdfsubject={软件工程综合实践},pdfkeywords={软件需求规格说明书, 外卖系统, 骑手配送}}
+\fi
 
 \cdate{\the\year~年~\the\month~月~\the\day~日}  % 论文完成日期，不需要修改，自动生成

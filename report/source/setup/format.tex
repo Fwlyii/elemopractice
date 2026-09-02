@@ -6,11 +6,11 @@
 %           李幼萌 Youmeng Li: liyoumeng@tju.edu.cn   天津大学软件学院软件工程系
 
 %%%%%%%%%%%%%%%%% Fonts Definition and Basics %%%%%%%%%%%%%%%%%
-\newcommand{\song}{\songti}             % 宋体
-\newcommand{\fs}{\fangsong}             % 仿宋体
-\newcommand{\kai}{\kaishu}              % 楷体
-\newcommand{\hei}{\heiti}               % 黑体
-\newcommand{\li}{\songti}               % 隶书无对应字体时回退到宋体
+\newcommand{\song}{\CJKfamily{zhsong}}  % 宋体
+\newcommand{\fs}{\CJKfamily{zhfs}}      % 仿宋体
+\newcommand{\kai}{\CJKfamily{zhkai}}    % 楷体
+\newcommand{\hei}{\CJKfamily{zhhei}}    % 黑体
+\newcommand{\li}{\CJKfamily{zhsong}}    % 隶书无对应字体时回退到宋体
 \newcommand{\yihao}{\fontsize{26pt}{26pt}\selectfont}       % 一号, 单倍行距
 \newcommand{\xiaoyi}{\fontsize{24pt}{24pt}\selectfont}      % 小一, 单倍行距
 \newcommand{\erhao}{\fontsize{22pt}{1.25\baselineskip}\selectfont}       % 二号, 1.25倍行距
@@ -30,11 +30,6 @@
 % 调整罗列环境的布局
 \setitemize{leftmargin=3em,itemsep=0em,partopsep=0em,parsep=0em,topsep=-0em}
 \setenumerate{leftmargin=3em,itemsep=0em,partopsep=0em,parsep=0em,topsep=0em}
-
-% 避免宏包 hyperref 和 arydshln 不兼容带来的目录链接失效的问题。
-\def\temp{\relax}
-\let\temp\addcontentsline
-\gdef\addcontentsline{\phantomsection\temp}
 
 % 自定义项目列表标签及格式 \begin{publist} 列表项 \end{publist}
 \newcounter{pubctr} %自定义新计数器
@@ -69,21 +64,12 @@
 %%%%%%%%%%%%% Contents %%%%%%%%%%%%%%%%%
 \renewcommand{\contentsname}{目\qquad 录}
 \setcounter{tocdepth}{1} % 控制目录深度
-\titlecontents{chapter}[2em]{\vspace{.5\baselineskip}\xiaosan\song}
-             {\prechaptername\CJKnumber{\thecontentslabel}\postchaptername\qquad}{}
-             {\hspace{.5em}\titlerule*[10pt]{$\cdot$}\sihao\contentspage}
-\titlecontents{section}[4.2em]{\vspace{.25\baselineskip}\sihao\song}
-             {\thecontentslabel\quad}{}
-             {\hspace{.5em}\titlerule*[10pt]{$\cdot$}\sihao\contentspage}
-% \titlecontents{subsection}[4em]{\vspace{.25\baselineskip}\xiaosi\song}
-%              {\thecontentslabel\quad}{}
-%              {\hspace{.5em}\titlerule*[10pt]{$\cdot$}\sihao\contentspage}
 
 %%%%%%%%%% Chapter and Section %%%%%%%%%%%%%
 \setcounter{secnumdepth}{4}
 \setlength{\parindent}{2em}
 
-\renewcommand{\chaptername}{\prechaptername\CJKnumber{\thechapter}\postchaptername}
+\renewcommand{\chaptername}{\prechaptername\thechapter\postchaptername}
 \titleformat{\chapter}{\centering}{\xiaosan\song}{\chaptername}{} %{2em}
 \titlespacing{\chapter}{0pt}{0.1\baselineskip}{0.8\baselineskip}
 
@@ -100,8 +86,6 @@
 \renewcommand{\tablename}{表}                                     % 插表题头
 \renewcommand{\figurename}{图}                                    % 插图题头
 \renewcommand{\thefigure}{\arabic{chapter}-\arabic{figure}}       % 使图编号为 7-1 的格式 %\protect{~}
-\renewcommand{\thesubfigure}{\alph{subfigure})}                   % 使子图编号为 a) 的格式
-\renewcommand{\thesubtable}{(\alph{subtable})}                    % 使子表编号为 (a) 的格式
 \renewcommand{\thetable}{\arabic{chapter}-\arabic{table}}         % 使表编号为 7-1 的格式
 \renewcommand{\theequation}{\arabic{chapter}-\arabic{equation}}   % 使公式编号为 7-1 的格式
 
@@ -118,25 +102,6 @@
    \fi
    \vskip\belowcaptionskip}
 \makeatother
-\captiondelim{~~~~} %用来控制longtable表头分隔符
-
-%%%%%%%%%% Theorem Environment %%%%%%%%%%%%%%%%%
-\theoremstyle{plain}
-\theorembodyfont{\rmfamily\song}
-\theoremheaderfont{\rmfamily\hei}
-\newtheorem{theorem}{定理~}[chapter]
-\newtheorem{lemma}{引理~}[chapter]
-\newtheorem{axiom}{公理~}[chapter]
-\newtheorem{proposition}{命题~}[chapter]
-\newtheorem{prop}{性质~}[chapter]
-\newtheorem{corollary}{推论~}[chapter]
-\newtheorem{definition}{定义~}[chapter]
-\newtheorem{conjecture}{猜想~}[chapter]
-\newtheorem{example}{例~}[chapter]
-\newtheorem{remark}{注~}[chapter]
-%\newtheorem{algorithm}{算法~}[chapter]
-\newenvironment{proof}{\noindent{\hei 证明：}}{\hfill $ \square $ \vskip 4mm}
-\theoremsymbol{$\square$}
 
 %%%%%%%%%% Page: number, header and footer  %%%%%%%%%%%%%%%%%
 
@@ -223,11 +188,8 @@
       \vspace*{10pt}
       \begin{center}
 
-      \begin{figure}[h]
-      \centering
-      \includegraphics[width=0.4\textwidth]{figures/tju}
-      \end{figure}
-      \vspace*{15pt}
+      {\hei\yihao\textbf{天津大学}}\\[3pt]
+      {\rmfamily\sanhao\textbf{TIANJIN UNIVERSITY}}\\[15pt]
       \hei\erhao{\textbf{\@ccovertitle}} \\
       \hei\erhao{\textbf{\@ctitle}}
       \vspace*{55pt}
