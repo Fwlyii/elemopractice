@@ -1,1885 +1,1025 @@
-\chapter{软件需求规格说明书}
+% Generated from the appendix-style DOCX by docx_to_srs.py.
+% The DOCX contains figure placeholders but no embedded body images.
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thesubsection}{\thesection.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
+\setcounter{section}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
 
-\section{引言}\label{ux5f15ux8a00}
+\begin{flushright}
+{\hei\yihao\textbf{附录 1}}
+\end{flushright}
 
-\subsection{简介}\label{ux7b80ux4ecb}
+\begin{flushright}
+{\hei\sanhao\textbf{轻量级外卖服务平台的需求规格说明书}}
+\end{flushright}
+\vspace{0.8em}
 
-\begin{quote}
-本文档面向``饿了么''APP项目的客户决策者、项目经理、设计与开发团队、测试人员及相关参与方，旨在系统阐述产品完整需求。文档综合文字、UML图、ER图、活动图、类图、用例图等多种形式，明确规定了APP的功能组成、性能要求、用户界面、运行环境、外部接口及用户交互响应机制，既用于客户确认产品需求，也为开发提供清晰依据，同时支撑后续测试验收和系统迭代。
-\end{quote}
+本需求规格说明书说明“轻量级外卖服务平台（仿饿了么）”在本学期软件工程综合实践中的业务目标、涉众、业务概念、业务流程、功能性需求和非功能性需求。系统面向顾客、商家、骑手和管理员四类主要业务角色，包含用户、店铺、商品、购物车、订单、配送、会员与用户资产、个性化设置、智能点单、评价和数据分析等功能，并将测试驱动开发、RESTful 接口、分层架构、需求变更适配、Git 过程记录和交叉验收作为开发与验收约束。
 
-{\color{red}
-\textbf{本轮修订范围：}本项目按 2026 年《软件工程综合实践》要求定位为``轻量级外卖服务平台（仿饿了么）''，开发周期为 2026 年 8 月 31 日至 9 月 20 日，共 3 周，小组共 4 人。本文在既有顾客、商家和管理员功能之上，新增骑手配送、营销资产、个性化、智能交互、评价和数据看板模块，并将需求变更与 TDD 测试、REST 接口及交叉验收建立追踪关系。
+\section{简介}
 
-红色文字为本轮拟议的新增或替换需求，供小组审核；红色内容与原黑色基线冲突时，以红色内容为本轮修订候选版本。
-}
+\subsection{背景}
 
-\subsection{背景}\label{ux80ccux666f}
+\textbf{（1）项目背景}
 
-\textbf{(1)项目背景}
+本项目拟开发一个面向外卖业务场景的轻量级服务平台。系统围绕顾客点餐、商家经营、骑手配送和平台管理四类主要活动组织业务功能，使顾客能够完成从浏览商品、加入购物车、提交订单到确认收货和评价的完整操作，使商家能够完成店铺、商品、库存和订单处理，使骑手能够承担订单配送任务，并由管理员完成准入审核和异常治理。
 
-\begin{quote}
-在没有``饿了么''系统前，用户订餐需通过电话或第三方平台完成，订单管理混乱、易出错，商户菜单更新不及时，支付方式单一，用户体验较差。日常运营中出现以下问题：
+在外卖业务中，订单支付成功只是交易过程的一部分。商家需要接单并完成制作，骑手需要获得配送任务、到店取餐并送达，顾客还需要能够查看配送进度和确认收货。因此，系统将骑手作为独立业务角色，并以订单和配送任务的状态流转连接顾客、商家和骑手，使订单从创建到履约完成均有明确的责任角色和状态依据。
 
-①订单依赖人工记录和处理，错误频出且效率低下
+除基本交易和配送流程外，系统还考虑用户长期使用和平台运营所需的扩展能力。顾客可以管理优惠券、积分、会员和模拟钱包等个人资产，并保存主题、口味和忌口等偏好；商家可以通过评价和经营数据了解店铺情况；管理员可以查看用户、订单、骑手和异常配送等汇总信息。推荐、语音、图片识别和地图导航作为增强功能，用于减少查找商品和配送过程中的操作成本，但这些功能不能替代普通搜索、手工点餐和文本地址等基本能力。
 
-②商户无法自主管理商品和订单，沟通成本高
+\textbf{（2）项目目标与价值}
 
-③用户无法便捷地查询历史订单或管理个人偏好
+\begin{itemize}
+\item 形成完整交易与履约闭环。订单从创建、支付、商家接单、制作、出餐、骑手接单、取餐、配送到顾客确认收货均有明确的状态和责任角色。
+\item 提高业务管理效率。商家能够自行维护店铺、商品和库存并处理订单，骑手能够查看和执行本人配送任务，管理员能够完成准入审核和异常治理。
+\item 改善顾客使用体验。顾客能够统一维护购物车、地址、会员、钱包、积分、优惠券和偏好，并查看订单进度、评价和个人消费统计。
+\item 增强系统对需求变化的适应能力。系统按照分层、状态约束和外部服务适配的方式组织业务，使骑手配送、营销资产、个性化和智能服务等功能能够在明确边界内进行扩展。
+\item 形成可验证的软件工程过程。需求、接口、测试、实现、回归和验收之间保持对应关系，使项目结果不仅能够演示，还能够通过测试和 Git 记录说明开发过程。
+\end{itemize}
 
-④缺少系统化的购物车和地址管理，用户下单流程繁琐
+\textbf{（3）开发路线}
 
-在某次促销活动中，因订单量激增，人工处理出现大量错误，导致用户投诉激增、商户结算混乱，该事件促使管理层决定开发``饿了么''系统，以实现订单自动化处理、提升用户体验、增强商户自主管理能力。
-\end{quote}
+系统采用前后端分离方式开发。后端采用 Spring Boot 与 MyBatis/MyBatis-Plus，数据库采用 MySQL；前端采用 Vue 3、Vue Router 和组件化页面。后端按照 Entity、Mapper/Dao、Service、Controller 分层，统一处理异常、返回结构、参数校验和状态判断；前端统一封装请求、响应和认证逻辑，并按照顾客、商家、骑手和管理员组织页面及路由。地图、推荐、语音识别和图片识别能力通过独立接口接入，不直接写入订单核心流程。
 
-\textbf{(2)项目核心价值}
+\textbf{（4）项目开发条件}
 
-①提升运营效率：通过自动化订单处理和商户自助管理，大幅减少人工干预
+本项目按照课程规定的三周实践周期组织开发。项目组在需求分析阶段确定用户、商家、骑手、管理员四类主要角色，以及店铺、商品、购物车、订单、配送任务、会员资产、评价和数据分析等业务对象；在设计阶段确定前后端分离、后端分层、统一接口和统一异常处理等技术约束，并据此建立可逐步迭代的业务基线。
 
-②改善用户体验：提供完整的购物车、账号管理和订单跟踪功能，提升下单便捷性
+项目的有利条件是技术栈和课程目标明确，外卖业务的主要角色、业务对象和交易流程具有较清晰的边界；不利条件是实践周期只有三周，订单、配送和用户资产涉及较多状态、权限与一致性约束，智能服务还存在网络、接口和响应时间方面的不确定性。因此，开发时应区分核心业务与增强业务，优先保证用户、店铺、商品、购物车、订单和骑手配送主链路，再逐步完成会员资产、个性化、评价、统计和智能服务。
 
-③增强数据利用：系统化收集用户行为数据，为后续优化提供支持
+\textbf{（5）项目实施过程}
 
-④支持业务扩展：提供稳定、可扩展的系统基础，支持未来功能迭代和业务增长
+项目实践周期为三周。第一周完成用户、商家、店铺、商品、购物车和基础订单等固定需求，建立前后端分离架构和基础测试；第二周在第一阶段成果上增加骑手及其他变更需求，并通过新增测试和回归测试验证架构对需求变化的适应能力；第三周针对迭代过程中产生的耦合和冗余进行重构，完善异常处理、页面交互和数据校验，完成全量回归测试、文档整理和交叉验收。每个阶段均保存测试类、测试日志和相应提交记录。
 
-\textbf{(3)开发路线}
+\textbf{（6）业务范围}
 
-\begin{quote}
-基于公司的技术基础和偏好，本项目后续开发将延用之前采用的前后端分离的技术路线，主要技术栈如下：
-\end{quote}
+系统业务范围包括以下内容：
 
-后端：SpringBoot、MyBatis、WebSocket
+\begin{itemize}
+\item 骑手配送：包括骑手申请与审核、上线和下线、查看可接任务、接单、到店、取餐、配送、送达、异常上报和历史任务查询。
+\item 会员与用户资产：包括会员状态、钱包余额、模拟充值、积分、优惠券及其在订单结算中的查询、选择、核销和回退。
+\item 个性化设置：包括主题或皮肤、口味、忌口等偏好维护，并在用户再次登录时恢复。
+\item 智能点单：包括基于偏好的菜品推荐、图片识别候选菜品、语音转写点单草稿和配送导航等增强能力。
+\item 评价与数据分析：包括顾客订单评价、商家回复、顾客个人消费统计、商家经营统计及管理员平台数据汇总。
+\item 商品和店铺展示增强：包括月售、热销、库存、折扣、限购、活动展示和商家故事等信息。
+\end{itemize}
 
-前端：VUE 3
+系统不接入真实第三方支付清算，不承担骑手工资结算、保险和劳动关系管理，不实现人工客服坐席和 AI 客服转人工，不将好友拼单等与本次核心考察目标关系较弱的功能纳入实现范围。
 
-数据库：MySQL
+\subsection{定义、缩略语}
 
-{\color{red}
-后端继续采用 Spring Boot 与 MyBatis/MyBatis-Plus，严格保持 Entity、Mapper/Dao、Service、Controller 分层；前端采用 Vue 3、Vue Router 和组件化设计。所有新旧接口应逐步统一为带版本号的 REST 接口（以 \texttt{/api/v1} 为前缀），并使用统一响应、标准 HTTP 状态码和全局异常处理。
-}
-
-\textbf{(4)项目现状}
-
-有利条件：
-
-\begin{quote}
-①已有部分订单处理和用户管理模块的基础代码
-
-②技术栈成熟，前后端框架选型明确，社区资源丰富
-
-③可基于常见电商和外卖模式设计功能，业务逻辑有大量参考案例
-\end{quote}
-
-不利条件：
-
-\begin{quote}
-①初始代码存在设计缺陷和功能漏洞，需大量重构
-
-②支付等外部接口依赖第三方，集成存在不确定性
-
-③时间紧迫，仅有三周时间，完整实现所有功能并保证稳定性挑战较大
-\end{quote}
-
-\textbf{(5)目前项目工作内容}
-
-1) 架构与全局优化
-
-\begin{quote}
-1.对现有API接口进行规范化改造，全面采用RESTful风格设计，提升接口一致性和可维护性
-
-2.重构登录与鉴权模块，引入Token机制，加强对用户密码的加密存储保护
-
-3.优化系统并发处理能力，在关键业务模块中引入多线程技术
-
-4.将图片等静态资源迁移至对象存储服务（OSS），提升资源访问效率与可靠性
-\end{quote}
-
-2) 核心功能扩展与完善
-
-\begin{quote}
-1.增强用户个人信息管理功能，支持用户修改昵称、密码、头像及绑定手机号
-
-2.新增收藏功能，支持用户对商品进行收藏、取消及查看收藏列表
-
-3.实现点赞与评论功能，增强用户互动性和内容丰富度
-\end{quote}
-
-3) 完善搜索功能，支持历史搜索记录显示与快速检索
-
-\begin{quote}
-5.扩展商家端商品管理能力，支持商品下架与信息修改
-\end{quote}
-
-4) 订单与业务流程优化
-
-\begin{quote}
-1.实施订单超时自动处理机制，订单创建后特定时间未支付将自动关闭
-
-2.强化商家端订单管理，完整显示所有订单及其状态变化
-
-3.细化订单状态流转，新增``已接单''、``已取消''、``已完成''等状态
-
-4.允许用户在一定条件下自主取消订单
-\end{quote}
-
-5.将价格计算逻辑由前端迁移至后端，确保数据一致性与安全性
-
-5) 智能化升级
-
-\begin{quote}
-探索AI技术在推荐、搜索等场景的应用，提升系统智能化水平
-\end{quote}
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi})}
-\setcounter{enumi}{5}
-\item
-  接口设计约束
-
-  前后端分离的设计方案, 前后端使用符合 RESTful 风格的接口设计。
-\end{enumerate}
-
-{\color{red}
-\textbf{(7) 课程过程约束}
-
-第一周固定需求包括用户、商家、店铺、商品、购物车和基础订单；第二周在不大面积重构的前提下加入骑手及创新功能，并为每项变更新增测试和原功能回归测试；第三周完成重构、交互完善、异常校验、交叉验收和文档整理。所有核心业务遵循``先写失败测试---实现功能---测试通过---重构''的 TDD 顺序。
-
-\textbf{(8) 功能边界}
-
-系统不对接真实支付网关，不提供人工客服电话、AI 客服转人工、好友拼单和通过 ID 互赠外卖。AI 推荐、图片识别和语音点单均需提供失败降级方案，不得阻断基础搜索、购物车和下单流程。
-}
-
-\subsection{定义、缩略语}\label{ux5b9aux4e49ux7f29ux7565ux8bed}
-
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.1929}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.8015}}@{}}
-\caption{定义与缩略语}\tabularnewline
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\centering
-\textbf{术语}
-\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
-\textbf{解释}
-\end{minipage} \\
-\midrule\noalign{}
-\endfirsthead
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\centering
-\textbf{术语}
-\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
-\textbf{解释}
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-购物车 &
-用户在浏览商家菜单时选择的多个商品和商品的临时集合，用户可以在下单之前将这些选定的商品放入购物车中 \\
-商家入驻 &
-商家提交资质、签订协议，完成开店流程，包括设置店铺信息、上传营业执照等 \\
-订单状态流转 &
-订单经历``待支付''、``待接单''、``已接单''、``已完成''、``已取消''的状态变化 \\
-促销与优惠券 & 平台或商家发起满减、折扣、优惠券等活动，刺激用户下单。 \\
-\newreq{骑手} & \newreq{通过审核并取得 RIDER 权限，负责接单、到店、取餐、配送、送达和异常上报的配送人员。} \\
-\newreq{配送任务} & \newreq{由已支付且商家接单的订单生成，记录骑手、取送地点快照、任务状态和关键时间点。} \\
-\newreq{钱包流水} & \newreq{记录模拟充值、消费、退款和后台调整的不可丢失资金变更明细。} \\
-\newreq{优惠券叠加} & \newreq{按照平台券、商家券和会员券的配置规则组合使用，并在订单中保存核销快照。} \\
-\newreq{TDD} & \newreq{先编写会失败的测试，再实现业务代码，使测试通过后重构并提交的开发过程。} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/2-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/2-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{术语} & \textbf{解释} \\ \hline
+TDD & Test-Driven Development，测试驱动开发。按照需求先编写具有明确断言的测试并运行失败，再实现业务代码，测试通过后进行重构。 \\ \hline
+RESTful & 以资源为中心组织 URI，并结合 HTTP 方法、状态码和查询参数表达接口语义的设计方式。 \\ \hline
+顾客 & 浏览店铺和商品、维护购物车和地址、下单、支付、查看配送、评价并使用个人资产的普通用户。 \\ \hline
+商家 & 维护店铺、商品、库存和订单，完成出餐、评价回复和经营数据查看的经营者。 \\ \hline
+骑手 & 通过审核后承接配送任务，完成接单、到店、取餐、配送、送达和异常上报的配送人员。 \\ \hline
+管理员 & 审核商家、店铺和骑手申请，管理账号状态、评价治理和平台汇总数据的管理角色。 \\ \hline
+用户资产 & 与顾客账户关联的会员权益、钱包余额、积分和优惠券。 \\ \hline
+配送任务 & 由已进入履约阶段的订单产生并与骑手绑定的配送记录，保存接单、到店、取餐、配送、送达和异常信息。 \\ \hline
+状态流转 & 订单或配送任务在满足业务条件和权限条件时从一个合法状态转移到另一个合法状态的过程。 \\ \hline
+智能服务 & 推荐、语音识别、图片识别和地图导航等外部增强能力。智能服务只提供辅助结果，不直接改变订单、价格、库存和权限。 \\ \hline
 \end{longtable}
 
-\section{需求分析}\label{ux9700ux6c42ux5206ux6790}
+\subsection{约束}
 
-\subsection{目标}\label{ux76eeux6807}
+\begin{itemize}
+\item 开发采用 TDD 测试优先流程。每个核心接口和核心业务方法应先明确接口行为和测试场景，编写正常、异常和边界测试并运行失败，再实现业务代码；测试通过后方可提交相应实现。
+\item 核心业务接口自动化测试覆盖率应达到 100\%，关键业务方法覆盖率应不低于 90\%。需求变更后必须增加相应测试，并执行受影响功能的回归测试。
+\item 后端采用 Entity、Mapper/Dao、Service、Controller 分层。Controller 仅负责接收请求、参数校验和响应组织，业务规则主要位于 Service 层，Mapper/Dao 仅负责数据访问。
+\item 统一使用全局异常处理、统一返回结构和公共工具类；前端统一封装 Axios 请求、响应和认证逻辑，公共页面元素采用组件复用。
+\item 新增接口原则上使用 /api/v1 版本前缀，URI 使用资源名词。GET 只查询，POST 创建资源，PATCH 执行局部更新，DELETE 执行删除或逻辑删除；取消订单、支付、接单等明确业务动作允许采用动作型子路径。
+\item 分页、过滤和排序通过 Query 参数表达；HTTP 状态码用于区分成功、参数错误、未认证、无权限、资源不存在、状态冲突和服务器异常。
+\item 第二周需求变化应通过新增业务规则、服务、策略、状态或适配器等方式扩展，避免对第一阶段已经完成并通过测试的模块进行大面积改写。
+\item Git 仓库应从项目开始持续提交，提交记录能够反映需求、测试和实现的先后关系，不允许在验收前集中补传代码。
+\item 智能推荐、语音识别、图片识别和地图导航等外部能力必须通过独立适配层调用；外部服务不可用时应保留普通搜索、手工点餐、文本地址等替代路径。
+\item 辅助编程工具仅用于脚手架、样板代码、语法纠错、方案参考和文档初稿等辅助工作。核心业务逻辑、TDD 测试设计、架构决策和交叉验收结论应由小组成员理解、确认并按课程要求记录辅助使用点。
+\end{itemize}
 
-饿了么致力于打造一个高效便捷的在线外卖服务平台，为用户与商家提供优质的数字餐饮解决方案。用户可通过平台实时查看周边餐厅、快速完成选餐下单，并享受高效的配送服务，从而获得简单流畅的订餐体验；同时，餐厅也可借助平台提升订单处理能力与运营效率。平台核心功能包括：
+\subsection{参考资料}
 
-1.提供用户及商家的账户注册功能
-
-2.支持用户与商家灵活修改个人账户信息
-
-3.覆盖用户从浏览商品、管理购物车、调整配送地址到完成支付的全流程点餐服务
-
-4.实现商家对商品的上架、下架及信息维护等操作
-
-5.设立管理员权限，支持对商家信息的审核与管理。
-
-{\color{red}
-6. 建立骑手端完整履约流程，覆盖审核、上线、接单、导航、取餐、配送、送达、异常处理和配送记录。
-
-7. 建立优惠券、会员、钱包和积分体系，并保证金额计算、核销、回退和流水一致性。
-
-8. 支持主题换肤和口味、忌口、价格区间等用户偏好管理。
-
-9. 支持智能推荐、图片识别菜品、语音点单草稿和地图导航；所有智能结果必须由用户确认后才能产生交易动作。
-
-10. 支持订单评价、商家回复以及顾客、商家、管理员三类数据看板。
-
-11. 商品详情展示月售、热销排名、折扣、库存和限购，支持爆品团、超抢手和商家故事。
-}
-
-\subsection{涉众分析}\label{ux6d89ux4f17ux5206ux6790}
-
-{\color{red}
-注：本系统包含顾客、商家、管理员和骑手 4 类登录涉众。仍不与真实支付接口对接，但通过模拟钱包和支付状态完成业务闭环；地图、AI、语音、图片识别和对象存储作为外部依赖服务管理。
-}
-
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.0883}}
-  >{\centering\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3618}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5498}}@{}}
-\caption{涉众分析}\tabularnewline
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\centering
-\textbf{序号}
-\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
-\textbf{涉众}
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-\textbf{待解决的问题/对系统的期望}
-\end{minipage} \\
-\midrule\noalign{}
-\endfirsthead
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\centering
-\textbf{序号}
-\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
-\textbf{涉众}
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-\textbf{待解决的问题/对系统的期望}
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-1 & 顾客 & 注册账号
-
-管理账号和个人信息
-
-点餐，管理购物车、送货地址，下单支付
-
-申请成为商家/切换到商家端 \\
-2 & 商家 & 切换到顾客端
-
-申请开店
-
-管理店铺
-
-管理商家信息
-
-上架、下架、管理待售商品
-
-接单/拒单/完成订单等订单管理操作 \\
-3 & 管理员 & 管理用户数据
-
-审核成为商家用户申请
-
-审核商家用户开店申请 \\
-4 & 配送员 (骑手) & \newreq{申请并通过骑手审核
-
-上线/下线并获取可接配送任务
-
-原子接单，查看与任务相关的取送餐信息
-
-导航到店、确认到店与取餐
-
-导航配送、确认送达并上报异常
-
-查看配送历史、完成单量和模拟收入} \\
-\newreq{5} & \newreq{外部服务} & \newreq{提供地图定位与导航、AI 推荐、语音识别、图片识别和对象存储；服务失败时系统应降级，不得阻断基础交易。} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{资料名称} & \textbf{提供者} & \textbf{获取日期} & \textbf{说明} \\ \hline
+26271 学期《软件工程综合实践》项目要求 & 课程组 & 2026-09-02 & 规定实践周期、基础功能、TDD、RESTful、分层架构、需求变更、Git 过程证据和交叉验收要求。 \\ \hline
+项目需求分析与阶段计划 & 项目组 & 项目启动期 & 记录业务角色、功能范围、阶段划分、需求变更和验收边界，作为需求讨论与开发计划的依据。 \\ \hline
+数据库设计文档 & 项目组 & 项目开发期 & 记录业务实体、字段、约束和表关系，并与需求规格说明书同步维护。 \\ \hline
+接口文档与测试报告 & 项目组 & 项目开发期 & 记录 REST 接口、状态码、测试用例、覆盖率和回归结果。 \\ \hline
 \end{longtable}
 
-\section{业务分析}\label{ux4e1aux52a1ux5206ux6790}
+\section{目标、涉众分析和范围}
 
-该项目管理的业务主要是以下六个部分:
-订单业务、用户基本信息业务、商铺管理业务、商品管理业务、点赞收藏评分业务、用户管理业务。
+\subsection{目标}
 
-{\color{red}
-本轮将业务域扩展为九类：用户与权限、商家与店铺、商品与库存、购物车与订单、配送履约、营销与资产、评论互动、个性化与智能交互、数据统计与看板。各业务域通过稳定的 Service 接口和领域状态衔接，避免新增骑手、优惠或智能服务时大面积修改原有控制器和页面。
-}
+系统最终应形成一个可演示、可测试、可迭代的轻量级外卖服务平台。系统应保证基础外卖业务稳定，并能够通过较小范围的扩展完成阶段性新增角色和新增业务规则。主要目标如下：
 
-\subsection{业务分析类图}\label{ux4e1aux52a1ux5206ux6790ux7c7bux56fe}
+\begin{itemize}
+\item 提供用户注册、登录、个人资料查询和修改、账号状态校验和角色访问控制。
+\item 提供商家申请、店铺创建、营业/休息/临时闭店、商品分类、商品、价格、库存和展示信息管理。
+\item 提供店铺列表、店铺详情、商品列表、商品详情、关键词搜索、排序和筛选。
+\item 提供购物车增删改查、配送地址维护、订单创建、模拟支付、订单列表、订单详情和取消订单。
+\item 形成完整配送闭环：商家接单和制作、生成配送任务、骑手接单、到店取餐、配送、送达、顾客确认收货。
+\item 提供会员、钱包、积分和优惠券等用户资产，并由后端统一判断资产可用性和订单最终应付金额。
+\item 提供主题和口味偏好维护，以及推荐、图片识别和语音点单等增强体验；增强功能失败不能阻断基础点餐。
+\item 提供订单评价、商家回复、个人消费统计、商家经营统计和管理员平台统计。
+\item 通过 TDD、RESTful、分层架构、回归测试和 Git 过程记录验证系统对需求变更的适应能力。
+\end{itemize}
 
-(1) 订单
+\subsection{涉众分析}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.80556in,height=2.61319in]{figures/srs/image3.png}
-\caption{订单类图}
-\changedfigure{需增加骑手、配送任务、订单状态历史、优惠核销、钱包支付、积分和评价关联。}
-\end{figure}
+通过组织结构和业务流程分析，本系统主要涉众如下。开发小组、交叉验收小组属于项目过程参与者，不作为业务执行者列入本表。
 
-(2) 用户基本信息
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.59167in,height=3.06806in]{figures/srs/image4.png}
-\caption{用户类图}
-\changedfigure{需增加 RIDER 角色、骑手资料、主题与口味偏好、钱包、积分和会员关系。}
-\end{figure}
-
-(4) 商品管理
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.69861in,height=3.86181in]{figures/srs/image5.png}
-\caption{商品管理类图}
-\changedfigure{需增加库存、月售、热销排名、折扣、限购、促销活动、评论和推荐特征。}
-\end{figure}
-
-(4) 商铺管理
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.37153in,height=2.96111in]{figures/srs/image6.png}
-\caption{商铺管理类图}
-\changedfigure{需增加营业/休息状态、商家故事、活动配置、配送配置和经营统计关系。}
-\end{figure}
-
-(5) 用户管理
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=2.86597in,height=1.51806in]{figures/srs/image7.png}
-\caption{用户管理类图}
-\changedfigure{需增加骑手审核、角色授权、账号状态、隐私范围和操作审计。}
-\end{figure}
-
-(6) 点赞收藏评分
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=3.37917in,height=2.68681in]{figures/srs/image8.png}
-\caption{点赞收藏评分类图}
-\changedfigure{需增加基于已完成订单的评价、评分、图片、商家回复、举报和管理员治理。}
-\end{figure}
-
-\subsection{业务流程分析 (UML活动图)}\label{ux4e1aux52a1ux6d41ux7a0bux5206ux6790-umlux6d3bux52a8ux56fe}
-
-(1) 用户登录 \& 注册流程
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=3.59444in,height=3.29097in]{figures/srs/image9.png}
-\caption{登录注册活动图}
-\changedfigure{需增加骑手申请与审核、RIDER 权限、账号禁用校验及按角色进入不同工作台。}
-\end{figure}
-
-\textbf{(2) 订单处理流程}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.80625in,height=4.63542in]{figures/srs/image10.png}
-\caption{订单处理活动图}
-\changedfigure{需加入优惠计算与核销、模拟钱包支付、派单/抢单、到店、取餐、配送、送达、异常和资产回退。}
-\end{figure}
-
-(3)商家管理流程
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.84792in,height=6.03333in]{figures/srs/image11.png}
-\caption{商家管理活动图}
-\changedfigure{需加入商家故事、促销活动、商品折扣限购、经营看板以及与骑手的出餐交接。}
-\end{figure}
-
-\section{功能性需求}\label{ux529fux80fdux6027ux9700ux6c42}
-
-\subsection{总用例}\label{ux603bux7528ux4f8b}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=4.18403in,height=4.34306in]{figures/srs/image12.png}
-\caption{总用例图}
-\changedfigure{需增加骑手参与者、外部地图/AI/语音/识图服务，以及营销资产、个性化、评价和看板用例。}
-\end{figure}
-
-\subsection{用户的用例}\label{ux7528ux6237ux7684ux7528ux4f8b}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=4.31806in,height=3.43889in]{figures/srs/image13.png}
-\caption{用户用例图}
-\changedfigure{需增加骑手角色申请与工作台、主题偏好、钱包积分会员，以及多角色切换。}
-\end{figure}
-
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1614}}
-  >{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1672}}
-  >{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1304}}
-  >{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.3716}}
-  >{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.0027}}@{}}
-\caption{注册账号用例说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 1 & \textbf{名称} &
-\multicolumn{2}{>{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.3743} + 2\tabcolsep}@{}}{%
-注册账号} \\
-\textbf{执行者} & 用户 & \textbf{优先级} &
-\multicolumn{2}{>{\centering\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.3743} + 2\tabcolsep}@{}}{%
-高} \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
-用户使用用户名进行账户注册, 设置账户密码} & \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
-该用户名未被注册} & \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
-1. 输入用户名
-
-2. 输入密码
-
-3. 输入其他个人信息} & \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
-注册成功进入首页} & \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
--} & \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
-1.用户已经注册，显示用户已存在} & \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.6692} + 4\tabcolsep}}{%
-用户注册后即拥有顾客权限} & \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{序号} & \textbf{涉众} & \textbf{代表人物/角色} & \textbf{待解决的问题 / 对系统的期望} \\ \hline
+1 & 顾客 & 普通用户 & 完成账号登录、店铺和商品浏览、购物车和地址维护、下单支付、配送跟踪、确认收货和评价；方便使用会员、钱包、积分和优惠券；维护个人偏好并查看消费统计。 \\ \hline
+2 & 商家 & 店铺经营者 & 申请商家身份和店铺；设置营业状态；维护商品、分类、库存和展示信息；及时处理订单、完成出餐交接；回复评价并查看经营情况。 \\ \hline
+3 & 骑手 & 配送人员 & 申请骑手身份；维护上线/下线状态；查看并承接可配送任务；到店取餐、配送、确认送达、上报异常；查看本人历史配送记录。 \\ \hline
+4 & 管理员 & 平台管理人员 & 审核商家、店铺和骑手申请；管理异常账号和违规评价；查看配送异常与平台汇总数据；保证关键管理操作可追踪。 \\ \hline
+5 & 外部智能服务 & 地图/推荐/语音/识图服务 & 向系统提供可替换的导航、候选菜品推荐、语音转写和图片识别结果；服务失败时不影响平台核心交易流程。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1690}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1685}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1350}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3572}}@{}}
-\caption{登录账号用例说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 2 & \textbf{名称} & 登录账号 \\
-\textbf{执行者} & 用户 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-用户使用用户名密码进行账户登录} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 提交正确的用户名
+\subsection{范围}
 
-2. 提交正确的密码} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 输入用户名
+系统范围包括顾客端、商家端、骑手端、管理员端，以及支撑这些角色的统一后端服务、数据库和外部服务适配层。顾客端覆盖从浏览商品到确认收货和评价的全过程；商家端覆盖店铺和商品维护、订单处理、出餐和经营数据；骑手端覆盖接单、取餐、配送和送达；管理员端覆盖审核、账号治理、评价治理和平台统计。
 
-2. 输入密码
+系统边界之外包括真实微信/支付宝资金清算、复杂退款清算、骑手薪资与保险、劳动关系、复杂智能派单、跨平台物流协同和人工客服坐席。地图、语音、图片识别和推荐服务只作为外部能力被调用，系统不得依赖这些能力才能完成基本浏览、下单和配送状态管理。
 
-3. 显示登录成功信息} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 登录成功后返回上一个页面
+\section{业务概念分析}
 
-2. 登录成功后进入管理员首页} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-注册账号} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 用户未注册进入用户注册流程
+本节描述软件需要管理的主要业务对象及业务对象之间的关系。业务概念用于建立统一术语，并作为数据库设计、接口资源和业务服务划分的依据。图中重点表示业务对象和关联关系，不表示具体 Java 类、Controller 或数据库实现细节。
 
-2. 密码验证不通过} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-只要该用户有管理员权限，登录后便进入管理端首
+\subsection{概述}
 
-页否则进入顾客端首页
-\end{quote}
-\end{minipage}} \\
+本系统的业务对象可分为用户与角色、商家与店铺、商品与库存、购物车与订单、配送履约、用户资产、评价互动、个性化设置、智能服务和数据统计十类。订单是交易数据的核心对象，配送任务是履约数据的核心对象，用户资产和评价均以有效用户和有效订单为依据。
+
+\subsection{业务概念一览}
+
+业务概念总览类图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 3-1）}}
+\end{center}
+
+图 3-1  业务概念总览类图
+
+图 3-1 应采用 UML 业务类图表示。以 User、Store、Product、Cart、Order 和 DeliveryTask 为主干：User 通过角色关联区分顾客、商家、骑手和管理员；商家角色拥有 Store，Store 包含 Category 和 Product；顾客拥有 Address、Cart 和 Order；Order 由一个或多个 OrderItem 组成，并在进入履约阶段后关联 DeliveryTask；User 还可关联 Membership、WalletAccount、PointAccount、UserCoupon、UserPreference 和 Review。图中标注主要多重性，不写具体实现方法。
+
+\subsection{用户、商家、店铺与商品}
+
+用户、商家、店铺与商品业务类图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 3-2）}}
+\end{center}
+
+图 3-2  用户、商家、店铺与商品业务类图
+
+图 3-2 中 User 保存账号和基础资料，Role 表示角色；MerchantProfile 表示商家经营主体，Store 表示店铺。一个商家可以拥有一个或多个店铺，店铺具有营业、休息或临时闭店等状态。Store 与 Category 为一对多关系，Category 与 Product 为一对多关系。Product 保存商品名称、价格、库存、上架状态、月售、限购、折扣或活动展示等业务属性。骑手资料 RiderProfile 与 User 建立一对一角色资料关系，但不与商家商品对象直接关联。
+
+\subsection{购物车、订单与支付}
+
+购物车、订单与支付业务类图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 3-3）}}
+\end{center}
+
+图 3-3  购物车、订单与支付业务类图
+
+图 3-3 以 Cart、CartItem、Order 和 OrderItem 为主要对象。一个顾客拥有当前购物车，购物车包含若干购物车项；订单由一次结算产生并固化商品名称、成交单价、购买数量、配送地址等必要快照，避免后续商品信息变化影响历史订单。Order 记录原价、优惠金额、实付金额和订单状态，并通过支付记录或钱包流水保存支付结果。订单金额必须由后端根据实时商品、活动和用户资产重新计算。
+
+\subsection{配送履约}
+
+订单与配送业务类图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 3-4）}}
+\end{center}
+
+图 3-4  订单与配送业务类图
+
+图 3-4 以 DeliveryTask 为中心连接 Order、RiderProfile、取餐店铺地址和收货地址快照。一个需要配送的订单最多对应一个有效配送任务，一个配送任务在同一时刻最多绑定一个骑手。DeliveryTask 保存待接单、已接单/待取餐、配送中、已送达、异常等状态及 acceptedAt、pickupAt、deliveredAt 等关键时间；配送异常单独记录异常类型、说明和处理结果。订单状态与配送任务状态应建立明确的对应关系。
+
+\subsection{用户资产与个性化}
+
+用户资产与个性化业务类图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 3-5）}}
+\end{center}
+
+图 3-5  用户资产与个性化业务类图
+
+图 3-5 以 User 为中心连接 Membership、WalletAccount、WalletTransaction、PointAccount、PointTransaction、CouponTemplate、UserCoupon 和 UserPreference。钱包和积分分别通过账户与流水对象记录余额变化；优惠券模板定义可配置的使用条件，用户优惠券记录领取、使用和失效状态；会员记录有效期和权益标识；UserPreference 保存主题、口味、忌口等偏好。资产变化应保留来源订单或业务来源，不能只修改余额而不记录流水。
+
+\subsection{评价、统计与智能服务}
+
+评价、统计与智能服务业务类图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 3-6）}}
+\end{center}
+
+图 3-6  评价、统计与智能服务业务类图
+
+图 3-6 中 Review 关联 User、Order 和 Store，并可包含评分、文字、图片和商家回复；一个已完成订单至多产生一条有效顾客评价。统计模块从有效 Order、OrderItem、Review 和 DeliveryTask 聚合生成顾客消费统计、商家经营统计和平台统计，不单独修改原始业务数据。推荐、图片识别、语音识别和地图导航通过独立的服务适配对象与业务层连接，仅返回候选结果、转写文本或路径信息。
+
+\section{业务流程分析}
+
+本节描述系统中跨角色的主要业务流程。活动图用于表示不同执行者之间的职责边界，状态机图用于约束订单和配送任务的合法状态变化，顺序图用于说明典型业务场景中的交互先后关系。顺序图只描述业务服务之间的逻辑交互，不规定具体类名和代码结构。
+
+\subsection{概述}
+
+系统的核心业务流程由顾客下单、商家处理、骑手配送、顾客确认和评价组成。用户资产在订单结算阶段参与金额计算，智能服务在选餐和导航阶段提供辅助。所有状态改变都必须由后端根据当前状态、操作者身份和业务条件进行校验。
+
+\subsection{顾客下单与订单履约流程}
+
+顾客下单流程从选择商品开始，经过购物车、结算、支付后进入商家履约与骑手配送，最终由顾客确认收货。该流程是系统的主业务流程。
+
+顾客下单与订单履约活动图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-1）}}
+\end{center}
+
+图 4-1  顾客下单与订单履约活动图
+
+图 4-1 使用顾客、订单服务、商家、配送服务、骑手和通知服务六个泳道。顾客浏览商品并加入购物车，选择配送地址和可用优惠后提交订单；订单服务重新读取商品价格、库存和店铺状态，计算优惠与应付金额，校验成功后创建订单；支付成功后商家接单并制作，出餐后进入配送阶段；配送服务发布可接任务，骑手接单、到店、取餐、配送并确认送达；顾客确认收货后订单完成并开放评价。支付失败、库存不足、商家拒单、订单取消和配送异常从相应节点进入异常分支。
+
+订单状态机图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-2）}}
+\end{center}
+
+图 4-2  订单状态机图
+
+图 4-2 应至少包含“待支付、待商家接单、制作中、待骑手接单、待取餐、配送中、已送达、已完成、已取消”状态。待支付可由顾客支付进入待商家接单，也可由顾客取消或超时进入已取消；待商家接单可由商家接单进入制作中或拒单进入已取消；制作完成后进入待骑手接单；骑手接单后进入待取餐，确认取餐后进入配送中，确认送达后进入已送达，顾客确认后进入已完成。各转换边标明触发者和必要条件。
+
+创建订单顺序图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-3）}}
+\end{center}
+
+图 4-3  创建订单顺序图
+
+图 4-3 的参与者包括顾客端、订单服务、商品/库存服务、用户资产服务、数据访问层和通知服务。顾客提交结算请求后，订单服务依次校验登录状态、地址、购物车、店铺状态、商品实时价格和库存；再向资产服务获取可用会员权益、优惠券、积分和钱包信息并完成试算；顾客确认后在事务中创建订单和订单项，执行必要的库存和资产处理并返回订单编号。若任一步校验失败，事务不得产生部分订单数据。
+
+\subsection{商家处理订单与骑手配送流程}
+
+商家和骑手共同完成订单履约。商家负责接单、制作和出餐，骑手负责接单、取餐、配送和送达。系统应防止不同角色越权修改对方负责的状态。
+
+商家与骑手履约活动图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-4）}}
+\end{center}
+
+图 4-4  商家与骑手履约活动图
+
+图 4-4 使用商家、配送任务服务、骑手和顾客四个泳道。商家收到已支付订单后选择接单或拒单；接单后制作商品并标记出餐；配送服务使任务进入可接状态；在线骑手查看任务并提交接单请求，系统完成唯一绑定；骑手导航到店、确认到店并在商家出餐后取餐；随后导航至顾客地址并确认送达；顾客确认收货。任务已被他人接取、商家未出餐、顾客无法联系、地址异常等情况通过独立分支记录。
+
+配送任务状态机图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-5）}}
+\end{center}
+
+图 4-5  配送任务状态机图
+
+图 4-5 以配送任务为对象，至少包含“待接单、待取餐、配送中、已送达、异常、已取消”状态。待接单状态由骑手成功接单进入待取餐；商家出餐且骑手确认取餐后进入配送中；骑手确认送达后进入已送达；地址错误、无法联系顾客等情况可记录异常，并根据处理结果返回配送中或终止任务。任务状态变化应与订单状态保持一致，但不允许用一个字段同时表示订单和配送两个不同对象的所有状态。
+
+骑手接单顺序图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-6）}}
+\end{center}
+
+图 4-6  骑手接单顺序图
+
+图 4-6 的参与者为骑手端、配送任务服务、数据访问层和通知服务。骑手提交接单请求后，配送任务服务校验骑手身份、审核状态、上线状态、任务状态和当前任务限制，再通过带状态条件的更新或版本控制完成原子绑定。若更新成功则记录接单时间并返回任务详情，同时向商家和顾客更新配送状态；若任务已经被其他骑手接取，则返回状态冲突，不覆盖已经建立的任务绑定关系。
+
+\subsection{用户资产结算流程}
+
+会员、钱包、积分和优惠券在订单结算阶段参与价格计算或支付。资产规则由后端统一判断，前端展示的试算结果不能直接作为最终结算依据。
+
+用户资产结算活动图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-7）}}
+\end{center}
+
+图 4-7  用户资产结算活动图
+
+图 4-7 从顾客进入结算页开始。系统加载会员状态、钱包余额、积分和优惠券，并根据当前订单金额、店铺和有效期筛选可用资产；顾客选择优惠方式后系统返回试算结果；提交订单时再次校验优惠有效性和资产余额，成功后执行核销、冻结或记账；支付成功后确认流水，订单取消或支付失败时按相应业务规则回退。图中应包含“优惠券是否可用”“余额是否充足”“是否重复请求”“是否需要回退”等判断节点。
+
+订单结算顺序图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-8）}}
+\end{center}
+
+图 4-8  订单结算顺序图
+
+图 4-8 的参与者包括顾客端、订单服务、资产服务、商品/库存服务和数据访问层。先执行无副作用的价格试算，再在正式创建订单时重新校验。资产服务返回可使用的会员、优惠券、积分和钱包方案；订单服务确定最终金额后，在同一业务事务或可恢复的一致性流程中处理订单、库存和资产记录。重复提交相同结算请求时不得重复扣减钱包、积分或优惠券。
+
+\subsection{智能点单流程}
+
+智能点单用于降低顾客查找商品的成本。智能服务只生成候选商品或点单草稿，顾客确认后才进入购物车和订单流程。
+
+智能点单活动图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-9）}}
+\end{center}
+
+图 4-9  智能点单活动图
+
+图 4-9 允许顾客从文字输入、语音输入或图片输入开始。语音输入先转换为文字意图，图片输入先返回候选菜品或关键词，推荐服务结合用户偏好与当前可售商品生成候选列表；系统对候选商品重新校验是否上架、是否属于当前店铺、价格和库存；顾客确认后将商品加入购物车。语音、图片或推荐服务超时、失败、无结果时，流程返回普通搜索或手工选餐，而不是结束点餐流程。
+
+智能点单顺序图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-10）}}
+\end{center}
+
+图 4-10  智能点单顺序图
+
+图 4-10 的参与者包括顾客端、智能服务适配层、推荐/识图/语音外部服务、商品服务和购物车服务。外部服务只返回文本、关键词、候选商品标识或排序结果；商品服务根据数据库中的真实商品和库存进行二次过滤；顾客明确确认后，购物车服务才修改购物车。任何外部服务调用失败都不能直接创建订单或修改用户资产。
+
+\subsection{评价与数据分析流程}
+
+评价与统计活动图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 4-11）}}
+\end{center}
+
+图 4-11  评价与统计活动图
+
+图 4-11 使用顾客、评价服务、商家和统计服务泳道。订单完成后顾客进入评价入口，提交评分、文字和可选图片；评价服务校验订单归属和是否已经评价后保存；商家可查看并回复本人店铺评价；统计服务从有效订单、订单项和评价中按时间范围聚合顾客消费、商家经营和平台指标。评价治理只改变评价展示状态，不删除历史订单和统计所需的审计记录。
+
+\subsection{核心业务规则}
+
+为保证不同执行者对同一订单的处理结果一致，系统对订单、配送任务、用户资产、评价和统计采用统一业务规则。下列规则既用于限制页面操作，也作为后端业务校验和测试用例设计的依据。
+
+\subsubsection{订单与配送状态规则}
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/3-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/3-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/3-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{状态} & \textbf{主要操作者} & \textbf{进入及退出规则} \\ \hline
+待支付 & 顾客 / 系统 & 创建订单后进入。支付成功后进入待商家接单；顾客取消或达到未支付超时时间后进入已取消。 \\ \hline
+待商家接单 & 商家 / 顾客 / 系统 & 支付成功后进入。商家接受订单后进入制作中；商家拒单、顾客在允许范围内取消或系统按规则关闭时进入已取消。 \\ \hline
+制作中 & 商家 & 商家接单后进入。商家完成餐品制作并确认出餐后生成或激活配送任务，订单进入待骑手接单。 \\ \hline
+待骑手接单 & 骑手 / 系统 & 配送任务向符合条件的在线骑手开放。骑手通过原子接单操作绑定任务，成功后进入待取餐；超时未接可重新发布任务。 \\ \hline
+待取餐 & 骑手 / 商家 & 骑手接单后进入。骑手到店并完成餐品交接，确认取餐后进入配送中。商家未出餐时不得提前进入配送中。 \\ \hline
+配送中 & 骑手 & 骑手携餐前往顾客地址。正常送达后进入已送达；地址错误、无法联系顾客等情况记录配送异常。 \\ \hline
+已送达 & 骑手 / 顾客 / 系统 & 骑手确认送达后进入。顾客确认收货后进入已完成；如采用自动完成规则，应由系统在规定条件满足后触发。 \\ \hline
+已完成 & 顾客 / 系统 & 交易和配送闭环完成。该状态用于确定评价资格、积分发放和有效交易统计。 \\ \hline
+已取消 & 顾客 / 商家 / 系统 & 订单终止。系统保存取消发起者和原因，并按取消前状态处理库存、优惠券、钱包和积分回退。 \\ \hline
+配送异常 & 骑手 / 管理员 & 保存异常类型、说明、发生时间和处理结果；处理后可以恢复配送、重新派单或按业务规则终止订单。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1690}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1685}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1350}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3572}}@{}}
-\caption{修改用户信息用例说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 3 & \textbf{名称} & 修改用户信息 \\
-\textbf{执行者} & 用户 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-用户修改用户信息} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1.用户已登录} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 进入``我的''界面
+订单和配送任务分别保存状态，不使用一个字段混合表示交易状态和配送状态。任何执行者不得越级写入后续状态；每次状态改变均应校验当前状态、操作者身份和目标状态。已绑定骑手后，商家不能直接将订单设置为已完成；已取消或已完成订单原则上不再进入前序状态。关键状态变化至少记录业务对象、原状态、新状态、操作者、时间和原因。
 
-2. 修改用户姓名、密码、头像、手机号、邮箱
+\subsubsection{用户资产与结算规则}
 
-3. 提交修改} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 显示修改后的用户信息} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
-1. 用户修改后的手机号格式不符合规范
+\begin{itemize}
+\item 优惠券必须具有有效期、使用门槛、适用范围和当前状态。结算页只展示当前订单可使用的优惠券，不可用优惠券应能够说明主要原因。优惠组合由后端根据配置计算，前端不得自行改变最终优惠金额。
+\item 钱包属于教学项目中的模拟资产。充值、支付、退款和后台调整均生成钱包流水，流水记录业务来源、变更金额、变更前后余额和时间；任何操作不得造成钱包余额小于零。
+\item 积分在符合条件的订单完成后按配置发放，取消或退款时按对应规则回退。积分变更保留来源和流水，积分比例、有效期和抵扣上限不写死在前端页面或单个控制器中。
+\item 会员记录有效期和当前权益。订单创建时根据当前有效会员状态计算权益，并在订单中保存必要快照，避免后续会员到期或权益调整改变历史订单。
+\item 支付、取消、退款、优惠券核销、钱包扣款和积分发放均使用业务唯一标识或其他幂等措施。相同请求重复提交时不得重复扣减、重复返还或重复发放。
+\end{itemize}
 
-2. 用户修改后的邮箱格式不符合规范} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6608} + 4\tabcolsep}@{}}{%
--} \\
+\subsubsection{评价、商品展示与统计规则}
+
+\begin{itemize}
+\item 评价资格来源于已完成订单。只有订单所属顾客可以对该订单对应店铺进行评价，同一订单不得重复生成多条有效评价；商家只能回复本人店铺评价，不能通过回复功能修改顾客原评价。
+\item 管理员对违规评价执行隐藏、恢复等治理操作时，应保留治理结果和操作记录。评价治理不改变历史订单和订单金额，也不删除统计所依赖的原始业务数据。
+\item 商品详情中的成交价格、数量、折扣和限购等信息应在订单项中保存必要快照。商家后续修改商品名称、原价、图片或活动信息时，不改变历史订单已经形成的成交数据。
+\item 月售、热销等销量指标只统计满足项目统计口径的有效订单，已取消订单不计入有效销量。顾客消费统计只统计本人有效订单，商家经营统计只统计所属店铺，管理员查看平台范围汇总数据。
+\item 推荐、语音识别和图片识别结果只能形成候选商品、关键词或点单草稿。顾客必须再次确认真实商品、规格、数量和价格后才能修改购物车或创建订单。外部服务失败时返回普通搜索、手工点餐或文本地址流程。
+\end{itemize}
+
+\section{功能性需求}
+
+\subsection{执行者分析}
+
+系统业务执行者包括游客、顾客、商家、骑手和管理员。游客是未登录访问者，可以注册、登录和查看公开店铺商品；通过认证后，用户根据已获得的角色进入相应工作台。商家和骑手角色需要经过审核，管理员具有平台管理权限。地图、推荐、语音识别、图片识别和对象存储属于外部系统执行者。
+
+系统执行者关系图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 5-1）}}
+\end{center}
+
+图 5-1  系统执行者关系图
+
+图 5-1 以“系统用户”为上层执行者，下分顾客、商家、骑手和管理员；游客作为未认证执行者，与注册、登录和公开浏览用例关联。商家与普通用户之间可表示角色扩展关系，骑手与普通用户之间同理。外部执行者包括地图服务、推荐服务、语音识别服务、图片识别服务和对象存储，只连接使用其能力的用例。
+
+\subsection{总用例图}
+
+总用例图用于说明各执行者与系统主要功能之间的关系。用例按顾客、商家、骑手和管理员四类业务组织，公共的注册登录、消息通知和媒体上传由相关角色复用。
+
+系统总用例图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 5-2）}}
+\end{center}
+
+图 5-2  系统总用例图
+
+图 5-2 的系统边界内包含：顾客的注册登录、个人资料与地址、浏览搜索、购物车、创建订单、支付与取消、配送跟踪、会员、钱包积分优惠券、偏好、智能点单、评价、消费分析；商家的商家/店铺管理、商品库存、订单处理、评价回复、经营分析；骑手的申请与工作状态、可接任务与接单、到店取餐、配送送达与异常、历史任务；管理员的准入审核、用户与评价治理、平台数据看板。创建订单应包含库存与价格校验，智能点单扩展普通搜索，确认收货后才能评价。
+
+\subsection{顾客的用例}
+
+顾客用例图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 5-3）}}
+\end{center}
+
+图 5-3  顾客用例图
+
+图 5-3 以顾客为中心连接 UC-01 至 UC-13。创建订单包含商品价格、库存、店铺状态和用户资产校验；支付与取消订单依赖已经创建的订单；配送跟踪依赖订单进入履约阶段；评价要求订单已完成；智能点单是浏览与搜索的扩展，候选商品仍通过普通购物车和订单流程处理。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-01} & \textbf{名称} & \textbf{注册与登录} \\ \hline
+执行者 & 游客 / 用户 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{用户创建平台账号或使用已有账号登录，并根据账号状态和角色进入相应页面。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{注册时账号未被占用；登录时账号已存在。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 用户选择注册或登录，并输入账号、密码等必要信息。2. 系统校验必填字段、账号格式和密码格式。3. 注册时系统检查账号唯一性并创建用户；登录时系统读取账号并校验密码。4. 系统检查账号是否处于可用状态。5. 认证成功后系统返回登录状态、用户基本信息和当前角色。6. 前端根据角色进入顾客、商家、骑手或管理员相应页面。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{注册成功后生成有效用户账号；登录成功后建立有效会话或令牌。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{拥有多个角色的用户可在被授权的角色入口之间切换。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{账号不存在、密码错误、账号被禁用或参数格式错误时返回明确提示，不建立登录状态。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{密码不得以明文形式保存；认证失败不应泄露账号是否存在等不必要信息。} \\ \hline
 \end{longtable}
 
-\subsection{顾客的用例}\label{ux987eux5ba2ux7684ux7528ux4f8b}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.19444in,height=4.87083in]{figures/srs/image14.png}
-\caption{顾客用例图}
-\changedfigure{需增加优惠与钱包支付、智能推荐/识图/语音、配送跟踪、订单评价和消费看板。}
-\end{figure}
-
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1720}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2080}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1810}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2687}}@{}}
-\caption{查看订单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 4.1 & \textbf{名称} & 查看订单 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
-顾客查看订单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
-1. 点击页面下方``订单''图标
-
-2. 查看订单列表
-
-3. 点击可查看订单详情} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
-显示订单列表} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
-顾客可以选择查看不同状态的订单列表：待支付、
-
-待接单、已接单、已取消、已完成} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6577} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-02} & \textbf{名称} & \textbf{维护个人信息与配送地址} \\ \hline
+执行者 & 顾客 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客查看和修改个人资料，并维护下单时使用的配送地址。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入个人中心查看当前资料和地址列表。2. 顾客选择修改昵称、头像等允许修改的资料并提交。3. 系统校验字段格式并更新允许修改的信息。4. 顾客新增配送地址，填写联系人、联系电话、地址文本和必要的地址补充信息。5. 顾客可以修改、删除非订单快照中的地址，也可以设置默认地址。6. 结算时系统读取当前有效地址供顾客选择。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{个人资料和地址数据按用户归属正确保存；默认地址最多一个。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{地图服务可用于辅助选择位置，但用户始终可以使用文本地址。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非法手机号、空地址、越权访问他人地址或删除不存在地址时返回错误。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{历史订单使用地址快照，用户修改地址不能改变已生成订单中的收货地址。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1541}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2036}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1904}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2816}}@{}}
-\caption{支付订单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 4.2 & \textbf{名称} & 支付订单 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-顾客支付订单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-顾客下单} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-1. 点击``去支付''按钮
-
-2. 选择微信支付或者支付宝支付（默认）} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-订单已支付，状态变为待接单} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-03} & \textbf{名称} & \textbf{浏览与搜索店铺、商品} \\ \hline
+执行者 & 游客 / 顾客 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{用户查看店铺列表、店铺详情、商品分类和商品详情，并通过关键词、排序和筛选查找目标商品。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{无。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 用户进入首页，系统分页返回可展示店铺及其营业状态。2. 用户选择店铺后，系统展示店铺信息、分类和可展示商品。3. 用户输入关键词，或选择销量、价格、起送价、配送费等可用排序或筛选条件。4. 系统根据查询条件返回符合要求的店铺或商品。5. 用户查看商品价格、库存、月售、折扣、限购、活动等信息。6. 用户选择可购买商品进入后续购物车操作。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{用户获得与当前筛选条件一致的店铺和商品信息。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{首页可展示热销、爆品或根据偏好生成的推荐位。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{店铺休息、商品下架、库存为零或查询条件非法时显示相应状态，不允许加入不可售商品。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{GET 查询只读取数据；列表接口应分页，避免一次返回全部记录。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1884}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1986}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1939}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2487}}@{}}
-\caption{取消订单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 4.3 & \textbf{名称} & 取消订单 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
-顾客取消订单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
-订单未被商家接单} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
-1. 顾客点击``取消订单''按钮
-
-2. 在弹出的提示框中选择``确认''} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
-订单状态变为已取消} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
-订单已被商家接单，弹出提示框``订单已被接单，
-
-不能取消！''} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6413} + 4\tabcolsep}@{}}{%
-顾客取消订单后商家端该订单状态显示同步被修改
-
-为``已取消''} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-04} & \textbf{名称} & \textbf{管理购物车} \\ \hline
+执行者 & 顾客 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客将商品加入购物车，并修改数量、删除商品或清空购物车。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录；目标商品属于可购买店铺。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客在商品页面选择商品和数量。2. 系统校验商品存在、上架状态、限购和当前库存。3. 系统将商品加入当前用户购物车；同一商品已存在时按规则合并数量。4. 顾客进入购物车查看商品、数量和估算金额。5. 顾客修改商品数量、删除单项或清空购物车。6. 系统每次更新后返回当前购物车内容和估算金额。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{购物车内容按用户保存，数量符合库存和限购约束。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可以提供全选、反选等仅影响结算选择的交互。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商品下架、超库存、超限购、跨用户修改购物车或商品不存在时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{购物车金额只用于展示；正式提交订单时必须重新读取商品价格、库存和店铺状态。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1721}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1993}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1768}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2815}}@{}}
-\caption{确认收货说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 4.4 & \textbf{名称} & 确认收货 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-顾客将订单状态改为已完成} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-订单已被商家接单} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-1. 点击``确认收货''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-订单状态变为已完成} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-顾客确认收货后商家端该订单状态显示同步被修改为``已完成''
-\end{quote}
-\end{minipage}} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-05} & \textbf{名称} & \textbf{创建订单} \\ \hline
+执行者 & 顾客 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客从有效购物车项创建订单，并确定配送地址、商品快照和订单应付金额。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录；购物车包含至少一个有效商品；存在有效配送地址。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入结算页并选择需要结算的购物车项。2. 系统加载当前配送地址、商品实时价格、库存、店铺营业状态和可用用户资产。3. 顾客选择配送地址和拟使用的优惠方式。4. 系统根据实时业务数据进行价格试算并返回原价、优惠金额和应付金额。5. 顾客确认并提交创建订单请求。6. 系统再次校验店铺、商品、库存、限购、地址和优惠条件。7. 系统在一致性控制下创建订单及订单项快照，并生成唯一订单编号。8. 系统返回待支付订单详情。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{生成一条归属于当前顾客和目标店铺的待支付订单，订单项、地址快照和金额数据完整。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{结算页可以允许顾客重新选择地址或优惠方式并重新试算。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{购物车为空、商品失效、库存不足、店铺休息、地址无效、优惠失效或重复提交导致冲突时，不生成不完整订单。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{订单价格由后端计算，前端不得直接指定最终应付金额；同一订单仅允许对应一个有效的当前支付状态。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1721}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2009}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1738}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2829}}@{}}
-\caption{新增收货地址说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 5.1 & \textbf{名称} & 新增送货地址 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-顾客新增地址列表中的送货地址} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-1. 点击地址界面的新建用户地址
-
-2. 依次填入地址信息
-
-3. 显示新建地址成功界面} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-地址列表出现新地址} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
-1. 地址中的必填信息未填写，需要写入} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6576} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-06} & \textbf{名称} & \textbf{支付与取消订单} \\ \hline
+执行者 & 顾客 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客对待支付订单执行模拟支付或钱包支付，并在满足条件时取消订单。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录；订单归属于当前顾客。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客打开待支付订单并选择支付方式。2. 系统校验订单仍处于待支付状态和支付金额。3. 使用钱包支付时，系统校验余额并创建对应钱包流水；模拟支付则记录模拟支付结果。4. 支付成功后系统把订单置为待商家接单，并生成后续履约所需记录。5. 系统向商家发送新订单通知。6. 顾客在允许取消的订单状态下提交取消请求。7. 系统校验取消条件，更新订单状态并按业务规则回退已占用的库存或用户资产。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{支付成功的订单进入商家处理阶段；取消成功的订单处于已取消状态且资产、库存与流水保持一致。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{待支付订单可由顾客主动取消或按超时规则取消。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{余额不足、重复支付、已取消订单支付、不可取消状态下取消或越权操作时拒绝请求。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{支付、取消和资产回退必须具备幂等保护；本项目不接入真实第三方资金清算。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1723}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2009}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1795}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2949}}@{}}
-\caption{修改收货地址说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 5.2 & \textbf{名称} & 修改送货地址 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-顾客修改地址列表中的送货地址} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-1. 点击地址界面的用户地址
-
-2. 修改地址信息
-
-3. 显示修改地址成功界面} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-地址列表出现修改后的新地址} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-地址中的必填信息未填写，需要写入} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-07} & \textbf{名称} & \textbf{查看订单、跟踪配送与确认收货} \\ \hline
+执行者 & 顾客 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客查看自己的订单列表和详情，跟踪订单履约状态，并在送达后确认收货。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录；目标订单归属于当前顾客。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入订单列表，按状态或时间查看历史订单。2. 顾客打开订单详情，系统展示订单商品、金额、地址、商家和当前状态。3. 进入履约阶段后，系统显示商家接单、制作、骑手接单、取餐、配送、送达等进度。4. 任务绑定骑手后，系统仅显示完成配送所需的必要配送信息。5. 骑手确认送达后，顾客可以提交确认收货。6. 系统校验订单状态并将订单置为已完成。7. 系统开放评价入口，并使该订单进入消费与经营统计的有效口径。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客可准确查看订单状态；确认收货后订单完成。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可以按业务规则在送达后超过规定时间自动完成订单。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非订单所有者、订单未送达、订单已取消或重复确认时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{地图定位不可用时至少显示文字状态、商家地址和收货地址文本。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1723}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2009}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1795}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2949}}@{}}
-\caption{删除收货地址说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 5.3 & \textbf{名称} & 删除送货地址 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-顾客删除地址列表中的送货地址} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-地址列表中有已经存在的地址} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-1. 点击地址界面的用户地址，进入用户的地址列表面
-
-2. 选中需要删除的地址，点击删除，询问是否删除
-
-3. 显示删除地址成功界面} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-用户的地址列表界面原地址消失} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-误触点到删除，询问是否删除时点击否，返回用户地址列表界面
-\end{quote}
-\end{minipage}} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6752} + 4\tabcolsep}@{}}{%
-} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-08} & \textbf{名称} & \textbf{管理会员权益} \\ \hline
+执行者 & 顾客 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客查看会员状态，并执行系统提供的会员开通或续费操作，订单结算时按配置享受相应权益。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入会员中心查看会员状态、有效期和权益说明。2. 非会员用户选择开通会员，会员用户选择续费。3. 系统展示当前可用的会员方案和对应规则。4. 顾客确认后系统记录会员变更和必要的支付/资产流水。5. 会员状态更新后，后续订单结算读取当前有效权益。6. 会员过期后系统停止应用已过期权益。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{会员状态、有效期和会员业务流水一致。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{具体权益内容可以通过配置调整，需求变化时不改变订单主流程接口。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{重复开通、非法方案、支付失败或越权操作时不更新会员状态。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{SRS 不规定具体会员折扣数值；实际方案以项目配置和验收需求为准。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1622}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2009}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1809}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2857}}@{}}
-\caption{收藏点赞店铺说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 6.1 & \textbf{名称} & 收藏、点赞商铺 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
-顾客收藏、点赞商铺} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
-1. 进入商铺
-
-2. 点击收藏或点赞按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
-收藏或点赞按钮被点亮} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6675} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-09} & \textbf{名称} & \textbf{管理钱包、积分和优惠券} \\ \hline
+执行者 & 顾客 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客查看钱包、积分和优惠券，执行允许的模拟充值、积分使用和优惠券选择，并查询资产流水。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入资产中心查看钱包余额、积分余额和优惠券列表。2. 顾客可执行课程项目中的模拟充值，系统记录充值流水。3. 系统根据优惠券状态、有效期和当前订单条件筛选可用优惠券。4. 结算时顾客选择优惠券、积分或钱包等允许的支付/抵扣方式。5. 系统在正式提交时再次校验资产余额和优惠券有效性。6. 业务成功后系统生成对应资产流水并更新账户状态。7. 订单取消或支付失败时，系统按规则回退需要恢复的资产并记录反向流水。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{钱包余额、积分、优惠券状态和相关订单记录一致，可通过流水追踪变化来源。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{资产组合和叠加规则由后台配置；前端只展示后端返回的可用方案。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{余额不足、积分不足、优惠券过期/已用/不适用、重复核销或并发修改冲突时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{钱包、积分和优惠券的最终可用性必须由后端判断，任何扣减操作均应具有幂等或并发保护。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1608}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2023}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1809}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2857}}@{}}
-\caption{查看收藏列表说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 6.2 & \textbf{名称} & 查看收藏列表 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
-顾客查看收藏列表} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
-1. 进入``我的''界面
-
-2. 点击我的收藏
-
-3. 查看收藏的所有商铺，点击可进入} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6689} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-10} & \textbf{名称} & \textbf{管理个性化偏好} \\ \hline
+执行者 & 顾客 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客设置主题、口味、忌口等个人偏好，并在再次登录时恢复。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入个性化设置页面。2. 系统读取当前保存的主题、口味和忌口等偏好。3. 顾客修改一个或多个偏好项并提交。4. 系统校验偏好值是否属于允许范围。5. 系统保存新的偏好并立即返回。6. 用户再次登录或重新进入相关页面时，系统读取并应用已保存偏好。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{个性化设置与当前用户绑定并可持续保存。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{游客可以使用默认主题但不能保存跨会话偏好。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{提交非法主题值、越权修改他人偏好或服务异常时保留原设置并提示失败。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{个性化设置只改变展示或推荐条件，不改变价格、库存、订单状态和权限语义。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1541}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2104}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1809}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2843}}@{}}
-\caption{取消点赞收藏说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 6.3 & \textbf{名称} & 取消收藏、点赞 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-顾客取消收藏、点赞} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-1. 进入商铺
-
-2. 再次点击收藏或点赞按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-收藏或点赞按钮变暗，取消收藏后该店铺不再出现在我的收藏
-\end{quote}
-\end{minipage}} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-11} & \textbf{名称} & \textbf{使用智能点单服务} \\ \hline
+执行者 & 顾客 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客通过文字、语音、图片或偏好获得候选菜品，并经确认后加入购物车。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客可以浏览商品；使用语音或图片功能时相应外部服务可用。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客选择文字推荐、语音输入或图片输入方式。2. 语音输入由语音识别服务转写为文本；图片输入由图片识别服务返回候选关键词或菜品。3. 推荐服务结合用户偏好、关键词和当前可售商品生成候选列表。4. 商品服务根据真实上架状态、店铺、价格和库存过滤候选结果。5. 系统向顾客展示候选菜品及来源说明。6. 顾客人工确认目标商品和数量。7. 系统调用正常购物车功能加入商品。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{智能服务只产生候选结果；被确认的有效商品按照普通购物车规则保存。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客可以跳过智能服务并返回普通搜索和手工点餐。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{外部服务超时、无结果、识别错误或候选商品已下架时，系统提示并提供普通搜索，不修改购物车。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{智能服务不得直接创建订单、扣减库存或修改用户资产。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1541}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2076}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1823}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2857}}@{}}
-\caption{申请成为商家说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 7 & \textbf{名称} & 申请成为商家 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-顾客申请成为商家} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-1. 进入``我的''页面
-
-2. 点击申请成为商家按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-管理端用户审核列表出现新条目，等待管理员审核} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-重复申请} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-12} & \textbf{名称} & \textbf{评价已完成订单} \\ \hline
+执行者 & 顾客 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客对自己的已完成订单提交评分、文字和可选图片评价。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录；订单属于当前顾客且状态为已完成；该订单尚未提交有效评价。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客从已完成订单进入评价页面。2. 系统显示订单中的店铺和商品信息。3. 顾客填写评分、文字内容并可选择上传评价图片。4. 系统校验订单归属、订单状态、评分范围和内容格式。5. 图片存在时系统先完成文件上传并获得有效资源地址。6. 系统保存评价并关联订单、顾客和店铺。7. 系统在店铺评价列表中展示该评价。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{生成一条与有效订单关联的评价记录，订单评价状态同步更新。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客可以只评分不上传图片；是否允许修改评价按项目实现规则处理。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{订单未完成、重复评价、非法评分、违规参数或图片上传失败时不生成不完整评价。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{评价只能来源于真实已完成订单；管理员治理评价时不删除订单记录。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1541}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2076}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1809}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2871}}@{}}
-\caption{读取消息通知说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 8.1 & \textbf{名称} & 读取消息与通知 \\
-\textbf{执行者} & 顾客 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-顾客读取消息与通知} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-1. 进入``我的''页面
-
-2. 点击消息与通知
-
-3. 点击待读取的消息} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
-读取后消息与通知红点消失，消息由蓝色变为灰色} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6756} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-13} & \textbf{名称} & \textbf{查看个人消费分析} \\ \hline
+执行者 & 顾客 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客按时间范围查看自己的消费金额、订单数量、常购店铺或商品等统计。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 顾客进入个人消费分析页面。2. 顾客选择年份、月份或允许的时间范围。3. 系统校验查询范围并读取当前用户的有效订单。4. 系统汇总有效消费金额、订单数以及按店铺或商品的统计。5. 系统返回图表所需类别、数值和趋势数据。6. 前端以折线图、柱状图、饼图或排名列表展示结果。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{顾客看到只属于本人且与有效订单口径一致的消费统计。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可提供年度汇总、月度趋势或商品/商家排名。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非法时间范围、查询跨度过大或无数据时返回明确提示或空结果。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{统计接口只读，不修改订单、资产或评价数据。} \\ \hline
 \end{longtable}
 
-\subsection{商家的用例}\label{ux5546ux5bb6ux7684ux7528ux4f8b}
+\subsection{商家的用例}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=5.78125in,height=4.69792in]{figures/srs/image15.png}
-\caption{商家用例图}
-\changedfigure{需增加出餐与骑手交接、促销、折扣限购、商家故事、评价回复和经营看板；商家不得越级完成配送订单。}
-\end{figure}
+商家用例图
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1881}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1667}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2856}}@{}}
-\caption{查看商品说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 9.1 & \textbf{名称} & 查看商品 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家查看所售商品} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 点击页面下方``商铺''图标
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 5-4）}}
+\end{center}
 
-2. 点击对应商铺的``编辑''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-显示该商铺的所有商品} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
+图 5-4  商家用例图
+
+图 5-4 以商家为中心连接 UC-14 至 UC-18。商家申请与店铺状态管理涉及管理员审核；商品分类、商品与库存管理属于店铺资源维护；处理订单包括接单/拒单、制作、出餐和取餐交接；评价回复仅针对本人店铺；经营数据从有效订单和评价中聚合。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-14} & \textbf{名称} & \textbf{商家申请与店铺营业状态管理} \\ \hline
+执行者 & 用户 / 商家 / 管理员 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{普通用户提交商家或开店申请，经管理员审核后获得经营资格；商家维护店铺营业状态。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{用户账号有效；进入商家工作台要求相应申请已通过。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 用户提交商家或店铺申请及必要资料。2. 管理员查看申请详情并选择通过或拒绝。3. 审核通过后系统赋予商家角色并创建或激活店铺。4. 商家进入店铺管理页面查看店铺信息。5. 商家将店铺设置为营业、休息或临时闭店。6. 系统保存营业状态并在顾客端店铺列表和详情中同步展示。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{审核状态、商家角色和店铺营业状态正确保存。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{被拒绝申请可以在规则允许时修改后重新提交。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{无权限操作、申请状态已变化或非法营业状态时拒绝请求。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{店铺非营业状态下不得接受新的正常下单，但历史订单仍可查询和处理。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1881}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1667}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2856}}@{}}
-\caption{上下架商品说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 9.2 & \textbf{名称} & 上/下架商品 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家上/下架商品} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入对应商铺
-
-2. 点击对应商品的``上架/下架''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-下架商品，则该商品条目名称下方出现``已下架''上架商品，则该商品条目恢复原状
-\end{quote}
-\end{minipage}} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-15} & \textbf{名称} & \textbf{管理商品分类、商品与库存} \\ \hline
+执行者 & 商家 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家维护本人店铺的商品分类、商品信息、价格、库存、上架状态和展示属性。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家已登录并拥有目标店铺。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 商家进入商品管理页面查看分类和商品列表。2. 商家新增、修改或删除商品分类。3. 商家新增商品并填写名称、分类、价格、库存和展示信息。4. 系统校验商品字段和店铺归属后保存。5. 商家修改商品价格、库存、上架/下架、折扣、限购或热销等信息。6. 系统更新商品数据，并使顾客端读取最新可售状态。7. 删除操作按项目设计采用逻辑删除或禁止删除历史订单引用的商品。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{分类和商品数据更新成功，库存和上架状态可被订单流程正确读取。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可维护商品图片、月售展示、活动标签和商家故事等扩展信息。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非本店商品、非法价格、负库存、非法折扣、分类不存在或并发库存冲突时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{订单扣减库存必须与商家手工库存调整使用一致的库存规则；历史订单使用商品快照。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1882}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1681}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2841}}@{}}
-\caption{修改商品说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 9.3 & \textbf{名称} & 修改商品 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家修改商品} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入对应商铺
-
-2. 点击对应商品的``编辑''按钮
-
-3. 输入商品修改后的信息} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商铺详情页面显示修改后的商品} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-修改项包括修改商品图片、名称、介绍、价格} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-16} & \textbf{名称} & \textbf{处理订单并完成出餐} \\ \hline
+执行者 & 商家 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家处理本店已支付订单，完成接单、制作和出餐，并与骑手完成取餐交接。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家已登录；订单属于当前店铺且处于允许商家处理的状态。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 商家查看待处理订单列表和订单详情。2. 商家选择接单或拒单。3. 系统校验订单状态；接单后订单进入制作中，拒单后进入取消流程并记录原因。4. 商家制作完成后执行“出餐完成”。5. 系统使配送任务进入允许骑手取餐的状态。6. 骑手到店后，商家核对订单取餐信息。7. 骑手确认取餐后，系统记录取餐时间并同步订单进入配送阶段。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{接单订单完成商家履约并正确进入配送阶段；拒单订单进入取消及回退流程。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家可查看配送任务是否已被骑手接取。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{已取消、非本店、重复接单、重复出餐或状态不允许时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家不得绕过骑手流程直接把配送订单置为已送达或已完成。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2167}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1865}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2371}}@{}}
-\caption{删除商品说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 9.4 & \textbf{名称} & 删除商品 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家删除商品} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入对应商铺
-
-2. 点击对应商品的``删除''按钮
-
-3. 输入商品修改后的信息} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商铺详情页面显示修改后的商品} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-修改项包括修改商品图片、名称、介绍、价格} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-17} & \textbf{名称} & \textbf{回复顾客评价} \\ \hline
+执行者 & 商家 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家查看本人店铺评价，并对允许回复的评价提交公开回复。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家已登录；目标评价属于当前商家的店铺。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 商家进入评价管理页面查看店铺评价列表。2. 商家按评分、时间等条件筛选评价。3. 商家打开目标评价查看订单关联信息和评价内容。4. 商家填写回复内容并提交。5. 系统校验店铺归属、评价状态和回复内容。6. 系统保存商家回复并在顾客端评价区域展示。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{评价和商家回复保持正确关联，回复内容可查询。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{若项目允许，可在规定范围内修改尚未被治理的回复。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非本店评价、评价已隐藏、回复内容非法或越权请求时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家回复不能修改顾客评分和原评价内容。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2181}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1851}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2371}}@{}}
-\caption{查看订单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 10.1 & \textbf{名称} & 查看订单 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家查看本商户的订单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入商家``订单''页面
-
-2. 选择对应商铺} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-显示商家该商铺不同状态的订单列表} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-商家端显示的订单状态分为：待接单、已接单、已取消、已完成
-\end{quote}
-\end{minipage}} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-18} & \textbf{名称} & \textbf{查看商家经营数据} \\ \hline
+执行者 & 商家 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家按时间范围查看本店订单、营业额、商品销量和评价等经营统计。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{商家已登录并拥有目标店铺。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 商家进入经营数据页面。2. 商家选择年份、月份或允许的时间范围。3. 系统校验店铺归属和时间参数。4. 系统汇总有效订单数量、有效交易额、客单价、商品销量和评价评分等数据。5. 系统生成趋势、排名和占比所需数据。6. 前端以图表或表格展示经营结果。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{经营数据只包含当前商家店铺，并与有效订单及评价口径一致。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可以按商品、分类或时间维度切换统计。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非法时间范围、无权限查询其他店铺或统计服务异常时返回明确提示。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{统计功能只读，不修改订单、商品、库存和评价原始数据。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2067}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1837}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2499}}@{}}
-\caption{接单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 10.2 & \textbf{名称} & 接单 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家接单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入商家``订单''页面，选择对应商铺
+\subsection{骑手的用例}
 
-2. 选择查看``待接单''订单列表
+骑手用例图
 
-3. 点击``接单''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-该订单从``待接单''状态转为``已接单''状态} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-当顾客支付订单后对应商家的待接单列表增加该订单；商家接单后顾客订单状态显示同步修改为``已接单''
-\end{quote}
-\end{minipage}} \\
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 5-5）}}
+\end{center}
+
+图 5-5  骑手用例图
+
+图 5-5 以骑手为中心连接 UC-19 至 UC-23。骑手申请关联管理员审核；上线后才能获取新的可接任务；接单成功后才能执行到店与取餐；取餐后才能执行配送和送达；异常上报扩展正常配送过程；历史任务为只读查询。地图服务与到店导航、配送导航建立扩展关系。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-19} & \textbf{名称} & \textbf{申请骑手与管理工作状态} \\ \hline
+执行者 & 用户 / 骑手 / 管理员 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{普通用户提交骑手申请，经管理员审核后获得骑手角色；骑手可以上线或下线。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{用户账号有效；进入骑手工作台要求骑手申请已通过。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 用户填写并提交骑手申请资料。2. 管理员查看骑手申请并执行审核。3. 审核通过后系统为用户建立骑手资料并赋予骑手角色。4. 骑手进入骑手工作台查看当前工作状态。5. 骑手选择上线，系统校验账号和骑手状态后设为可接任务。6. 骑手在没有进行中配送任务时选择下线。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{审核通过的用户可以作为骑手工作；上线/下线状态正确保存。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{审核被拒绝时系统记录原因，用户可按规则重新提交。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{账号被禁用、审核未通过、骑手存在进行中任务或状态请求非法时拒绝转换。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{上线状态只控制新任务获取，不改变已经承接的配送任务。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2067}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1823}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2513}}@{}}
-\caption{取消订单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 10.3 & \textbf{名称} & 取消订单 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家取消订单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入商家``订单''页面，选择对应商铺
-
-2. 选择查看``待接单''订单列表
-
-3. 点击``取消''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-该订单从``待接单''状态转为``已取消''状态} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-仅商家接单前可以取消订单} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-20} & \textbf{名称} & \textbf{查看可接配送任务与接单} \\ \hline
+执行者 & 骑手 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{在线骑手查看当前可承接的配送任务，并竞争性地接受其中一个任务。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{骑手已登录、审核通过并处于上线状态。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 骑手打开可接任务列表。2. 系统分页返回符合可见条件且处于待接单状态的任务摘要。3. 骑手查看目标任务的店铺位置、配送区域和必要信息。4. 骑手提交接单请求。5. 系统校验骑手当前状态、任务状态和任务归属条件。6. 系统通过带状态条件的更新或版本控制原子绑定当前骑手。7. 接单成功后记录接单时间并返回任务详情，同时更新顾客和商家可见的配送状态。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{配送任务唯一绑定当前骑手，进入待取餐阶段。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{如果项目采用简化的系统指派方式，被指派骑手仍应经过相同的任务状态和权限校验。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{任务已经被其他骑手接取、骑手离线、骑手状态异常或并发更新失败时返回状态冲突，不能覆盖已有骑手。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{并发接单是骑手模块的重点测试场景，应验证只有一个请求可以成功。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1888}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1996}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1724}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2683}}@{}}
-\caption{完成订单说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 10.4 & \textbf{名称} & 完成订单 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-商家完成订单} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-1. 进入商家``订单''页面，选择对应商铺
-
-2. 选择查看``已接单''订单列表
-
-3. 点击``完成''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-该订单从``已接单''状态转为``已完成''状态} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6403} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-商家完成订单后顾客对应的订单状态显示同步变为``已完成''
-\end{quote}
-\end{minipage}} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-21} & \textbf{名称} & \textbf{到店与确认取餐} \\ \hline
+执行者 & 骑手 / 商家 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{骑手接受任务后前往商家，确认到店并在商家出餐后完成取餐。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{配送任务已绑定当前骑手，订单未取消。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 骑手打开已接任务查看店铺地址和取餐信息。2. 骑手可调用地图服务导航到店；地图不可用时使用文本地址。3. 到店后骑手执行到店确认，系统记录到店时间或状态。4. 系统显示商家是否已经出餐。5. 商家完成出餐后，骑手核对订单信息并执行确认取餐。6. 系统校验任务仍属于当前骑手且订单状态允许取餐。7. 系统记录取餐时间，配送任务进入配送中，订单同步进入配送阶段。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{当前骑手取得订单并进入配送阶段，取餐时间可追踪。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{若骑手先到店而商家尚未出餐，任务保持待取餐并允许等待。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{任务已取消、商家未出餐、非本人任务、重复取餐或状态不允许时拒绝确认取餐。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{到店确认与取餐确认应区分，避免把“到店”等同于“已经取得餐品”。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1892}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1995}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1710}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2700}}@{}}
-\caption{申请开店说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 11.1 & \textbf{名称} & 申请开店 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
-商家申请开店} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
-1. 点击``申请新店''按钮
-
-2. 填写店铺信息} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
-开店申请出现在管理端商铺审核列表，等待审核} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6405} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-22} & \textbf{名称} & \textbf{配送、送达与异常上报} \\ \hline
+执行者 & 骑手 & 优先级 & 最高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{骑手取餐后执行配送，送达后确认完成；遇到地址或联系异常时上报异常。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{配送任务属于当前骑手且已经确认取餐。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 骑手查看顾客配送地址和完成配送所需的最小联系方式。2. 骑手开始配送，系统保持配送中状态并向顾客展示进度。3. 骑手可调用地图导航至顾客地址。4. 正常到达后骑手执行确认送达。5. 系统校验任务状态并记录送达时间，任务进入已送达状态。6. 系统向顾客发送送达通知，等待顾客确认收货。7. 出现地址错误、无法联系顾客等情况时，骑手选择异常类型、填写必要说明并提交。8. 系统保存异常记录，并根据后续处理结果允许继续配送或终止任务。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{正常场景下任务进入已送达；异常场景保留异常类型、说明、时间和处理结果。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{异常解除后可从异常状态恢复配送；具体允许的异常类型由项目配置。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非本人任务、未取餐、重复送达、已取消任务或非法状态下操作时拒绝请求。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{任务结束后应限制继续读取与履约无关的顾客敏感信息。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2039}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1923}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1738}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2804}}@{}}
-\caption{修改店铺信息说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 11.2 & \textbf{名称} & 修改店铺信息 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
-商家修改店铺信息} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-1. 点击对应店铺的``编辑''按钮
-
-2. 点击``编辑商家信息''
-
-\begin{quote}
-3. 可修改店铺图片、名称、起送费、配送费、简介、类型
-\end{quote}
-\end{minipage}} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
-显示修改后的店铺} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6466} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-23} & \textbf{名称} & \textbf{查看配送历史} \\ \hline
+执行者 & 骑手 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{骑手查看本人历史配送任务、任务状态和完成情况。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{骑手已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 骑手进入历史任务页面。2. 系统按时间倒序分页返回当前骑手的配送记录。3. 骑手可以按完成、异常或时间范围筛选。4. 骑手打开任务详情查看店铺、配送结果和关键时间。5. 系统展示接单、取餐、送达等历史节点以及异常记录。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{骑手只看到本人历史任务，并可查询已完成和异常配送记录。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可以汇总本人完成任务数量等简单统计。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{非法时间范围、越权查看他人任务或任务不存在时返回错误。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{历史任务为只读数据，不能通过历史页面修改已完成任务状态。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1950}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1895}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1752}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2701}}@{}}
-\caption{删除店铺说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 11.3 & \textbf{名称} & 删除店铺 \\
-\textbf{执行者} & 商家 & \textbf{优先级} & 低 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
-商家删除店铺} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
-点击对应店铺的``删除''按钮
+\subsection{管理员的用例}
 
-在弹出弹窗中选择``确认删除''} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
-显示删除该店铺后的店铺列表} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6348} + 4\tabcolsep}@{}}{%
--} \\
+管理员用例图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 5-6）}}
+\end{center}
+
+图 5-6  管理员用例图
+
+图 5-6 以管理员为中心连接 UC-24 至 UC-26。准入审核覆盖商家、店铺和骑手申请；用户与评价治理包括账号启用/禁用和违规评价展示处理；平台数据看板只读展示汇总数据。所有管理操作都必须经过后端权限校验，并记录操作日志。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-24} & \textbf{名称} & \textbf{审核商家、店铺和骑手申请} \\ \hline
+执行者 & 管理员 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员处理商家、开店和骑手等平台准入申请。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员已登录；系统存在待审核申请。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 管理员进入审核列表，并按申请类型或状态筛选。2. 系统展示申请人、申请类型、提交时间和必要资料。3. 管理员打开申请详情进行检查。4. 管理员选择通过或拒绝；拒绝时填写原因。5. 系统再次校验申请仍处于待审核状态。6. 审核通过时系统授予相应角色或激活相应店铺；拒绝时保存拒绝原因。7. 系统保存审核人、审核时间和审核结果，并向申请人展示审核结果。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{申请状态与用户角色或店铺状态保持一致，审核过程可追踪。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员可以查看已处理申请历史。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{重复审核、申请状态已变化、参数非法或非管理员访问时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{审核结果属于关键管理数据，应保留操作日志。} \\ \hline
 \end{longtable}
 
-\subsection{管理员的用例}\label{ux7ba1ux7406ux5458ux7684ux7528ux4f8b}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=4.99931in,height=4.67778in]{figures/srs/image16.png}
-\caption{管理员用例图}
-\changedfigure{需增加骑手审核、评价治理、活动监管、资产异常审计和平台数据看板。}
-\end{figure}
-
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2487}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1760}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3625}}@{}}
-\caption{成为商家申请说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 12.1 & \textbf{名称} & 审核顾客申请成为商家申请 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
-管理员审核} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-进入用户审核列表，点击``审核''按钮，查看申请人详细信息
-\end{quote}
-
-选择``批准''或``拒绝''
-\end{minipage}} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-顾客端``我的''页面的消息与通知出现新消息，通知审核结果；若管理员批准申请，顾客端``申请成为商家''按钮变为``切换到商家端''按钮
-\end{quote}
-\end{minipage}} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7871} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-25} & \textbf{名称} & \textbf{用户账号与评价治理} \\ \hline
+执行者 & 管理员 & 优先级 & 高 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员查询平台用户并调整账号状态，同时处理违规或异常评价的展示状态。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 管理员按账号、角色或状态搜索用户。2. 管理员查看用户基本信息和账号状态。3. 管理员对需要处理的账号执行启用或禁用，并填写必要原因。4. 管理员查看被举报或待处理评价。5. 管理员根据平台规则隐藏、恢复或标记评价。6. 系统对每次账号或评价治理保存操作者、时间、处理结果和原因。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{用户账号状态和评价展示状态正确更新，相关历史业务记录保留。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员可以结合异常配送记录进行业务核查，但不直接修改正常配送历史。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{普通角色调用管理员接口、非法状态转换或目标记录不存在时拒绝操作。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{禁用账号不删除历史订单、资产流水、评价和审计记录。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2106}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1428}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3927}}@{}}
-\caption{审核商家开店申请说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 12.2 & \textbf{名称} & 审核商家开店申请 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
-管理员审核} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
-进入商铺审核列表，点击``审核''按钮，查看商铺详细信息
-
-选择``批准''或``拒绝''} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-顾客端``我的''页面的消息与通知出现新消息，通知审核结果；若管理员同意申请，商铺出现在商家商铺页面的已上线列表，否则出现在未通过列表
-\end{quote}
-\end{minipage}} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.7461} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{编号} & \textbf{UC-26} & \textbf{名称} & \textbf{查看平台数据看板} \\ \hline
+执行者 & 管理员 & 优先级 & 中 \\ \hline
+描述 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员按时间范围查看平台用户、商家、骑手、订单、有效交易和配送异常等汇总数据。} \\ \hline
+前置条件 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员已登录。} \\ \hline
+基本流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{1. 管理员进入平台数据看板。2. 管理员选择年份、月份或允许的时间范围。3. 系统校验查询参数。4. 系统从有效用户、店铺、订单、配送任务和评价数据中聚合指标。5. 系统返回用户数、商家数、骑手数、订单量、有效交易额、配送完成量和异常配送等统计。6. 前端以趋势图、占比图、排名或汇总卡片展示结果。} \\ \hline
+结束状况 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{管理员看到与当前统计口径一致的平台汇总数据。} \\ \hline
+可选流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{可按时间或业务维度切换统计视图。} \\ \hline
+异常流程 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{时间参数非法、查询范围过大或统计服务异常时返回明确提示，不修改原始数据。} \\ \hline
+说明 & \multicolumn{3}{|>{\raggedright\arraybackslash}p{\dimexpr 3\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}{平台看板为只读功能；统计口径应在文档和实现中保持一致。} \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1629}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1448}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3514}}@{}}
-\caption{启用用户账号说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 13.1 & \textbf{名称} & 启用用户账号 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员启用用户账号} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员进入``用户管理''页面
+\subsection{其他功能性需求}
 
-对于已禁用用户，点击``启用''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-该用户状态由``已禁用''变为``已启用''，出现在已启用用户列表
-\end{quote}
-\end{minipage}} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
+除上述主要用例外，系统需要提供消息通知和媒体附件等公共功能。通知属于业务状态的辅助反馈，发送失败不能回滚已经成功的核心事务；媒体附件只保存有效资源地址。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{触发事件} & \textbf{接收者} & \textbf{通知/处理内容} & \textbf{要求} \\ \hline
+用户注册或角色审核完成 & 申请用户 & 显示注册或审核结果 & 站内消息或页面提示；审核拒绝时显示原因。 \\ \hline
+订单支付成功 & 商家 & 提示存在新的待处理订单 & 通知失败不改变订单支付结果。 \\ \hline
+商家接单、拒单或完成出餐 & 顾客 / 骑手 & 同步订单和配送状态 & 以数据库状态为准，通知只作提醒。 \\ \hline
+骑手接单、取餐、送达或上报异常 & 顾客 / 商家 & 同步配送任务进度 & 可以使用轮询或 WebSocket 等方式提高实时性。 \\ \hline
+订单完成 & 顾客 & 开放评价入口 & 只有已完成订单允许评价。 \\ \hline
+评价产生或商家回复 & 商家 / 顾客 & 显示新评价或回复 & 评价治理后按当前展示状态决定是否公开。 \\ \hline
+上传头像、商品图、评价图、商家故事图片 & 对应业务用户 & 对象存储或本地资源服务返回有效地址 & 上传失败时不得写入无效资源地址或生成半完成业务记录。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2158}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1649}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2784}}@{}}
-\caption{禁用用户账号说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 13.2 & \textbf{名称} & 禁用用户账号 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员禁用用户账号} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员进入``用户管理''页面
+\section{非功能性需求}
 
-对于已启用用户，点击``禁用''按钮} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-\begin{minipage}[t]{\linewidth}\raggedright
-\begin{quote}
-该用户状态由``已启用''变为``已禁用''，出现在已禁用用户列表
-\end{quote}
-\end{minipage}} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
+\subsection{系统架构}
+
+系统采用前后端分离架构。后端保持 Controller、Service、Mapper/Dao、Entity 的职责边界，并通过统一异常处理、统一返回结构、参数校验、状态判断和外部服务适配降低需求变更对其他模块的影响；前端按顾客、商家、骑手和管理员组织路由和页面，并复用公共组件和统一请求封装。
+
+系统技术架构图
+
+\begin{center}
+\fbox{\parbox[c][3.2cm][c]{0.88\linewidth}{\centering\hei （此处插入图 6-1）}}
+\end{center}
+
+图 6-1  系统技术架构图
+
+图 6-1 从上到下分为客户端层、接口层、业务层、数据访问层和基础设施层。客户端层包含顾客、商家、骑手和管理员 Vue 3 页面；接口层包括 /api/v1 REST API、认证、参数校验和全局异常处理；业务层包含用户、店铺、商品、购物车、订单、配送、资产、评价、统计和智能服务；数据访问层为 Mapper/Dao；基础设施层包括 MySQL、对象存储和外部地图/推荐/语音/识图服务。外部服务通过适配接口与核心业务隔离。
+
+\begin{itemize}
+\item 新增需求优先通过稳定接口、策略、配置、状态或适配器扩展，避免修改多个无关模块。
+\item 第三方服务应通过可替换接口隔离，使 Service 单元测试可以使用 Mock 或 Stub。
+\item 统一异常处理和统一响应结构，避免不同 Controller 分别定义错误格式。
+\item 实体字段的非破坏性扩展不应迫使所有已有接口同时修改；破坏性接口变化应使用新的版本路径。
+\end{itemize}
+
+\subsection{接口}
+
+前后端接口以 RESTful 为主要设计原则，优先保证资源语义清晰、HTTP 方法合理、状态码统一和接口可测试性。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/2-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/2-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{要求} & \textbf{规定} \\ \hline
+版本 & 新增接口统一使用 /api/v1 前缀；出现破坏性变更时才考虑新的接口版本。 \\ \hline
+URI & 以资源名词为中心，例如 /api/v1/orders、/api/v1/stores、/api/v1/delivery-tasks；登录等行业常见动作型接口可合理妥协。 \\ \hline
+HTTP 方法 & GET 查询，POST 创建，PATCH 局部修改，DELETE 删除或逻辑删除；取消订单、支付、接单等业务动作可以使用动作型子路径。 \\ \hline
+状态码 & 200/201 表示成功；400 参数错误；401 未认证；403 无权限；404 资源不存在；409 状态或并发冲突；500 服务器异常。 \\ \hline
+分页筛选 & 分页、排序、状态、时间范围等通过 Query 参数传递。 \\ \hline
+返回结构 & 统一返回 code、msg、data；必要时可附加用于定位问题的请求标识。 \\ \hline
+幂等与并发 & 支付、资产核销、订单取消、骑手接单等重复提交可能产生副作用的操作必须进行幂等或并发保护。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1728}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2147}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1649}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2795}}@{}}
-\caption{搜索用户账号说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 13.3 & \textbf{名称} & 搜索用户账号 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员搜索用户账号} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-1.管理员进入``用户管理''页面
+\subsection{安全性}
 
-2. 在搜索栏搜索用户名、手机号或邮箱} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-得到模糊匹配结果} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
+系统安全要求包括身份认证、权限控制、资源归属校验、敏感信息保护和关键操作留痕。前端页面的显示控制只用于改善操作体验，任何涉及业务数据的访问权限均由后端重新判断。
+
+\begin{itemize}
+\item 账号密码采用不可逆安全哈希保存，日志、异常和接口响应不得记录明文密码、完整认证令牌等敏感数据。HTTP 请求方法本身不能保证传输机密性，部署和验收环境使用 HTTPS。
+\item 系统采用基于角色的访问控制，对顾客、商家、骑手和管理员分别授权；在角色校验之外同时检查资源归属。顾客不得读取或修改他人订单，商家不得管理非本人店铺，骑手不得操作非本人配送任务。
+\item 管理员接口必须在后端执行权限校验，不能只依靠前端隐藏管理按钮。商家、店铺和骑手审核结果及账号禁用等管理操作保存操作者、原因和时间。
+\item 骑手只在履约期间获得完成本人当前任务所需的取餐地址、收货地址和必要联系方式；任务完成、取消或改派后，原骑手不再继续获得该任务的敏感配送信息。
+\item 钱包、积分、优惠券、订单状态、审核、评价治理和后台资产调整应保留流水或审计记录。禁止直接覆盖余额、状态或治理结果而不保存业务来源。
+\item 认证失效时接口返回 401，由前端清理无效登录状态并引导重新登录；资源存在但当前用户无权操作时返回 403。支付、接单、核销等写操作不得因为网络错误而在没有幂等保护时自动重复执行。
+\item 用户偏好、位置、语音和图片等数据只用于对应业务功能。用户能够修改或清除可维护的个人偏好，系统不得把这些信息暴露给无关角色。
+\end{itemize}
+
+\subsection{性能与可靠性}
+
+系统性能以课程测试环境中的可用性和稳定性为主要目标。普通业务不能因为单个智能服务、地图服务或媒体服务出现异常而整体不可使用。以下指标作为项目测试和交叉验收时的参考基线。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/2-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/2-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{质量属性} & \textbf{验收要求} \\ \hline
+普通接口响应 & 在课程规定或小组统一的测试环境中，店铺、商品、购物车、订单等非智能普通接口应保持正常交互；测试报告记录典型接口的响应时间和错误情况。 \\ \hline
+页面响应 & 店铺、商品、订单和配送等主要页面加载时具有明确的加载、空数据和失败状态，不因一次接口失败造成页面长期无反馈。 \\ \hline
+统计查询 & 顾客和商家的年度统计按用户、店铺和时间范围聚合，并使用分页、索引或预聚合等方式避免全表无条件读取。 \\ \hline
+外部服务 & 推荐、语音、识图和地图调用设置超时。达到超时条件后返回降级结果，不无限等待，也不阻断普通搜索、购物车、订单和文本地址功能。 \\ \hline
+并发一致性 & 并发骑手接单、库存扣减、优惠核销、钱包扣款和积分发放不能出现两个骑手同时接到同一任务、库存为负、钱包为负或同一资产重复核销。 \\ \hline
+事务可靠性 & 订单创建及其关联的库存、优惠、钱包和积分操作在关键步骤失败时应回滚或进入可恢复状态，不产生只有部分数据成功的半完成订单。 \\ \hline
+兼容性 & 支持当前主流 Chromium 内核桌面浏览器；顾客和骑手的核心操作在常见移动端宽度下能够完成。 \\ \hline
+可观测性 & 登录、订单、配送、资产和外部服务错误具有必要日志，关键请求可以通过请求标识关联前后端问题，同时日志不泄露敏感数据。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1758}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1758}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3075}}@{}}
-\caption{新增商铺说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 14.1 & \textbf{名称} & 新增商铺 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员新增商铺} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员进入``商铺管理''页面
+\begin{itemize}
+\item 订单创建、支付、库存扣减、资产核销和骑手接单等关键操作采用事务、唯一约束、条件更新或版本控制保证数据一致性。
+\item 重复点击支付、取消、接单、确认取餐、确认送达等操作不得产生重复副作用；发生状态冲突时返回明确的冲突结果，不使用后一次请求覆盖已经成功的前一次操作。
+\item 系统异常不得造成已经成功提交的业务数据无原因丢失。外部服务失败与核心交易失败分别记录，便于测试和验收时定位问题。
+\end{itemize}
 
-进入对应商家
+\subsection{界面}
 
-点击``新增商铺''按钮
+\begin{itemize}
+\item 顾客、商家、骑手和管理员登录后进入与角色相对应的工作台，界面中的状态名称与后端业务状态保持一致。
+\item 表单校验信息应定位到具体字段，关键按钮应具有处理中、成功和失败等反馈，避免重复提交。
+\item 店铺休息、商品售罄、订单取消、骑手配送异常等状态应使用文字明确说明，不能只依靠颜色表达。
+\item 主题切换后文字与背景应保持可读；主要页面适配常见桌面浏览器窗口。
+\item 语音、图片和地图能力均提供文字输入、普通搜索或文本地址等替代操作。
+\end{itemize}
 
-填写新商铺的图片、名称、地址、简介、类型} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-该商家商铺列表出现新增的商铺} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
+\subsection{可测试性与可维护性}
+
+测试既用于验证系统功能，也用于证明开发过程符合本课程的 TDD 要求。每项核心需求在进入实现前应先明确输入、前置条件、预期结果和异常结果，并形成可以自动执行的测试。
+
+\begin{itemize}
+\item 每个核心业务需求至少具有正常、异常和边界测试，测试必须包含明确断言，禁止只运行接口而不验证结果。骑手接单、库存扣减、钱包扣款、优惠券核销和积分发放还应覆盖并发或重复请求场景。
+\item 开发顺序遵循“分析接口行为—编写测试—运行失败—实现业务—运行通过—重构”的 TDD 流程。首次失败测试应能够证明测试在业务实现之前已经存在。
+\item Service 层用于验证价格、状态、权限、资产和事务等核心业务规则；Controller/MockMvc 测试验证 HTTP 方法、状态码、请求参数、响应体和认证授权；Mapper 或数据库集成测试验证关键查询、唯一约束和事务行为。
+\item 地图、推荐、语音识别、图片识别和对象存储等外部服务在自动化测试中使用可控的 Mock、Stub 或测试适配器，不要求测试依赖真实第三方服务才能运行。
+\item 核心业务接口自动化测试覆盖率达到 100\%，关键业务方法覆盖率不低于 90\%。覆盖率结果不能替代业务断言，必须同时检查正常、权限、异常和边界场景。
+\item 需求发生变化时，先修改需求及验收条件并新增会失败的测试，再修改实现；实现完成后除运行新增测试外，还执行受影响的第一阶段功能和相关业务的回归测试。
+\item 测试类、测试日志、覆盖率报告、需求变更后的回归结果和交叉验收记录作为项目交付材料保存。Git 历史能够追踪需求、测试和实现的先后关系，并反映小组成员持续贡献。
+\item 业务规则集中在 Service、策略或配置中，避免同一状态判断或优惠计算分别散落在多个 Controller 和前端页面。新增状态、优惠方式或外部服务时优先扩展稳定接口，减少对无关模块的修改。
+\end{itemize}
+
+\subsection{需求追踪}
+
+系统采用稳定的需求编号进行需求、开发和测试追踪。功能性需求使用 UC 编号，课程新增需求在开发任务和测试记录中继续引用相同编号。每项需求至少应能够对应到接口或页面、主要数据对象、自动化测试和验收结果。
+
+当需求发生变化时，先修改需求说明、前置条件、业务规则或验收条件，再确定受影响的接口、数据和测试。不得先修改代码后再反向补写需求。状态机、优惠规则、推荐服务和第三方适配器等容易变化的部分，应通过状态转换、配置项或稳定接口扩展，避免对已经通过测试的业务模块和页面进行大面积修改。
+
+\subsection{可验收性}
+
+系统应能够由其他小组按照统一接口、业务闭环和测试证据进行交叉验收。验收时至少验证用户、店铺、商品、购物车和基础订单功能，检查骑手等需求变更是否在不大面积重构的情况下落地，并检查 REST 接口、异常场景、权限场景、边界场景和回归测试结果。
+
+单项需求只有在需求说明和接口已经同步、相关自动化测试通过、前后端能够联调、受影响旧功能完成回归、代码和文档已经提交并可由成员解释时，才认为达到完成条件。若增强型智能功能因为第三方服务暂时不可用，应能够按照本文规定的降级流程完成基础业务验收。
+
+\section{附录}
+
+需求分析、开发、测试和验收过程中需要同步维护的项目材料如下。
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{资料名称} & \textbf{提供者} & \textbf{获取日期} & \textbf{说明} \\ \hline
+软件工程综合实践项目要求 Markdown 文档 & 课程组 & 2026-09-02 & 课程范围、TDD、RESTful、架构、验收和过程规范。 \\ \hline
+elemopractice Git 仓库 & 项目组 & 2026-09-02 & 项目源代码及 report 目录中的原报告材料。 \\ \hline
+数据库设计文档 & 项目组 & 项目开发期 & 业务实体、字段、约束和表关系。 \\ \hline
+接口文档 & 项目组 & 项目开发期 & URI、HTTP 方法、请求参数、响应、权限和错误场景。 \\ \hline
+TDD 测试报告与回归记录 & 项目组 & 项目开发期 & 记录测试先行证据、测试结果、覆盖率和需求变更后的回归结果。 \\ \hline
+需求变更记录 & 项目组 & 第 2～3 周 & 记录新增需求、影响范围、架构调整和回归测试范围。 \\ \hline
+辅助编程使用记录 & 项目组 & 项目开发期 & 按课程要求简要记录使用辅助编程工具的样板代码、问题定位或文档辅助位置。 \\ \hline
+交叉验收记录 & 验收小组 & 第 3 周 & 记录接口、功能、测试、缺陷和复验结果。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1776}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1741}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3075}}@{}}
-\caption{编辑商铺说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 14.2 & \textbf{名称} & 编辑商铺 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员编辑商铺} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员进入``商铺管理''页面
+\subsection{需求与测试追踪表}
 
-进入对应商家，找到对应商铺
+下表用于在开发和验收过程中保持需求与测试之间的对应关系。表中“主要验证内容”表示该需求至少需要验证的核心场景；具体测试类、测试方法、提交记录和测试结果在项目测试报告中填写。
 
-点击``编辑''按钮
-
-可编辑商铺图片、名称、地址、简介、类型} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-该商家商铺列表出现编辑后的商铺} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{需求编号} & \textbf{需求名称} & \textbf{优先级} & \textbf{主要验证内容} \\ \hline
+UC-01 & 注册与登录 & 高 & 注册成功/重复账号；正确登录/错误密码；禁用账号；不同角色进入对应页面。 \\ \hline
+UC-02 & 维护个人信息与配送地址 & 高 & 本人增删改查；默认地址唯一；非法字段；禁止访问他人地址；历史订单地址不随修改变化。 \\ \hline
+UC-03 & 浏览与搜索店铺、商品 & 高 & 分页查询；关键词和筛选；休息店铺、下架商品、售罄商品不可购买。 \\ \hline
+UC-04 & 管理购物车 & 高 & 加入、修改、删除、清空；数量合并；库存/限购边界；禁止越权修改他人购物车。 \\ \hline
+UC-05 & 创建订单 & 最高 & 正常创建；价格和库存重新校验；地址无效；优惠失效；重复请求；失败时不产生半订单。 \\ \hline
+UC-06 & 支付与取消订单 & 最高 & 支付成功；余额不足；重复支付；允许/不允许取消状态；取消后的库存和资产回退。 \\ \hline
+UC-07 & 订单查询与确认收货 & 高 & 本人订单查询；状态展示；配送跟踪；未送达不得确认；重复确认无重复副作用。 \\ \hline
+UC-08 & 会员权益 & 中 & 开通/续费；有效期；重复请求；无效方案；会员到期后停止使用权益。 \\ \hline
+UC-09 & 钱包、积分与优惠券 & 高 & 充值和流水；余额非负；积分发放/回退；优惠券有效期、门槛、范围、核销和重复请求。 \\ \hline
+UC-10 & 个性化偏好 & 中 & 主题保存和恢复；口味/忌口修改；清除偏好；偏好变化不影响历史订单。 \\ \hline
+UC-11 & 智能点单 & 中 & 推荐/语音/识图产生候选；真实商品二次校验；用户确认；外部服务失败时降级。 \\ \hline
+UC-12 & 订单评价 & 中 & 仅已完成本人订单可评价；禁止重复评价；图片/文字有效性；商家不可修改顾客原评价。 \\ \hline
+UC-13 & 个人消费分析 & 中 & 仅统计本人有效订单；时间筛选；取消订单不计入；年度/商家/品类统计口径一致。 \\ \hline
+UC-14 & 商家申请与店铺状态 & 高 & 申请、审核状态；营业/休息/临时闭店；未审核商家不得经营。 \\ \hline
+UC-15 & 商品、分类与库存管理 & 高 & 本人店铺权限；上架/下架；库存和限购；非法价格；售罄后不可继续购买。 \\ \hline
+UC-16 & 商家处理订单 & 最高 & 接单/拒单；制作和出餐顺序；已取消订单不可处理；出餐后与配送任务正确衔接。 \\ \hline
+UC-17 & 回复评价 & 中 & 只能回复本人店铺评价；不存在/被治理评价处理；回复不改变顾客评分。 \\ \hline
+UC-18 & 经营数据分析 & 中 & 仅查看本人店铺；订单量、营业额、热销和评价趋势；时间范围；取消订单不计营业额。 \\ \hline
+UC-19 & 骑手申请与工作状态 & 最高 & 申请审核；审核通过后获得角色；上线/下线；存在进行中任务时不得直接下线。 \\ \hline
+UC-20 & 查看可接任务与接单 & 最高 & 仅在线合格骑手可接；两骑手并发只能一人成功；失败返回状态冲突；接单后唯一绑定。 \\ \hline
+UC-21 & 到店与取餐 & 最高 & 本人任务；到店；商家未出餐不得取餐；确认交接后状态正确进入配送中。 \\ \hline
+UC-22 & 配送、送达与异常 & 最高 & 正常配送送达；地址异常/联系不上顾客；异常记录；任务结束后限制敏感地址访问。 \\ \hline
+UC-23 & 配送历史 & 中 & 仅查看本人历史任务；筛选和分页；完成单量等统计与任务数据一致。 \\ \hline
+UC-24 & 商家、店铺与骑手准入审核 & 高 & 管理员权限；通过/拒绝；拒绝原因；重复审核；审核结果改变对应角色可用状态。 \\ \hline
+UC-25 & 用户与评价治理 & 高 & 管理员权限；账号启用/禁用；评价隐藏/恢复；操作留痕；普通用户不得调用。 \\ \hline
+UC-26 & 平台数据看板 & 中 & 管理员权限；用户、商家、骑手、订单、交易额和异常配送汇总；时间范围与统计口径一致。 \\ \hline
 \end{longtable}
 
-\begin{longtable}[]{@{}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1707}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1792}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1814}}
-  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2985}}@{}}
-\caption{删除商品说明}\tabularnewline
-\toprule\noalign{}
-\endfirsthead
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\textbf{编号} & 14.3 & \textbf{名称} & 删除商铺 \\
-\textbf{执行者} & 管理员 & \textbf{优先级} & 高 \\
-\textbf{描述} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员删除商铺} \\
-\textbf{前置条件} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-无} \\
-\textbf{基本流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-管理员进入``商铺管理''页面
+\subsection{分阶段交付与验收材料}
 
-进入对应商家，找到对应商铺
-
-点击``删除''按钮
-
-确认删除} \\
-\textbf{结束状况} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
-该商家商铺列表不再出现该商铺} \\
-\textbf{可选流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{异常流程} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
-\textbf{备注} &
-\multicolumn{3}{>{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6591} + 4\tabcolsep}@{}}{%
--} \\
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/3-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/3-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/3-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{阶段} & \textbf{需求范围} & \textbf{需要保存的材料} \\ \hline
+第 1 周：基础固定需求 & 用户、商家、店铺、商品、购物车、配送地址和基础订单。 & 需求基线、接口约定、测试类、失败测试记录、实现提交、基础测试日志和核心接口覆盖记录。 \\ \hline
+第 2 周：需求变更 & 骑手主链路以及会员资产、个性化、评价和数据分析等新增需求；智能外部能力按开发风险推进。 & 需求变更记录、影响分析、新增失败测试、实现提交、旧功能回归结果，以及未大面积重构的架构说明。 \\ \hline
+第 3 周：完善与验收 & 代码重构、异常校验、交互优化、全量测试、文档整理和交叉验收。 & 重构前后测试结果、覆盖率报告、接口文档、辅助编程使用记录、交叉验收记录、问题与修复清单。 \\ \hline
 \end{longtable}
 
-\input{body/srs_innovations}
+\section{版本修订记录}
 
-\subsection{其他功能性需求}\label{ux5176ux4ed6ux529fux80fdux6027ux9700ux6c42}
-
-首页提供搜索功能，用户可以搜索饿了么平台上的商铺；接入AI智能体，方便用户对商品的咨询；接入高德api，进行地理位置选择；首页轮播图展示销量前三的商铺；首页下方的综合排序按照商铺的评分（即商铺所获点赞数与收藏数加权归一的值）倒序排列；销量排序按照商铺的销量倒序排列；筛选可以按照是否免配送费、起送费的价格区间筛选相应的商铺。
-
-\section{非功能性需求}\label{ux975eux529fux80fdux6027ux9700ux6c42}
-
-\subsection{系统架构}\label{ux7cfbux7edfux67b6ux6784}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=2.95069in,height=2.60417in]{figures/srs/image17.png}
-\caption{系统技术架构}
-\changedfigure{需增加骑手端、\texttt{/api/v1} 网关、配送/资产/统计模块、第三方适配器、统一异常与自动化测试层。}
-\end{figure}
-
-\subsection{安全性}\label{ux5b89ux5168ux6027}
-
-饿了么在前后端采用多种方案共同实现对于用户敏感信息的保护：
-
-(1) 在传输密码时, 使用 HTTP POST 进行传输, 不在 URL中传输敏感数据
-
-(2) 后端使用 SpringSecurity+JWT 实现用户登录和认证
-
-(3) 用户注册时，后端利用 SpringSecurity 中的 BCryptPasswordEncoder
-对密码进行加密处理之后再存入数据库，有效防止数据库被入侵后导致用户密码信息的泄露风险在前端,
-我们在创建好的 axios 实例 axiosInstance 上，挂载两个拦截器
-
-(4) 请求拦截器：
-
-1. 前端向后端发送请求之前拦截
-
-2. 在 header 添加 token，若有请求错误，在控制台打出
-
-(5) 响应拦截器：
-
-1. 后端向前端发送响应，前端接到之后拦截
-
-2. 处理响应状态码错误 401，500 等
-
-3. 网络错误，重试三次，重试失败，跳转回主页
-
-4. 重试次数超过最大限制 3，跳转回主页
-
-\input{body/srs_quality}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|>{\raggedright\arraybackslash}p{\dimexpr 1\linewidth/4-2\tabcolsep-\arrayrulewidth-0.3pt\relax}|}
+\hline
+\textbf{日期} & \textbf{作者} & \textbf{内容摘要} & \textbf{版本} \\ \hline
+2026-09-02 & 项目组 & 根据课程项目要求、外卖业务范围和项目组需求分析，形成软件需求规格说明书。 & 1.0 \\ \hline
+\end{longtable}

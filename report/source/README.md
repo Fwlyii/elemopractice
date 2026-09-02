@@ -7,6 +7,8 @@
 
 推荐使用 VS Code + Latex Workshop（VsCode插件） + Texlive进行撰写。
 
+当前报告使用 `ctexbook` 与 Fandol 中文字体方案，请选择 XeLaTeX 或 Tectonic 编译。
+
 #### 使用说明
 
 tjumain.tex                     主模板文件

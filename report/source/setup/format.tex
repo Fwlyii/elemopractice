@@ -6,11 +6,11 @@
 %           李幼萌 Youmeng Li: liyoumeng@tju.edu.cn   天津大学软件学院软件工程系
 
 %%%%%%%%%%%%%%%%% Fonts Definition and Basics %%%%%%%%%%%%%%%%%
-\newcommand{\song}{\CJKfamily{gbsn}}    % 宋体（TeX Live 自带字体）
-\newcommand{\fs}{\CJKfamily{gbsn}}      % 仿宋体回退到宋体
-\newcommand{\kai}{\CJKfamily{gkai}}     % 楷体（TeX Live 自带字体）
-\newcommand{\hei}{\CJKfamily{gbsn}}     % 黑体回退到宋体
-\newcommand{\li}{\CJKfamily{gbsn}}      % 隶书回退到宋体
+\newcommand{\song}{\songti}             % 宋体
+\newcommand{\fs}{\fangsong}             % 仿宋体
+\newcommand{\kai}{\kaishu}              % 楷体
+\newcommand{\hei}{\heiti}               % 黑体
+\newcommand{\li}{\songti}               % 隶书无对应字体时回退到宋体
 \newcommand{\yihao}{\fontsize{26pt}{26pt}\selectfont}       % 一号, 单倍行距
 \newcommand{\xiaoyi}{\fontsize{24pt}{24pt}\selectfont}      % 小一, 单倍行距
 \newcommand{\erhao}{\fontsize{22pt}{1.25\baselineskip}\selectfont}       % 二号, 1.25倍行距
@@ -22,11 +22,10 @@
 \newcommand{\wuhao}{\fontsize{10.5pt}{10.5pt}\selectfont}   % 五号, 单倍行距
 \newcommand{\xiaowu}{\fontsize{9pt}{9pt}\selectfont}        % 小五, 单倍行距
 
-\CJKtilde  % 重新定义了波浪符~的意义
 \newcommand\prechaptername{第}
 \newcommand\postchaptername{章}
 
-\punctstyle{hangmobanjiao}             % 调整中文字符的表示，行内占一个字符宽度，行尾占半个字符宽度
+\ctexset{punct=hangmobanjiao}           % 中文标点样式
 
 % 调整罗列环境的布局
 \setitemize{leftmargin=3em,itemsep=0em,partopsep=0em,parsep=0em,topsep=-0em}
