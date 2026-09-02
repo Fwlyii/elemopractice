@@ -9,6 +9,17 @@
 
 旧版单文件 SRS、DOCX 转换脚本和模板示例均放在 `archive/`，仅用于回溯，不参与编译。
 
+SRS 一级结构严格参照《UML 大战需求分析》附录 1：
+
+1. `01_introduction.tex`：简介。
+2. `02_goals_stakeholders_scope.tex`：目标、涉众分析和范围。
+3. `03_business_concept_analysis.tex`：业务概念分析。
+4. `04_business_process_analysis.tex`：业务流程分析。
+5. `05_functional_requirements.tex` 与 `functions/`：功能性需求。
+6. `06_nonfunctional_requirements.tex`：非功能性需求。
+7. `07_appendices.tex`：附录。
+8. `08_revision_history.tex`：版本修订记录。
+
 ## 编译
 
 ```bash

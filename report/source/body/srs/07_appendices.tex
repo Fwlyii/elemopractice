@@ -1,0 +1,78 @@
+\section{附录}
+
+附录保存需求分析过程中形成的基线配置、验收场景、追踪关系和配套材料说明。这些内容用于解释与验证正文需求，不另行扩大系统范围。
+
+\subsection{基线业务配置}
+
+\begin{longtable}{|L{0.28\linewidth}|L{0.20\linewidth}|L{0.42\linewidth}|}
+\caption{基线业务配置}\label{tab:baseline-config}\\ \hline
+\textbf{配置项} & \textbf{基线值} & \textbf{说明} \\ \hline
+手机号 & 11 位数字 & 作为登录账号时全局唯一 \\ \hline
+密码长度 & 8--32 个字符 & 至少包含字母和数字，只保存安全哈希 \\ \hline
+待支付超时 & 15 分钟 & 超时后取消并释放预占库存/优惠券 \\ \hline
+送达后自动完成 & 24 小时 & 顾客未主动确认时由系统完成 \\ \hline
+顾客自助取消 & 待支付、待商家接单 & 商家接单进入制作中后不提供自助取消 \\ \hline
+评价评分/文字/图片 & 1--5 分；0--500 字；0--3 张 & 图片仅支持 JPG/PNG/WebP，单张最大 5 MB \\ \hline
+会员 & 30 天；95\% 折扣 & 只对商品小计打折，不对配送费打折 \\ \hline
+优惠券 & 每单最多 1 张 & 必须满足有效期、店铺/平台范围和最低金额 \\ \hline
+积分抵扣 & 100 积分 = 1 元；最多 20\% & 上限基于会员和优惠券计算后金额 \\ \hline
+积分发放 & 实付每满 1 元发 1 分 & 仅已完成订单发放，重复确认不重复发放 \\ \hline
+分页 & 默认 20，最大 100 & 页码从 1 开始 \\ \hline
+AI 超时 & 10 秒 & 超时返回降级结果，不自动修改购物车 \\ \hline
+\end{longtable}
+
+上述值可通过统一后端配置调整，但每次基线验收应在测试报告中记录实际使用值，不得由不同前端页面各自写死不同规则。
+
+\subsection{业务错误类型}
+
+\begin{longtable}{|L{0.21\linewidth}|L{0.22\linewidth}|L{0.47\linewidth}|}
+\caption{业务错误类型}\label{tab:error-catalog}\\ \hline
+\textbf{类型} & \textbf{HTTP 状态} & \textbf{示例} \\ \hline
+参数错误 & 400 & 非法手机号、价格小于等于零、评分越界、日期范围错误 \\ \hline
+未认证 & 401 & 未提供凭证、凭证过期或签名无效 \\ \hline
+无权限 & 403 & 非管理员审核、非本店商家操作、非本任务骑手更新状态 \\ \hline
+资源不存在 & 404 & 订单、商品、地址或配送任务不存在 \\ \hline
+业务/并发冲突 & 409 & 重复注册、重复支付、非法状态转换、配送任务已被他人接取 \\ \hline
+外部服务不可用 & 503 & AI、地图或对象存储不可用；响应同时提供降级建议 \\ \hline
+\end{longtable}
+
+\subsection{核心端到端验收场景}
+
+\begin{longtable}{|L{0.13\linewidth}|L{0.25\linewidth}|L{0.39\linewidth}|L{0.13\linewidth}|}
+\caption{核心验收场景}\label{tab:e2e-acceptance}\\ \hline
+\textbf{场景} & \textbf{起点} & \textbf{必须完成的结果} & \textbf{级别} \\ \hline
+E2E-01 & 顾客浏览店铺 & 加购、试算、创建、支付、商家履约、骑手配送、收货和评价完整闭环 & P0/P1 \\ \hline
+E2E-02 & 待支付订单 & 超时或主动取消，库存与优惠券释放，不发生扣款 & P0 \\ \hline
+E2E-03 & 已支付待接单订单 & 商家拒单或顾客取消，库存恢复且资产原路返回 & P0 \\ \hline
+E2E-04 & 两名上线骑手查看同一任务 & 并发接单恰好一人成功，另一人获得冲突结果 & P0 \\ \hline
+E2E-05 & 骑手配送中上报地址异常 & 管理员处理并留存全部轨迹，未授权角色无法改状态 & P0 \\ \hline
+E2E-06 & 顾客向 AI 说明预算和忌口 & 返回真实可售商品卡片，经顾客确认后加入普通购物车 & P1 \\ \hline
+E2E-07 & AI 或地图服务超时 & 显示降级提示，普通搜索、订单和文本地址仍可使用 & P0 \\ \hline
+E2E-08 & 不同角色猜测他人资源 ID & 读取或写入请求被拒绝且不暴露私有数据 & P0 \\ \hline
+\end{longtable}
+
+\subsection{需求追踪矩阵}
+
+\begin{longtable}{|L{0.17\linewidth}|L{0.20\linewidth}|L{0.18\linewidth}|L{0.20\linewidth}|L{0.15\linewidth}|}
+\caption{需求追踪矩阵}\label{tab:traceability}\\ \hline
+\textbf{需求组} & \textbf{主要页面} & \textbf{主要接口资源} & \textbf{主要数据对象} & \textbf{验收场景} \\ \hline
+UC-COM & 登录、个人中心、通知 & users, auth, addresses, notifications & User, Role, Address, Notification & E2E-08 \\ \hline
+UC-CUS & 店铺、购物车、订单、评价 & stores, products, carts, orders, reviews & Store, Product, Cart, Order, Review & E2E-01--03 \\ \hline
+UC-MER & 店铺、商品、订单工作台 & merchant-applications, stores, products, orders & Merchant\-Profile, Store, Product, Order & E2E-01--03 \\ \hline
+UC-RID & 可接任务、当前任务、历史 & rider-applications, delivery-tasks & Rider\-Profile, Delivery\-Task, Delivery\-Exception & E2E-01, 04--05 \\ \hline
+UC-ADM & 审核、治理、看板 & audits, users, reviews, delivery-exceptions, statistics & AuditLog, Review, DeliveryException & E2E-05, 08 \\ \hline
+UC-AI & AI 客服与智能点餐 & ai-sessions, ai-messages, menu-search, order-query & AiSession, AiMessage, ToolCallLog & E2E-06--07 \\ \hline
+UC-MKT/PER & 资产中心、会员、偏好 & wallets, points, coupons, memberships, preferences & Account, Transaction, Coupon, Membership, Preference & E2E-01--03 \\ \hline
+\end{longtable}
+
+具体接口路径、数据表名、测试类/方法和最终结果在接口文档、数据库文档和测试报告中按需求编号补全，SRS 不绑定具体 Java 类名。
+
+\subsection{单项需求完成标准与配套交付物}
+
+一项 P0/P1 需求仅在需求与业务规则已确认、接口和权限行为已同步、正常/异常/边界测试具有明确断言、前后端联调通过、受影响的回归测试通过且主责成员能够解释实现和测试结果时标记为完成。
+
+SRS 后续应与数据库设计、REST 接口文档、自动化测试与覆盖率报告、需求变更记录、AI 辅助使用记录、部署说明和交叉验收记录保持需求编号一致。
+
+\subsection{需求与模板对应关系}
+
+本文第 1--8 节与《UML 大战需求分析》附录 1 的需求规格说明书结构对应。为适应课程验收，本文在附录中增加需求追踪矩阵、可执行验收场景和单项需求完成标准；这些内容属于模板的补充材料，不改变正文的八节结构。

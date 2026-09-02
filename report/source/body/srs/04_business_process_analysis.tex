@@ -1,34 +1,18 @@
-\section{业务模型与规则}
+\section{业务流程分析}
 
-\subsection{核心业务对象}
+\subsection{概述}
 
-\begin{longtable}{|L{0.19\linewidth}|L{0.25\linewidth}|L{0.46\linewidth}|}
-\caption{核心业务对象}\label{tab:domain-objects}\\ \hline
-\textbf{对象} & \textbf{责任} & \textbf{关键约束} \\ \hline
-User / Role & 保存账号、个人资料和角色 & 同一用户可具有多个角色；禁用账号不得登录。 \\ \hline
-Store / Product & 表示店铺、分类、商品和库存 & 未通过审核或休息店铺不可接收新订单；下架或库存为零的商品不可购买。 \\ \hline
-Cart / CartItem & 保存顾客当前待结算商品 & 一个购物车只包含同一店铺商品；金额仅供展示，提交订单时重新计算。 \\ \hline
-Order / OrderItem & 保存交易状态、金额和商品/地址快照 & 金额由后端计算；历史订单不因商品或地址修改而改变。 \\ \hline
-Payment\-Record & 记录模拟支付或钱包支付结果 & 支付状态与订单状态分离；同一订单仅有一次有效支付成功。 \\ \hline
-DeliveryTask & 保存履约状态、骑手和关键时间 & 一个订单可有多条历史配送尝试，但同一时刻最多一条活动任务。 \\ \hline
-Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人订单可评价；每个订单最多一条有效顾客评价。 \\ \hline
-\end{longtable}
+本节从参与者协作和业务对象状态变化两个角度描述系统的主要业务流程。外卖履约流程覆盖顾客下单、商家处理、骑手配送和管理员异常治理；智能点餐流程覆盖自然语言输入、受控查询、候选校验和用户确认。活动图说明跨角色工作流，状态机图说明对象生命周期，顺序图说明关键交互次序。
 
-\srsfigure{figures/srs/02-core-domain-class.pdf}{核心交易与履约领域类图}{fig:core-domain-class}
+\subsection{外卖订单履约流程}
 
-\subsection{营销资产与个性化对象}
-
-钱包、积分和优惠券均通过账户与流水追踪变化；会员保存方案、生效时间和到期时间；用户偏好仅影响展示、搜索和推荐，不改变历史订单。
-
-\srsfigure{figures/srs/03-assets-preference-class.pdf}{用户资产与个性化领域类图}{fig:assets-class}
-
-\subsection{外卖履约主流程}
+\subsubsection{总体活动流程}
 
 \srsfigure{figures/srs/04-fulfillment-activity.pdf}{外卖订单履约活动图}{fig:fulfillment-activity}
 
-图~\ref{fig:fulfillment-activity} 使用顾客、订单服务、商家、配送服务、骑手和通知服务六个泳道，必须包含库存不足、支付失败、商家拒单、用户取消和配送异常分支。
+图~\ref{fig:fulfillment-activity} 使用顾客、订单服务、商家、配送服务、骑手和通知服务六个泳道，包含库存不足、支付失败、商家拒单、用户取消和配送异常等分支。
 
-\subsection{订单状态规则}
+\subsubsection{订单状态}
 
 \srsfigure{figures/srs/05-order-state.pdf}{订单状态机图}{fig:order-state}
 
@@ -47,7 +31,7 @@ Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人�
 已送达 & 确认收货或 24 小时超时/顾客或系统 & 已完成 & 纳入营业额和销量统计，发放积分并开放评价入口。 \\ \hline
 \end{longtable}
 
-\subsection{配送任务状态规则}
+\subsubsection{配送任务状态}
 
 \srsfigure{figures/srs/06-delivery-state.pdf}{配送任务状态机图}{fig:delivery-state}
 
@@ -63,7 +47,7 @@ Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人�
 异常待处理 & 恢复/改派/终止 & 原状态/已取消 & 由管理员记录处理结果；改派时终止原任务并建立新任务。 \\ \hline
 \end{longtable}
 
-\subsection{订单与配送联动}
+\subsubsection{订单与配送联动}
 
 \begin{longtable}{|L{0.20\linewidth}|L{0.22\linewidth}|L{0.20\linewidth}|L{0.28\linewidth}|}
 \caption{订单与配送联动矩阵}\label{tab:order-delivery-map}\\ \hline
@@ -76,7 +60,7 @@ Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人�
 已取消 & 无/已取消 & 系统/管理员 & 释放资源、保存取消和处理记录 \\ \hline
 \end{longtable}
 
-\subsection{资产结算与回退}
+\subsubsection{结算与资产回退顺序}
 
 \srsfigure{figures/srs/07-settlement-sequence.pdf}{订单结算与资产处理顺序图}{fig:settlement-sequence}
 
@@ -86,4 +70,4 @@ Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人�
 
 \srsfigure{figures/srs/08-ai-assistant-sequence.pdf}{AI 客服与智能点餐顺序图}{fig:ai-assistant}
 
-AI 客服可回答平台规则，也可在登录且通过后端资源归属校验后查询当前用户的订单状态。智能点餐根据预算、口味、忌口和当前可售菜单返回结构化候选商品；候选结果必须经商品服务二次校验，并由顾客明确确认后才能加入购物车。AI 不得直接支付、取消订单、修改库存或调整用户资产。
+AI 客服可回答平台规则，也可在用户登录且后端通过资源归属校验后查询当前用户的订单状态。智能点餐根据预算、口味、忌口和当前可售菜单返回结构化候选商品；候选结果必须经商品服务二次校验，并由顾客明确确认后才能加入购物车。AI 不得直接支付、取消订单、修改库存或调整用户资产。

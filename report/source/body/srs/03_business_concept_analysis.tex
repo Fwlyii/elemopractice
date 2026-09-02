@@ -1,0 +1,40 @@
+\section{业务概念分析}
+
+\subsection{概述}
+
+业务概念分析从外卖业务本身出发，说明系统需要管理的核心对象、对象之间的关系及不随页面或数据库实现改变的业务含义。业务概念类图只表达领域概念、关键属性和关系，不绑定具体 Java 类、接口或数据表。
+
+本系统的业务概念分为三组：账号与经营主体，交易与履约，以及营销资产、评价和智能交互。三组概念通过用户、订单、店铺和商品等核心对象关联。
+
+\subsection{业务概念一览}
+
+\begin{longtable}{|L{0.20\linewidth}|L{0.25\linewidth}|L{0.45\linewidth}|}
+\caption{业务概念一览}\label{tab:business-concepts}\\ \hline
+\textbf{概念组} & \textbf{主要业务概念} & \textbf{概念之间的关系} \\ \hline
+账号与经营主体 & 用户、角色、顾客资料、商家资料、骑手资料、店铺 & 用户可被授予一个或多个角色；商家经营店铺；骑手通过审核后承接配送任务。 \\ \hline
+交易与履约 & 商品分类、商品、购物车、订单、订单项、支付记录、配送任务 & 店铺提供商品；顾客从同一店铺商品形成订单；订单支付并由商家处理后产生配送任务。 \\ \hline
+资产与互动 & 钱包、积分、优惠券、会员、资产流水、评价、用户偏好 & 资产参与订单结算并以流水记录变化；评价关联已完成订单；偏好只影响展示和推荐。 \\ \hline
+智能交互 & AI 会话、消息、工具调用记录、推荐候选 & AI 会话可读取经授权的平台知识、本人订单和可售菜单；候选须经业务服务校验和用户确认。 \\ \hline
+\end{longtable}
+
+\subsection{交易与履约业务概念}
+
+\begin{longtable}{|L{0.19\linewidth}|L{0.25\linewidth}|L{0.46\linewidth}|}
+\caption{交易与履约核心业务对象}\label{tab:domain-objects}\\ \hline
+\textbf{对象} & \textbf{责任} & \textbf{关键约束} \\ \hline
+User / Role & 保存账号、个人资料和角色 & 同一用户可具有多个角色；禁用账号不得登录。 \\ \hline
+Store / Product & 表示店铺、分类、商品和库存 & 未通过审核或休息店铺不可接收新订单；下架或库存为零的商品不可购买。 \\ \hline
+Cart / CartItem & 保存顾客当前待结算商品 & 一个购物车只包含同一店铺商品；金额仅供展示，提交订单时重新计算。 \\ \hline
+Order / OrderItem & 保存交易状态、金额和商品/地址快照 & 金额由后端计算；历史订单不因商品或地址修改而改变。 \\ \hline
+Payment\-Record & 记录模拟支付或钱包支付结果 & 支付状态与订单状态分离；同一订单仅有一次有效支付成功。 \\ \hline
+DeliveryTask & 保存履约状态、骑手和关键时间 & 一个订单可有多条历史配送尝试，但同一时刻最多一条活动任务。 \\ \hline
+Review & 保存评分、文字、图片和商家回复 & 仅已完成的本人订单可评价；每个订单最多一条有效顾客评价。 \\ \hline
+\end{longtable}
+
+\srsfigure{figures/srs/02-core-domain-class.pdf}{交易与履约业务概念类图}{fig:core-domain-class}
+
+\subsection{营销资产与智能交互业务概念}
+
+钱包、积分和优惠券均通过账户与流水追踪变化；会员保存方案、生效时间和到期时间；用户偏好只影响展示、搜索和推荐，不改变历史订单。AI 会话保存对话及受控工具调用记录，但 AI 输出本身不构成订单、库存或资产变更。
+
+\srsfigure{figures/srs/03-assets-preference-class.pdf}{营销资产与智能交互业务概念类图}{fig:assets-class}

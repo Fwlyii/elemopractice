@@ -1,24 +1,21 @@
-\subsection{管理端功能}
+\subsection{管理员用例}
 
 \srsfigure{figures/srs/14-admin-use-case.pdf}{管理员用例图}{fig:admin-use-case}
 
-\begin{srsusecase}{UC-ADM-01}{商家、店铺与骑手准入审核}{P0}{uc:admin-audit}
-\ucrow{执行者}{管理员}
+\begin{srsusecase}{UC-ADM-01}{商家、店铺与骑手准入审核}{管理员}{P0}{uc:admin-audit}
 \ucrow{基本流程}{1）按申请类型和状态查看列表；2）查看申请人和资料详情；3）选择通过或拒绝；4）拒绝时填写 1--200 字原因；5）系统更新审核状态、授予相应权限并通知申请人。}
-\ucrow{异常与边界}{普通用户访问、重复审核、审核已撤回申请或拒绝原因为空时拒绝操作。}
+\ucrow{异常流程}{普通用户访问、重复审核、审核已撤回申请或拒绝原因为空时拒绝操作。}
 \ucrow{验收标准}{每次审核保存对象、原状态、结果、管理员、原因和时间；重复提交不重复授权。}
 \end{srsusecase}
 
-\begin{srsusecase}{UC-ADM-02}{账号、评价与配送异常治理}{P0}{uc:admin-governance}
-\ucrow{执行者}{管理员}
+\begin{srsusecase}{UC-ADM-02}{账号、评价与配送异常治理}{管理员}{P0}{uc:admin-governance}
 \ucrow{基本流程}{1）按条件查询用户并启用/禁用账号；2）将违规评价设为隐藏或恢复展示；3）查看异常配送详情；4）选择恢复配送、改派或终止，并填写处理说明。}
-\ucrow{业务规则}{治理操作只改变展示或可用状态，不删除原评价、订单和配送审计数据；终止任务必须按表~\ref{tab:order-state} 处理订单和资产。}
+\ucrow{说明}{治理操作只改变展示或可用状态，不删除原评价、订单和配送审计数据；终止任务必须按表~\ref{tab:order-state} 处理订单和资产。}
 \ucrow{验收标准}{普通用户调用管理接口返回 403；每次治理保存操作人、原状态、新状态、原因和时间。}
 \end{srsusecase}
 
-\begin{srsusecase}{UC-ADM-03}{平台数据看板}{P1}{uc:admin-dashboard}
-\ucrow{执行者}{管理员}
+\begin{srsusecase}{UC-ADM-03}{平台数据看板}{管理员}{P1}{uc:admin-dashboard}
 \ucrow{基本流程}{1）选择日期范围；2）查看用户、商家、店铺、骑手和订单数量；3）查看已完成订单营业额、订单趋势、配送完成与异常数量；4）以数字卡片、折线图和排名列表展示。}
-\ucrow{业务规则}{营业额只统计已完成有效订单；异常率的分母为期间内进入配送的任务数。}
+\ucrow{说明}{营业额只统计已完成有效订单；异常率的分母为期间内进入配送的任务数。}
 \ucrow{验收标准}{看板数据与相同条件的订单/任务查询口径一致；取消订单不计营业额；非法日期范围被拒绝。}
 \end{srsusecase}

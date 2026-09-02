@@ -54,13 +54,13 @@
   \end{figure}%
 }
 
-% 用例表环境：各角色文件只填内容，不重复维护表格样式。
-\newenvironment{srsusecase}[4]{%
+% 用例表环境：字段参照《UML 大战需求分析》附录 1，并保留项目验收扩展字段。
+\newenvironment{srsusecase}[5]{%
   \begin{longtable}{|L{0.16\linewidth}|L{0.29\linewidth}|L{0.16\linewidth}|L{0.29\linewidth}|}
-  \caption{#2用例说明}\label{#4}\\
+  \caption{#2用例说明}\label{#5}\\
   \hline
   \textbf{编号} & #1 & \textbf{名称} & #2 \\ \hline
-  \textbf{优先级} & #3 & \textbf{验收属性} & \ifthenelse{\equal{#3}{P2}}{可选增强}{基线范围} \\ \hline
+  \textbf{执行者} & #3 & \textbf{优先级} & #4（\ifthenelse{\equal{#4}{P2}}{可选增强}{基线范围}） \\ \hline
 }{%
   \end{longtable}
 }
