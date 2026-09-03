@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>饿了么外卖系统——四个创新模块分工说明</title>
+  <link rel="stylesheet" href="modules.css">
+</head>
+<body>
+  <section class="cover">
+    <h1 id="doc-title">四个创新模块分工说明</h1>
+    <div class="subtitle" id="doc-subtitle">饿了么外卖系统 · 软件需求规格说明配套文档</div>
+    <div class="meta">
+      <div><strong>项目：</strong>轻量级外卖服务平台（仿饿了么）</div>
+      <div><strong>编制日期：</strong>2026 年 9 月 3 日</div>
+      <div><strong>需求基线：</strong>lightweight-takeout-platform 最新 SRS</div>
+      <div><strong>用途：</strong>四人任务分工、接口设计、测试和交叉验收</div>
+    </div>
+  </section>
+
+  <section class="overview">
+    <h2>一、分工总览</h2>
+    <p>四名成员可各自主责一个创新模块。主责不是只做页面，而是对该模块的需求、数据库、后端接口、前端交互、自动化测试、接口文档和验收材料负责。骑手配送为全组公共主链路，不单独占用四个创新模块名额。</p>
+    <table>
+      <thead><tr><th>模块</th><th>需求范围</th><th>优先级</th><th>主要协作对象</th></tr></thead>
+      <tbody>
+        <tr><td>营销与资产</td><td>钱包、积分、优惠券、会员</td><td><span class="badge p1">P1</span></td><td>订单、支付、退款、统计</td></tr>
+        <tr><td>个性化体验</td><td>主题、口味与忌口、偏好同步</td><td><span class="badge p1">P1</span></td><td>用户、搜索、智能推荐</td></tr>
+        <tr><td>智能交互</td><td>AI 客服与点餐、图片识菜、语音输入、导航</td><td><span class="badge p1">P1</span> <span class="badge p2">P2</span></td><td>商品、购物车、订单、骑手</td></tr>
+        <tr><td>评价与数据看板</td><td>订单评价、商家回复、用户/商家/平台统计</td><td><span class="badge p1">P1</span></td><td>订单、商品、商家、管理员</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><strong>共同要求：</strong>全部新增接口采用 <code>/api/v1</code>；先写失败测试再实现；核心业务接口测试覆盖率 100%，关键业务方法覆盖率不低于 90%；每个需求至少具有正常、权限/异常、边界/并发三类测试。</div>
+    <h3>统一提交顺序</h3>
+    <ol>
+      <li>确认需求 ID、业务规则、接口契约和数据库变更。</li>
+      <li>提交能够稳定复现需求缺口的失败测试。</li>
+      <li>实现后端业务和前端交互，使测试通过。</li>
+      <li>在保持测试通过的条件下重构，补齐异常提示、参数校验和日志。</li>
+      <li>提交接口集合、覆盖率报告、测试日志及跨模块交叉验收记录。</li>
+    </ol>
+  </section>
+
+  <section class="module mkt">
+    <h2>模块一：营销与资产（橙色）</h2>
+    <div class="callout"><strong>目标：</strong>建立可审计、可回退、不可重复扣减的顾客资产体系，并将优惠与资产结果固化在订单快照中。</div>
+
+    <h3>1. 功能范围</h3>
+    <table>
+      <thead><tr><th>需求</th><th>具体内容</th><th>完成结果</th></tr></thead>
+      <tbody>
+        <tr><td>钱包</td><td>查询余额和流水；教学演示用模拟充值；结算时使用钱包余额；取消订单时生成退款流水。</td><td>余额与流水一致，余额永不为负。</td></tr>
+        <tr><td>积分</td><td>查询积分和流水；结算时抵扣；订单完成后发放；取消或退款时按业务时点执行反向流水。</td><td>积分来源、使用、发放和回退可追踪。</td></tr>
+        <tr><td>优惠券</td><td>查看可用、已使用和已过期券；结算时校验适用范围；下单预占、支付核销、取消退回。</td><td>同一优惠券不会被两个订单重复核销。</td></tr>
+        <tr><td>会员</td><td>固定会员方案开通/续费、有效期判断、会员折扣及权益展示；订单保存权益快照。</td><td>历史订单不受会员方案后续变化影响。</td></tr>
+        <tr><td>订单试算</td><td>由后端计算商品小计、会员折扣、优惠券、积分抵扣和应付金额；拒绝信任前端金额。</td><td>试算与正式创建使用同一规则组件。</td></tr>
+        <tr><td>对账</td><td>从订单查看所有优惠和资金构成；原流水与反向流水互相引用。</td><td>订单金额、资产余额和流水可相互核对。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. 已冻结业务规则</h3>
+    <ul>
+      <li>会员默认有效期 30 天，商品小计享 95% 折扣。</li>
+      <li>每单最多使用一张优惠券。</li>
+      <li>100 积分抵 1 元，积分抵扣不超过券后金额的 20%。</li>
+      <li>完成订单按实付整数金额每 1 元发放 1 积分。</li>
+      <li>钱包为教学演示用模拟资产，不接入真实充值网关，不支持提现。</li>
+      <li>下单时预占库存与优惠券；支付成功后核销；取消时恢复库存并产生资产反向流水。</li>
+    </ul>
+
+    <h3>3. 数据库任务</h3>
+    <table>
+      <thead><tr><th>对象</th><th>关键字段/约束</th></tr></thead>
+      <tbody>
+        <tr><td><code>wallet_account</code></td><td>user_id 唯一、balance、version；金额使用定点数，禁止负余额。</td></tr>
+        <tr><td><code>wallet_transaction</code></td><td>业务类型、金额、前后余额、order_id、幂等键、原流水 ID、创建时间；幂等键唯一。</td></tr>
+        <tr><td><code>point_account</code> / <code>point_transaction</code></td><td>可用积分、来源、使用、过期时间、订单及反向流水关联。</td></tr>
+        <tr><td><code>coupon_template</code></td><td>券类型、门槛、面额、适用店铺/品类、有效期和发放上限。</td></tr>
+        <tr><td><code>user_coupon</code></td><td>领取人、模板、状态、锁定订单、领取/使用/过期时间；实例只能成功核销一次。</td></tr>
+        <tr><td><code>membership_plan</code> / <code>membership</code></td><td>会员周期、折扣权益、开始/结束时间和状态。</td></tr>
+        <tr><td>订单扩展</td><td>商品小计、会员优惠、券优惠、积分抵扣、配送费、应付、支付构成及权益快照。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4. 后端接口与服务</h3>
+    <ul>
+      <li><code>GET /api/v1/me/wallet</code>、<code>GET /api/v1/me/wallet/transactions</code>：钱包及分页流水。</li>
+      <li><code>POST /api/v1/me/wallet/recharges</code>：模拟充值，要求幂等键。</li>
+      <li><code>GET /api/v1/me/points</code>、<code>GET /api/v1/me/points/transactions</code>：积分及明细。</li>
+      <li><code>GET /api/v1/me/coupons</code>、<code>POST /api/v1/coupons/{id}/claims</code>：查询与领取。</li>
+      <li><code>GET /api/v1/me/membership</code>、<code>POST /api/v1/me/membership/subscriptions</code>：会员查询和开通。</li>
+      <li><code>POST /api/v1/orders/quotes</code>：订单试算；<code>POST /api/v1/orders/{id}/payments</code>：支付。</li>
+      <li>Service 层集中实现试算、资产预占、核销、发放和反向流水；Controller 不直接处理金额计算。</li>
+    </ul>
+
+    <h3>5. 前端页面</h3>
+    <ul>
+      <li>个人资产首页：余额、积分、优惠券数量和会员有效期。</li>
+      <li>钱包/积分流水页：按类型和时间筛选，明确展示订单关联和正负变化。</li>
+      <li>优惠券页：可用、已使用、已过期分组，并说明门槛与适用范围。</li>
+      <li>会员页：权益、价格、开通与续费确认。</li>
+      <li>订单结算页：资产选择、优惠明细、不可用原因和最终应付金额。</li>
+    </ul>
+
+    <h3>6. 测试与验收</h3>
+    <ul>
+      <li>重复支付、重复充值、重复核销和重复发积分不产生第二次副作用。</li>
+      <li>并发使用同一优惠券时只有一个请求成功。</li>
+      <li>余额/积分不足、优惠券过期或不适用、会员过期时返回明确错误。</li>
+      <li>篡改前端金额不影响服务端计算；订单创建失败不留下半完成资产记录。</li>
+      <li>取消订单后库存、优惠券、积分和钱包均按订单状态表恢复。</li>
+      <li><strong>验收终点：</strong>任一订单均可完整解释“原价—优惠—支付—积分—退款”的全过程。</li>
+    </ul>
+
+    <h3>7. 交付物</h3>
+    <p>规则表、状态图、ER 图、迁移 SQL、Service 与 REST 接口、资产与结算页面、接口集合、单元/集成测试、覆盖率报告、对账演示数据和异常回退记录。</p>
+  </section>
+
+  <section class="module per">
+    <h2>模块二：个性化体验（绿色）</h2>
+    <div class="callout"><strong>目标：</strong>让用户在不同会话中恢复可读的界面主题和主动设置的点餐偏好，同时确保偏好可查看、可清除且不污染历史订单。</div>
+
+    <h3>1. 功能范围</h3>
+    <table>
+      <thead><tr><th>需求</th><th>具体内容</th><th>完成结果</th></tr></thead>
+      <tbody>
+        <tr><td>主题换肤</td><td>提供浅色/深色及项目主题色；使用全局设计变量统一控制背景、文字、边框和状态色。</td><td>设置即时生效，页面刷新不闪回默认主题。</td></tr>
+        <tr><td>偏好维护</td><td>维护辣度、口味、忌口和价格偏好；支持查询、局部更新和一键清除。</td><td>偏好结构化保存而非自由文本堆积。</td></tr>
+        <tr><td>跨会话恢复</td><td>登录后从服务端加载主题和偏好；修改后同步更新；读取失败使用安全默认值。</td><td>同一账号重新登录后恢复。</td></tr>
+        <tr><td>推荐联动</td><td>搜索和 AI 推荐可参考偏好，但不能因此隐藏所有其他可售商品。</td><td>偏好只辅助排序和解释推荐。</td></tr>
+        <tr><td>幸运色</td><td>P2 可选：每日幸运色仅改变界面主题，允许关闭。</td><td>不影响价格、交易结果与权益。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. 数据与权限设计</h3>
+    <ul>
+      <li>新增 <code>user_preference</code>：user_id 唯一、theme_mode、theme_key、spicy_level、taste_tags、dietary_restrictions、price_min、price_max、lucky_color_enabled、recommendation_consent、version、updated_at。</li>
+      <li>标签采用受控枚举或关联表，避免同义词导致推荐和统计不可用。</li>
+      <li>用户只能读取和修改自己的偏好；管理员默认不能代替用户设置口味偏好。</li>
+      <li>订单仍以创建时的商品和价格快照为准，修改偏好不得改变历史订单。</li>
+      <li>偏好缺失、字段新增或旧版本数据不完整时必须采用兼容的默认配置。</li>
+    </ul>
+
+    <h3>3. 后端接口</h3>
+    <ul>
+      <li><code>GET /api/v1/me/preferences</code>：返回当前用户完整偏好。</li>
+      <li><code>PATCH /api/v1/me/preferences</code>：仅更新请求中出现的字段。</li>
+      <li><code>DELETE /api/v1/me/preferences/recommendation-profile</code>：清除用于推荐的口味、忌口和价格数据。</li>
+      <li><code>PUT /api/v1/me/preferences/recommendation-consent</code>：开启或关闭推荐授权。</li>
+      <li>所有枚举、颜色、数值范围和标签数量均做参数校验，使用当前认证用户 ID，不接受前端传入任意 userId。</li>
+    </ul>
+
+    <h3>4. 前端任务</h3>
+    <ul>
+      <li>建立主题 token：主色、页面背景、卡片背景、主/次文字、边框、成功/警告/错误色。</li>
+      <li>在应用初始化阶段优先恢复本地主题，再登录后用服务端配置校准，避免页面闪烁。</li>
+      <li>制作主题选择器、偏好设置页、标签选择器、价格区间控件和清除确认框。</li>
+      <li>明确展示推荐授权状态以及“偏好只用于改善推荐”的说明。</li>
+      <li>游客可将主题保存在本地；口味偏好是否迁移到账户需由用户主动确认。</li>
+    </ul>
+
+    <h3>5. 可用性与隐私</h3>
+    <ul>
+      <li>主题文字与背景须满足可读性要求，按钮焦点和错误状态不能只依赖颜色区分。</li>
+      <li>键盘可操作主题及标签控件；缩放和小屏下内容不重叠。</li>
+      <li>忌口信息只用于筛选和提示，不应在公开评价或商家无关页面展示。</li>
+      <li>清除后新推荐不再使用旧偏好，缓存也要同步失效。</li>
+    </ul>
+
+    <h3>6. 测试与验收</h3>
+    <ul>
+      <li>覆盖游客本地主题、登录用户服务端同步、重新登录和跨会话恢复。</li>
+      <li>覆盖非法主题值、非法价格区间、未知标签、并发更新和空偏好。</li>
+      <li>用户 A 不能访问用户 B 的偏好。</li>
+      <li>清除偏好后推荐接口不再读取旧值；修改偏好不改变历史订单。</li>
+      <li>对浅色、深色及幸运色进行文字对比度和关键页面截图验收。</li>
+      <li><strong>验收终点：</strong>用户设置可稳定恢复、可安全清除，主题始终可读，推荐仍保留浏览全部商品的能力。</li>
+    </ul>
+
+    <h3>7. 交付物</h3>
+    <p>主题规范与色板、字段字典、隐私说明、数据库迁移、偏好 API、主题与偏好组件、状态管理、组件/接口测试、兼容性截图和跨会话演示记录。</p>
+  </section>
+
+  <section class="module ai">
+    <h2>模块三：智能交互（紫色）</h2>
+    <div class="callout"><strong>目标：</strong>通过受控 AI、图片、语音和地图能力降低搜索与配送操作成本；所有智能结果都必须引用真实业务数据，并由用户确认后才改变购物车或订单状态。</div>
+
+    <h3>1. 功能范围与优先级</h3>
+    <table>
+      <thead><tr><th>能力</th><th>优先级</th><th>具体内容</th></tr></thead>
+      <tbody>
+        <tr><td>AI 客服与结构化点餐</td><td><span class="badge p1">P1</span></td><td>规则问答、本人订单查询、可售商品推荐；返回文本或结构化商品卡片。</td></tr>
+        <tr><td>个性化推荐</td><td><span class="badge p1">P1</span></td><td>结合授权偏好、历史订单和热销数据；给出可理解的推荐理由；冷启动退化为热销榜。</td></tr>
+        <tr><td>图片识菜</td><td><span class="badge p2">P2</span></td><td>上传 JPG/PNG/WebP，返回关键词、候选和置信度；用户确认后执行普通商品搜索。</td></tr>
+        <tr><td>语音输入</td><td><span class="badge p2">P2</span></td><td>语音转写并解析菜品、规格和数量，生成可编辑草稿。</td></tr>
+        <tr><td>智能导航</td><td><span class="badge p0">P0/P2</span></td><td>骑手活动任务的取餐、送餐导航入口；地图失败时保留文本地址和状态操作。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. 核心业务流程</h3>
+    <h4>AI 点餐</h4>
+    <ol>
+      <li>用户输入自然语言需求；系统识别规则问答、订单查询或点餐意图。</li>
+      <li>规则问答只使用审核后的知识内容；订单查询先校验登录身份和订单归属。</li>
+      <li>点餐意图转为结构化查询条件，再调用真实商品服务读取可售商品、价格和库存。</li>
+      <li>返回商品 ID、名称、价格、推荐理由等结构化候选。</li>
+      <li>顾客明确确认后，调用普通购物车服务；AI 本身不直接写购物车。</li>
+    </ol>
+    <h4>图片与语音</h4>
+    <ol>
+      <li>校验图片类型/大小，或申请麦克风权限并取得音频。</li>
+      <li>第三方适配器返回候选菜品与置信度，或语音转写文本。</li>
+      <li>用户编辑、纠错和确认识别结果。</li>
+      <li>调用 AI 点餐或普通搜索流程，不直接创建订单。</li>
+    </ol>
+
+    <h3>3. 架构与安全</h3>
+    <ul>
+      <li>定义 <code>RecommendationAdapter</code>、<code>ImageRecognitionAdapter</code>、<code>SpeechAdapter</code> 和 <code>MapAdapter</code>；业务层不直接绑定具体供应商。</li>
+      <li>密钥只保存在后端环境变量或秘密管理中，严禁进入前端包、日志和 Git。</li>
+      <li>AI 输出不得作为商品、价格、库存或订单状态的事实源，最终数据必须重新查询后端。</li>
+      <li>上传图片单张不超过 5 MB，只允许 JPG/PNG/WebP；检查 MIME 与文件签名并设计自动清理。</li>
+      <li>提示词、订单号和返回内容进入日志前脱敏；游客不能查询任何私有订单。</li>
+      <li>骑手只在活动履约期间读取必要地址和联系方式，送达、取消或改派后立即失去权限。</li>
+    </ul>
+
+    <h3>4. 接口与页面</h3>
+    <table>
+      <thead><tr><th>接口/页面</th><th>任务</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST /api/v1/assistant/messages</code></td><td>意图识别、规则问答、本人订单查询、结构化点餐候选。</td></tr>
+        <tr><td><code>POST /api/v1/recommendations</code></td><td>按场景返回商品/商家候选和推荐理由。</td></tr>
+        <tr><td><code>POST /api/v1/dish-recognitions</code></td><td>接收合规图片并返回关键词、候选和置信度。</td></tr>
+        <tr><td><code>POST /api/v1/voice-order-drafts</code></td><td>转写并生成可编辑结构化草稿。</td></tr>
+        <tr><td><code>GET /api/v1/delivery-tasks/{id}/navigation</code></td><td>当前绑定骑手获取取送餐导航数据。</td></tr>
+        <tr><td>前端</td><td>对话页、推荐卡片、识图上传与确认页、录音/草稿确认页、骑手导航页及降级提示。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5. 降级与稳定性</h3>
+    <ul>
+      <li>AI 服务 10 秒未返回、输出无法解析或工具调用失败：给出明确提示并进入普通搜索。</li>
+      <li>推荐无数据：显示热销榜；图片识别无候选：保留关键词输入框；无麦克风权限：切换文字输入。</li>
+      <li>地图不可用：展示文本地址；不得禁用骑手到店、取餐、配送和送达按钮。</li>
+      <li>为每个适配器设置超时、有限重试、熔断和 Mock 实现，禁止无限重试。</li>
+      <li>P2 图片/语音未完成时，P1 文字 AI 和基础点餐必须仍可独立验收。</li>
+    </ul>
+
+    <h3>6. 测试与验收</h3>
+    <ul>
+      <li>覆盖规则问答、本人订单查询、越权查询、真实可售商品推荐和确认加购。</li>
+      <li>覆盖恶意提示词、AI 幻觉商品、价格变动、库存变化和用户拒绝候选。</li>
+      <li>覆盖超时、异常响应、无候选、错误识别、无麦克风权限、重复上传和危险文件。</li>
+      <li>地图失败不阻断配送；非绑定骑手不能获取导航数据或完整地址。</li>
+      <li>检查前端构建产物与 Git 历史中不存在任何第三方密钥。</li>
+      <li><strong>验收终点：</strong>所有智能结果均可纠错、可确认、可降级，外部服务停用时基础点餐与配送仍然完成。</li>
+    </ul>
+
+    <h3>7. 交付物</h3>
+    <p>供应商对比与费用说明、Adapter 接口、环境配置模板、Mock 服务、推荐与多模态接口、前端交互组件、文件清理策略、降级说明、适配器单测、接口测试和失败演示记录。</p>
+  </section>
+
+  <section class="module bi">
+    <h2>模块四：评价与数据看板（蓝色）</h2>
+    <div class="callout"><strong>目标：</strong>形成“已完成订单—顾客评价—商家回复—管理员治理”的闭环，并为顾客、商家和管理员提供口径一致、权限隔离的数据看板。</div>
+
+    <h3>1. 评价闭环</h3>
+    <table>
+      <thead><tr><th>角色</th><th>能力</th><th>限制</th></tr></thead>
+      <tbody>
+        <tr><td>顾客</td><td>对已完成本人订单提交 1—5 分、文字和最多 3 张图片；查看商家回复。</td><td>未完成、非本人、重复评价、超长文字或非法图片均拒绝。</td></tr>
+        <tr><td>商家</td><td>查看本店可展示评价；对未回复评价提交一次回复。</td><td>不能修改顾客评分和原文，不能直接删除差评。</td></tr>
+        <tr><td>管理员</td><td>按治理规则隐藏或恢复违规评价，记录处理原因。</td><td>治理只改变展示状态，不物理删除原内容和审计信息。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. 数据看板</h3>
+    <table>
+      <thead><tr><th>看板</th><th>指标</th><th>权限与口径</th></tr></thead>
+      <tbody>
+        <tr><td>顾客消费分析</td><td>按月份/年份的消费金额、订单次数、店铺和品类分布及排行。</td><td>只能查询本人；只统计已完成有效订单。</td></tr>
+        <tr><td>商家经营看板</td><td>完成订单量、营业额、客单价、热销商品、销量趋势和评分趋势。</td><td>只能查询本人店铺；取消订单和无效支付不计。</td></tr>
+        <tr><td>管理员平台看板</td><td>用户、商家、店铺、骑手、订单数量，营业额、订单趋势、配送完成与异常数量。</td><td>仅管理员；异常率分母为所选期间进入配送的任务数。</td></tr>
+        <tr><td>商品展示增强</td><td>库存、销量、热销排名、价格、折扣、限购和活动状态。</td><td>销量与看板使用相同有效订单口径；售罄、下架和超限购不可购买。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3. 数据库与查询设计</h3>
+    <ul>
+      <li><code>review</code>：order_id 唯一、user_id、merchant_id、rating、content、status、created_at；以唯一约束防止重复评价。</li>
+      <li><code>review_image</code>：评价图片地址、顺序和媒体信息；每条评价最多 3 张。</li>
+      <li><code>review_reply</code>：review_id 唯一、merchant_id、content、created_at；确保每条评价最多一个有效商家回复。</li>
+      <li><code>review_moderation_log</code>：评价、原/新状态、管理员、原因、时间，禁止覆盖历史记录。</li>
+      <li>统计以订单快照和完成时间为事实源；金额、销量、品类和店铺维度建立必要联合索引。</li>
+      <li>大范围查询必须限制日期范围，列表分页；热点汇总可缓存，但订单状态变化后需按规则失效。</li>
+    </ul>
+
+    <h3>4. 后端接口</h3>
+    <ul>
+      <li><code>POST /api/v1/orders/{id}/reviews</code>：订单所有者提交评价。</li>
+      <li><code>GET /api/v1/merchants/{id}/reviews</code>：分页查询可展示评价。</li>
+      <li><code>POST /api/v1/reviews/{id}/reply</code>：评价所属店铺商家回复。</li>
+      <li><code>PATCH /api/v1/admin/reviews/{id}/visibility</code>：管理员隐藏或恢复，并填写原因。</li>
+      <li><code>GET /api/v1/me/analytics/consumption</code>：当前顾客消费分析。</li>
+      <li><code>GET /api/v1/merchant/analytics/operations</code>：当前商家经营数据。</li>
+      <li><code>GET /api/v1/admin/analytics/platform</code>：平台统计；所有接口通过日期、维度、分页和排序查询参数筛选。</li>
+    </ul>
+
+    <h3>5. 前端任务</h3>
+    <ul>
+      <li>顾客评价编辑页、图片预览、字数/评分校验和提交成功状态。</li>
+      <li>商品/店铺评价列表及商家回复展示。</li>
+      <li>商家回复工作台和管理员评价治理页。</li>
+      <li>用户、商家、管理员三套看板：指标卡、趋势图、排行表、时间筛选器和无数据状态。</li>
+      <li>商品详情展示库存、销量、热销排名、折扣与限购，活动过期或售罄后禁用购买。</li>
+      <li>图表同时提供数值和文本说明，避免只用颜色表达趋势。</li>
+    </ul>
+
+    <h3>6. 测试与验收</h3>
+    <ul>
+      <li>非订单用户、未完成订单、重复评价、评分越界、超长文字和非法图片均不能提交。</li>
+      <li>商家 A 不能回复商家 B 的评价，也不能修改或删除顾客差评。</li>
+      <li>普通用户不能治理评价；管理员的隐藏与恢复均产生完整审计记录。</li>
+      <li>取消订单不计消费、营业额和销量；相同筛选条件下汇总与明细可核对。</li>
+      <li>顾客不能查询他人消费数据，商家不能跨店查询，普通用户不能访问平台看板。</li>
+      <li>以课程约定数据规模执行统计性能测试，验证索引、分页和缓存行为。</li>
+      <li><strong>验收终点：</strong>评价权限正确且不丢审计数据，三类看板在相同时间范围内与有效订单明细一致。</li>
+    </ul>
+
+    <h3>7. 交付物</h3>
+    <p>评价状态和权限矩阵、统计口径表、ER 图与迁移 SQL、索引方案、评价/回复/治理接口与页面、三类看板、聚合查询、接口集合、权限/聚合/性能测试及核对样例。</p>
+  </section>
+
+  <section class="relations">
+    <h2>六、跨模块协作与公共骑手链路</h2>
+    <table>
+      <thead><tr><th>调用方向</th><th>协作内容</th><th>共同验收点</th></tr></thead>
+      <tbody>
+        <tr><td>个性化 → 智能交互</td><td>在取得授权后提供口味、忌口和价格偏好。</td><td>撤销授权或清除偏好后，新推荐不再使用旧数据。</td></tr>
+        <tr><td>评价/看板 → 智能交互</td><td>提供热销和历史消费数据，AI 只做推荐解释。</td><td>推荐不伪造商品，统计变化不会绕过可售性校验。</td></tr>
+        <tr><td>营销资产 → 评价/看板</td><td>提供订单实付、优惠和退款快照。</td><td>取消单不计营业额，退款不产生虚假消费。</td></tr>
+        <tr><td>智能交互 → 骑手配送</td><td>提供取餐和送餐导航。</td><td>地图失败仍可查看文本地址并更新合法配送状态。</td></tr>
+        <tr><td>骑手配送 → 评价/看板</td><td>提供配送完成、异常及时间线。</td><td>只有订单完成后开放评价，异常率口径一致。</td></tr>
+      </tbody>
+    </table>
+    <h3>骑手公共任务</h3>
+    <ul>
+      <li>新增 RIDER 角色、骑手申请/审核、资料、上线/下线及工作台。</li>
+      <li>新增配送任务；通过条件更新、乐观锁和唯一约束防止多人接取同一任务。</li>
+      <li>实现待派单、待骑手接单、待取餐、配送中、已送达、已完成和配送异常状态权限。</li>
+      <li>贯通商家出餐、骑手取餐、顾客确认、配送异常、取消及资产回退。</li>
+      <li>覆盖并发抢单、越级状态、重复送达、未授权地址访问和异常恢复测试。</li>
+    </ul>
+    <div class="footer-note">本文档根据 2026-09-03 的 latest SRS 基线整理，用于开发分工；正式验收以仓库中的 SRS、接口文档与测试证据为准。</div>
+  </section>
+
+  <script>
+    const moduleKey = new URLSearchParams(location.search).get('module');
+    const docs = {
+      mkt: ['模块一：营销与资产', '优惠券、钱包、积分与会员 · 分工任务书'],
+      per: ['模块二：个性化体验', '主题换肤与用户偏好 · 分工任务书'],
+      ai: ['模块三：智能交互', 'AI 点餐、识图、语音与导航 · 分工任务书'],
+      bi: ['模块四：评价与数据看板', '评价闭环、商品展示与统计分析 · 分工任务书']
+    };
+    if (docs[moduleKey]) {
+      document.body.classList.add('single', moduleKey);
+      document.getElementById('doc-title').textContent = docs[moduleKey][0];
+      document.getElementById('doc-subtitle').textContent = docs[moduleKey][1];
+      document.title = docs[moduleKey][0] + '——分工任务书';
+    }
+  </script>
+</body>
+</html>
