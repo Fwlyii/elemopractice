@@ -39,9 +39,10 @@ public class WebSocketServer {
      * 连接关闭
      */
     @OnClose
-    public void onClose(@PathParam("sid") String sid) {
+    public void onClose(Session session, @PathParam("sid") String sid) {
         System.out.println("客户端：" + sid + " 断开连接");
-        sessionMap.remove(sid);
+        // 同一账号可能同时打开订单页和消息页；旧连接关闭时不能误删新连接。
+        sessionMap.computeIfPresent(sid, (key, current) -> current == session ? null : current);
     }
 
     /**

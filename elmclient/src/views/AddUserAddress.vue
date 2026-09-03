@@ -1,7 +1,6 @@
 <template>
 	<div class="wrapper">
 		<!-- header部分 -->
-		<BackButton style="margin-top: 2vw;"/>
     <div class="header">
       <p>新增送货地址</p>
     </div>
@@ -55,13 +54,8 @@ import { ref, onMounted } from 'vue';
 import { useRouter,useRoute } from 'vue-router';
 import { toast } from '../utils/toast';
 import request from '../utils/request';
-import BackButton from '../components/BackButton.vue';
 export default {
 	name: 'AddUserAddress',
-	components: {
-		// Footer,
-		BackButton
-	},
 	setup() {
 		const deliveryAddress = ref({
 			contactName: '',

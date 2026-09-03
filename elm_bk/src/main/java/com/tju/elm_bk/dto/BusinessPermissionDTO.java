@@ -40,6 +40,15 @@ public class BusinessPermissionDTO {
     @Schema(description = "备注")
     private String remarks;
 
+    @Schema(description = "是否支持堂食")
+    private Boolean dineInAvailable;
+
+    @Schema(description = "满减门槛")
+    private BigDecimal promotionThreshold;
+
+    @Schema(description = "满减优惠金额")
+    private BigDecimal promotionDiscount;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 

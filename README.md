@@ -420,9 +420,10 @@ MySQL版本信息：
 - `DB_USERNAME`：MySQL 用户名，未设置时使用 `root`
 - `DB_PASSWORD`：MySQL 密码
 - `JWT_SECRET`：JWT 签名密钥（必填）
-- `DEEPSEEK_API_KEY`：DeepSeek API Key（使用 AI 功能时必填）
-- `ALIYUN_OSS_ACCESS_KEY_ID`：阿里云 OSS AccessKey ID（使用文件上传时必填）
-- `ALIYUN_OSS_ACCESS_KEY_SECRET`：阿里云 OSS AccessKey Secret（使用文件上传时必填）
+- `DEEPSEEK_API_KEY`：DeepSeek API Key（使用 AI 功能时填写）
+- `ALIYUN_OSS_ACCESS_KEY_ID` / `ALIYUN_OSS_ACCESS_KEY_SECRET`：文件上传凭据
 - `VUE_APP_AMAP_KEY`：前端高德地图 Web 服务 Key，配置在 `elmclient/.env.local`
 
-高德 IP 查询测试页通过 URL 参数接收 Key，例如 `gaode_test/test.html?amapKey=YOUR_KEY`。
+## Docker 演示
+
+本地演示可执行 `docker compose -f docker-compose.demo.yml up -d --build`，前端地址为 `http://localhost:18081`；公网临时分享可执行 `docker compose -f docker-compose.demo.yml --profile share up -d --build`。

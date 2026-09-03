@@ -30,7 +30,7 @@
         <li v-for="item in searchResults" :key="item.businessId" @click="toBusinessInfo(item.businessId)">
           <div class="business-item">
             <div class="business-img">
-              <img :src="item.businessImg">
+              <img :src="item.businessImg || require('@/assets/business-default.png')" @error="handleImageError" alt="商家图片">
             </div>
             <div class="business-info">
               <h3>{{ item.businessName }}</h3>
@@ -109,13 +109,20 @@ export default {
       searchQuery.value = history;
       performSearch();
     };
+    const handleImageError = (event) => {
+      const image = event?.target;
+      if (!image || image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = require('@/assets/business-default.png');
+    };
     return {
       searchQuery,
       searchHistory,
       searchResults,
       performSearch,
       toBusinessInfo,
-      handleHistoryClick
+      handleHistoryClick,
+      handleImageError
     };
   },
 };

@@ -3,6 +3,7 @@ package com.tju.elm_bk.controller;
 import com.tju.elm_bk.dto.FoodCreateDTO;
 import com.tju.elm_bk.dto.FoodDTO;
 import com.tju.elm_bk.dto.FoodUpdateDTO;
+import com.tju.elm_bk.dto.FoodStockUpdateDTO;
 import com.tju.elm_bk.result.HttpResult;
 import com.tju.elm_bk.service.FoodService;
 import com.tju.elm_bk.vo.FoodItemVO;
@@ -74,6 +75,18 @@ public class FoodController {
     //@PreAuthorize("hasAuthority('BUSINESS')")
     public HttpResult<Long> modifyFoodItem(@RequestBody FoodUpdateDTO foodUpdateDTO) {
         return HttpResult.success(foodService.modifyFoodMessage(foodUpdateDTO));
+    }
+
+    @PutMapping("/{id}/stock")
+    @Operation(summary = "调整商品库存")
+    public HttpResult<Long> updateStock(@PathVariable Long id, @RequestBody FoodStockUpdateDTO dto) {
+        if (dto == null || dto.getStock() == null || dto.getStock() < 0) {
+            throw new com.tju.elm_bk.exception.APIException("库存必须是大于等于0的整数");
+        }
+        FoodUpdateDTO update = new FoodUpdateDTO();
+        update.setFoodId(id); update.setStock(dto.getStock());
+        // 复用商品服务的归属校验，库存修改不允许越权。
+        return HttpResult.success(foodService.updateStock(update));
     }
 
     @GetMapping("/delete")

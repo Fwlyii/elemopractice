@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tju.elm_bk.mapper.AssetMapper">
+    <select id="findByUserId" resultType="com.tju.elm_bk.entity.UserAsset">
+        SELECT id,user_id,balance,points,membership_expire,update_time FROM user_asset WHERE user_id=#{userId}
+    </select>
+    <insert id="ensure">
+        INSERT INTO user_asset(user_id,balance,points,update_time) VALUES(#{userId},0,0,NOW())
+        ON DUPLICATE KEY UPDATE user_id=user_id
+    </insert>
+    <update id="addBalance">
+        UPDATE user_asset SET balance=balance+#{amount}, update_time=NOW() WHERE user_id=#{userId}
+    </update>
+    <update id="subtractBalanceIfEnough">
+        UPDATE user_asset SET balance=balance-#{amount}, update_time=NOW()
+        WHERE user_id=#{userId} AND balance &gt;= #{amount}
+    </update>
+    <update id="addPoints">
+        UPDATE user_asset SET points=points+#{points}, update_time=NOW() WHERE user_id=#{userId}
+    </update>
+    <update id="subtractPointsIfEnough">
+        UPDATE user_asset SET points=points-#{points}, update_time=NOW()
+        WHERE user_id=#{userId} AND points &gt;= #{points}
+    </update>
+    <select id="countCoupons" resultType="int">
+        SELECT COUNT(*) FROM user_coupon WHERE user_id=#{userId} AND used=0 AND expires_at>NOW()
+    </select>
+    <select id="listAvailableCoupons" resultType="com.tju.elm_bk.entity.UserCoupon">
+        SELECT id,user_id,name,discount_amount,min_order_amount,expires_at,used,order_id
+        FROM user_coupon
+        WHERE user_id=#{userId} AND used=0 AND expires_at>NOW()
+        ORDER BY discount_amount DESC, min_order_amount ASC, expires_at ASC, id ASC
+    </select>
+    <select id="findCouponForUser" resultType="com.tju.elm_bk.entity.UserCoupon">
+        SELECT id,user_id,name,discount_amount,min_order_amount,expires_at,used,order_id
+        FROM user_coupon
+        WHERE id=#{couponId} AND user_id=#{userId} AND used=0 AND expires_at>NOW()
+    </select>
+    <insert id="claimWelcomeCoupon">
+        INSERT INTO user_coupon(user_id,name,discount_amount,min_order_amount,expires_at,used,create_time)
+        SELECT #{userId},'新人券',5.00,20.00,DATE_ADD(NOW(),INTERVAL 30 DAY),0,NOW()
+        WHERE NOT EXISTS(SELECT 1 FROM user_coupon WHERE user_id=#{userId} AND name='新人券')
+    </insert>
+    <update id="activateMembership">
+        UPDATE user_asset SET membership_expire=DATE_ADD(GREATEST(COALESCE(membership_expire,NOW()),NOW()),INTERVAL 30 DAY), update_time=NOW()
+        WHERE user_id=#{userId}
+    </update>
+    <select id="findBestCouponId" resultType="long">
+        SELECT id FROM user_coupon WHERE user_id=#{userId} AND used=0 AND expires_at>NOW()
+          AND min_order_amount &lt;= #{subtotal} ORDER BY discount_amount DESC, id LIMIT 1
+    </select>
+    <select id="findCouponDiscount" resultType="java.math.BigDecimal">
+        SELECT discount_amount FROM user_coupon WHERE id=#{couponId}
+    </select>
+    <update id="useCoupon">
+        UPDATE user_coupon SET used=1, order_id=#{orderId} WHERE id=#{couponId} AND used=0
+    </update>
+    <update id="releaseCouponByOrder">
+        UPDATE user_coupon SET used=0, order_id=NULL WHERE order_id=#{orderId} AND used=1
+    </update>
+    <insert id="insertLedger">
+        INSERT INTO user_asset_ledger(user_id,type,amount,points_delta,reason,reference_id,create_time)
+        VALUES(#{userId},#{type},COALESCE(#{amount},0),COALESCE(#{pointsDelta},0),#{reason},#{referenceId},NOW())
+    </insert>
+    <select id="listLedger" resultType="com.tju.elm_bk.vo.AssetLedgerVO">
+        SELECT id,type,amount,points_delta AS pointsDelta,reason,create_time AS createTime
+        FROM user_asset_ledger WHERE user_id=#{userId} ORDER BY create_time DESC,id DESC LIMIT #{limit}
+    </select>
+</mapper>

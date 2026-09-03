@@ -35,7 +35,7 @@
             <ul class="food">
                 <li v-for="item in foodArr" :key="item.foodId">
                     <div class="food-left">
-                        <img :src="item.foodImg">
+                        <img :src="item.foodImg || require('@/assets/food-default.png')" @error="handleImageError" alt="食物图片">
                         <div class="food-left-info">
                             <h3>{{ item.foodName }}</h3>
                             <p>{{ item.foodExplain }}</p>
@@ -77,12 +77,15 @@ export default {
         const isInfoCompleted = ref(true);
         
         // 默认图片处理
-        const defaultImage = '/src/assets/default-business.png';
+        const defaultImage = require('@/assets/business-default.png');
+        const defaultFoodImage = require('@/assets/food-default.png');
         const setDefaultImage = `this.src='${defaultImage}'`;
         
         const handleImageError = (e) => {
             console.error('商家图片加载失败');
-            e.target.src = defaultImage;
+            if (e.target.dataset.fallbackApplied === 'true') return;
+            e.target.dataset.fallbackApplied = 'true';
+            e.target.src = e.target.closest('.food') ? defaultFoodImage : defaultImage;
         };
 
         const handleLogout = () => {

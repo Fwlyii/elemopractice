@@ -8,6 +8,7 @@ import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.MerchantInteractionMapper;
+import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.ResultCodeEnum;
 import com.tju.elm_bk.service.BusinessService;
@@ -24,10 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +45,8 @@ public class BusinessServiceImpl implements BusinessService {
     private MerchantInteractionMapper interactionMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private OrdersMapper ordersMapper;
     @Autowired
     private final BusinessMapper businessMapper;
 //    private final BusinessVoMapper businessVoMapper; // 注入MapStruct Mapper
@@ -265,22 +270,27 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public List<BusinessSearchVO> getBusinessesBySearch(String keyword, boolean isScore ,boolean isSales) {
         List<BusinessSearchVO> businesses = businessMapper.searchBusinesses(keyword);
+        Set<Long> recentPurchaseIds = getRecentPurchaseIds();
 //        System.out.println(businesses);
         // 为每个店铺计算评分与销量
         for (BusinessSearchVO business : businesses) {
-            Map<String, Object> interactionCounts = businessMapper.getInteractionCounts(business.getId());
-            int salesCount = businessMapper.getSalesCount(business.getId());
+            int salesCount = business.getSalesCount() == null
+                    ? businessMapper.getSalesCount(business.getId())
+                    : business.getSalesCount();
             Integer likeCount = interactionMapper.countLikesByMerchantId(business.getId());
             Integer collectCount = interactionMapper.countCollectionsByMerchantId(business.getId());
             // 计算评分 (点赞权重0.6，收藏权重0.4，归一化到1-5分)
             double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            BigDecimal rating = BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal rating = business.getScore() == null
+                    ? BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP)
+                    : business.getScore().setScale(2, RoundingMode.HALF_UP);
             business.setScore(rating);
 //            System.out.println("Business ID: " + business.getId() +
 //                    ", likeCount: " + likeCount +
 //                    ", collectCount: " + collectCount +
 //                    ", rawRating: " + normalizedRating);
             business.setSalesCount(salesCount);
+            populateRecommendationMetadata(business, recentPurchaseIds);
         }
 
         // 使用 Comparator 进行排序
@@ -309,17 +319,22 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public List<BusinessSearchVO> getBusinessesInCarousel() {
         List<BusinessSearchVO> businesses = businessMapper.searchBusinesses(null);
+        Set<Long> recentPurchaseIds = getRecentPurchaseIds();
         // 为每个店铺计算评分与销量
         for (BusinessSearchVO business : businesses) {
-            Map<String, Object> interactionCounts = businessMapper.getInteractionCounts(business.getId());
-            int salesCount = businessMapper.getSalesCount(business.getId());
+            int salesCount = business.getSalesCount() == null
+                    ? businessMapper.getSalesCount(business.getId())
+                    : business.getSalesCount();
             Integer likeCount = interactionMapper.countLikesByMerchantId(business.getId());
             Integer collectCount = interactionMapper.countCollectionsByMerchantId(business.getId());
             // 计算评分 (点赞权重0.6，收藏权重0.4，归一化到1-5分)
             double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            BigDecimal rating = BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal rating = business.getScore() == null
+                    ? BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP)
+                    : business.getScore().setScale(2, RoundingMode.HALF_UP);
             business.setScore(rating);
             business.setSalesCount(salesCount);
+            populateRecommendationMetadata(business, recentPurchaseIds);
         }
 
         // 使用 Comparator 进行排序
@@ -330,8 +345,101 @@ public class BusinessServiceImpl implements BusinessService {
         businesses.sort(comparator);
 
 
-        return businesses.subList(0, 3);
+        return businesses.subList(0, Math.min(3, businesses.size()));
     }
+
+    private static final int MAX_RECOMMENDATION_TAGS = 3;
+    private static final int RECENT_PURCHASE_DAYS = 30;
+    private static final BigDecimal GOOD_REVIEW_SCORE = new BigDecimal("4.5");
+
+    /**
+     * 首页标签与综合排序统一在后端计算。这样规则只维护一份，
+     * 换 Web/小程序前端时也不会出现不同门槛、不同排序的结果。
+     */
+    private void populateRecommendationMetadata(BusinessSearchVO business, Set<Long> recentPurchaseIds) {
+        int sales = business.getSalesCount() == null ? 0 : business.getSalesCount();
+        BigDecimal score = business.getScore() == null ? BigDecimal.ZERO : business.getScore();
+        List<RecommendationTag> candidates = new ArrayList<>();
+        if (recentPurchaseIds.contains(business.getId())) {
+            candidates.add(new RecommendationTag("上次买过", 120));
+        }
+        BigDecimal threshold = business.getPromotionThreshold();
+        BigDecimal discount = business.getPromotionDiscount();
+        boolean validPromotion = threshold != null && discount != null
+                && threshold.compareTo(BigDecimal.ONE) >= 0
+                && discount.compareTo(BigDecimal.ZERO) > 0
+                && discount.compareTo(threshold) < 0;
+        if (validPromotion) {
+            candidates.add(new RecommendationTag("满" + moneyText(threshold) + "减" + moneyText(discount), 105));
+        }
+        boolean newBusiness = false;
+        if (business.getCreateTime() != null) {
+            long age = ChronoUnit.DAYS.between(business.getCreateTime(), LocalDateTime.now());
+            newBusiness = age >= 0 && age <= RECENT_PURCHASE_DAYS;
+            if (newBusiness) candidates.add(new RecommendationTag("新店开业", 95));
+        }
+        if (score.compareTo(GOOD_REVIEW_SCORE) >= 0 && sales >= 30) {
+            candidates.add(new RecommendationTag(formatCount(sales) + "人爱不释手", 88));
+        }
+        if (score.compareTo(GOOD_REVIEW_SCORE) >= 0) {
+            candidates.add(new RecommendationTag("好评如潮", 85));
+        }
+        if (sales >= 10) {
+            candidates.add(new RecommendationTag(formatCount(sales) + "人购买", 75));
+        }
+        if (Boolean.TRUE.equals(business.getDineInAvailable())) {
+            candidates.add(new RecommendationTag("堂食店", 65));
+        }
+        if (business.getDeliveryPrice() == null || business.getDeliveryPrice().compareTo(BigDecimal.ZERO) == 0) {
+            candidates.add(new RecommendationTag("免配送费", 55));
+        }
+        if (business.getStartPrice() != null && business.getStartPrice().compareTo(new BigDecimal("20")) <= 0) {
+            candidates.add(new RecommendationTag("低价起送", 35));
+        }
+        candidates.sort(Comparator.comparingInt(RecommendationTag::priority).reversed());
+        business.setRecommendationTags(candidates.stream().limit(MAX_RECOMMENDATION_TAGS)
+                .map(RecommendationTag::label).collect(Collectors.toList()));
+
+        double recommendation = (recentPurchaseIds.contains(business.getId()) ? 120 : 0)
+                + (newBusiness ? 28 : 0)
+                + (validPromotion ? Math.min(24, discount.doubleValue() * 3) : 0)
+                + (score.doubleValue() - 3) * 16
+                + Math.min(sales, 200) * 0.08
+                + (Boolean.TRUE.equals(business.getDineInAvailable()) ? 5 : 0)
+                + ((business.getDeliveryPrice() == null || business.getDeliveryPrice().compareTo(BigDecimal.ZERO) == 0) ? 3 : 0);
+        business.setRecommendationScore(BigDecimal.valueOf(Math.max(0, recommendation)).setScale(2, RoundingMode.HALF_UP));
+    }
+
+    private Set<Long> getRecentPurchaseIds() {
+        Set<Long> ids = new HashSet<>();
+        try {
+            String username = SecurityUtils.getCurrentUsername().orElse(null);
+            if (username == null || "anonymousUser".equals(username)) return ids;
+            Long userId = userMapper.getUserIdByUsername(username);
+            if (userId == null) return ids;
+            LocalDateTime cutoff = LocalDateTime.now().minusDays(RECENT_PURCHASE_DAYS);
+            List<com.tju.elm_bk.entity.Order> orders = ordersMapper.selectRecentOrdersByUserId(userId, 100);
+            if (orders == null) return ids;
+            orders.stream()
+                    .filter(order -> order.getBusinessId() != null)
+                    .filter(order -> order.getOrderState() == null || !Set.of(8, 9).contains(order.getOrderState()))
+                    .filter(order -> order.getOrderDate() == null || !order.getOrderDate().isBefore(cutoff))
+                    .forEach(order -> ids.add(order.getBusinessId()));
+        } catch (Exception ignored) {
+            // 推荐是增强能力，订单历史查询失败不应阻塞首页浏览。
+        }
+        return ids;
+    }
+
+    private String moneyText(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
+    }
+
+    private String formatCount(int count) {
+        return count >= 1000 ? String.format("%.1fk", count / 1000.0) : String.valueOf(count);
+    }
+
+    private record RecommendationTag(String label, int priority) { }
 
     private User getCurrentUser() {
         String username = org.springframework.security.core.context.SecurityContextHolder

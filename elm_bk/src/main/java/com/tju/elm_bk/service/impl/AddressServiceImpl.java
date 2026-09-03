@@ -29,15 +29,18 @@ public class AddressServiceImpl implements AddressService {
     private DeliveryAddressMapper deliveryAddressMapper;
     @Override
     public HttpResult<AddressVO> addDeliveryAddress(AddressCreateDTO createDTO) {
+        if (createDTO == null || createDTO.getCustomer() == null
+                || createDTO.getCustomer().getUsername() == null) {
+            throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+        }
         String currentUsername = SecurityUtils.getCurrentUsername()
                 .orElseThrow(() -> new APIException("当前用户未登录"));
         User targetUser = userMapper.findByUsernameWithAuthorities(createDTO.getCustomer().getUsername());
         User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
         if (currentUser == null) {
             throw new APIException("当前用户不存在");
         }
+        boolean isAdmin = isAdmin(currentUser);
         if (targetUser == null) {
             throw  new APIException("目标用户不存在");
         }
@@ -75,11 +78,10 @@ public class AddressServiceImpl implements AddressService {
                 .orElseThrow(() -> new APIException("当前用户未登录"));
         User targetUser = userMapper.findByUserIdWithAuthorities(userId);
         User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
         if (currentUser == null) {
             throw new APIException("当前用户不存在");
         }
+        boolean isAdmin = isAdmin(currentUser);
         if (targetUser == null) {
             throw  new APIException("目标用户不存在");
         }
@@ -92,14 +94,19 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public HttpResult<DeliveryAddress> getDeliveryAddressById(Long id) {
-        return HttpResult.success(deliveryAddressMapper.getDeliveryAddressById(id));
+        DeliveryAddress address = deliveryAddressMapper.getDeliveryAddressById(id);
+        assertAddressOwner(address);
+        return HttpResult.success(address);
     }
 
     @Override
     public HttpResult updateDeliveryAddress(DeliveryAddress deliveryAddress) {
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
+        User currentUser = currentUser();
+        DeliveryAddress existing = deliveryAddressMapper.getDeliveryAddressById(deliveryAddress.getId());
+        assertAddressOwner(existing, currentUser);
+        // 地址归属由数据库记录决定，忽略客户端伪造的 userId/creator/updater。
+        deliveryAddress.setUserId(existing.getUserId());
+        deliveryAddress.setCreator(existing.getCreator());
         LocalDateTime now = LocalDateTime.now();
         deliveryAddress.setUpdateTime(now);
         deliveryAddress.setUpdater(currentUser.getId());
@@ -108,12 +115,39 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public HttpResult deleteDeliveryAddress(DeliveryAddress deliveryAddress) {
+        User currentUser = currentUser();
+        DeliveryAddress existing = deliveryAddressMapper.getDeliveryAddressById(deliveryAddress.getId());
+        assertAddressOwner(existing, currentUser);
         deliveryAddress.setIsDeleted(true);
         deliveryAddress.setUpdateTime(LocalDateTime.now());
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
-        deliveryAddress.setUpdater(currentUserId);
+        deliveryAddress.setUserId(existing.getUserId());
+        deliveryAddress.setUpdater(currentUser.getId());
         return HttpResult.success(deliveryAddressMapper.updateDeliveryAddress(deliveryAddress));
+    }
+
+    private User currentUser() {
+        String username = SecurityUtils.getCurrentUsername()
+                .orElseThrow(() -> new APIException("当前用户未登录"));
+        User user = userMapper.findByUsernameWithAuthorities(username);
+        if (user == null) throw new APIException("当前用户不存在");
+        return user;
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getAuthorities() != null && user.getAuthorities().stream()
+                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+    }
+
+    private void assertAddressOwner(DeliveryAddress address) {
+        assertAddressOwner(address, currentUser());
+    }
+
+    private void assertAddressOwner(DeliveryAddress address, User currentUser) {
+        if (address == null || Boolean.TRUE.equals(address.getIsDeleted())) {
+            throw new APIException("地址不存在");
+        }
+        if (!isAdmin(currentUser) && !java.util.Objects.equals(address.getUserId(), currentUser.getId())) {
+            throw new APIException(ResultCodeEnum.ADDRESS_PERMISSION_DENIED);
+        }
     }
 }

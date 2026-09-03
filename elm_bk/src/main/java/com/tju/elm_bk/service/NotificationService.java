@@ -7,5 +7,5 @@ import java.util.List;
 public interface NotificationService {
     List<Notification> list(Long userId);
 
-    void readNotification(Long id);
+    void readNotification(Long id, Long userId);
 }

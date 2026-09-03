@@ -41,7 +41,7 @@
           </div>
 
           <div class="order-content">
-            <img class="thumb" :src="item.businessImg || require('@/assets/default-business.png')" alt="商家图片">
+            <img class="thumb" :src="item.businessImg || require('@/assets/default-business.png')" alt="商家图片" @error="handleImageError">
             <div class="meta">
               <p class="name">{{ item.businessName || '未知商家' }}</p>
               <p class="price">¥ {{ Number(item.orderTotal).toFixed(2) || 0}}</p><br>
@@ -61,8 +61,8 @@
               <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
             </template>
 
-            <!-- 已接单：确认收货 -->
-            <template v-else-if="item.orderState === 2">
+            <!-- 骑手确认送达后，顾客才可确认收货 -->
+            <template v-else-if="item.orderState === 6">
               <button class="confirm-btn" @click.stop="confirmOrder(item.id)">确认收货</button>
             </template>
 
@@ -75,8 +75,6 @@
       </ul>
     </div>
 
-    <!-- 底部导航 -->
-    <Footer />
   </div>
 
   <!-- 确认收货弹窗 -->
@@ -118,14 +116,11 @@
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import request from "../utils/request";
-import Footer from '../components/Footer.vue';
 import { toast } from '../utils/toast';
+import { getWebSocketUrl } from '../utils/endpoints';
 
 export default {
   name: "OrderList",
-  components: {
-    Footer
-  },
   setup() {
     const orderArr = ref([]);
     const userInfo = ref({});
@@ -134,9 +129,10 @@ export default {
     // --- WebSocket 相关 ---
     const socket = ref(null);
     const userId = ref(null); // 存储当前用户ID
+    let socketStopped = false;
 
     // 标签定义 - 与API状态对应
-    const tabs = ["全部", "待支付", "待接单", "已接单", "已完成", "已取消"];
+    const tabs = ["全部", "待支付", "待商家", "配送中", "已完成", "已取消"];
     const activeTab = ref(0);
     const showConfirmFinishedModal = ref(false);
     const showConfirmCanceledModal = ref(false);
@@ -147,9 +143,9 @@ export default {
       0: null,     // 全部
       1: 0,        // 待支付
       2: 1,        // 待接单
-      3: 2,        // 已接单
-      4: 3,        // 已完成
-      5: 4         // 已取消
+      3: [2, 3, 4, 5, 6, 9],
+      4: [7],
+      5: [8]
     };
 
     // 获取订单列表
@@ -197,9 +193,9 @@ export default {
         // 根据订单状态，增加对应标签的计数
         if (state === 0) counts[1]++;       // 待支付 -> 索引1
         else if (state === 1) counts[2]++;  // 待接单 -> 索引2
-        else if (state === 2) counts[3]++;  // 已接单 -> 索引3
-        else if (state === 3) counts[4]++;  // 已完成 -> 索引4
-        else if (state === 4) counts[5]++;  // 已取消 -> 索引5
+        else if ([2, 3, 4, 5, 6, 9].includes(state)) counts[3]++;
+        else if (state === 7) counts[4]++;
+        else if (state === 8) counts[5]++;
       });
 
       return counts;
@@ -210,7 +206,9 @@ export default {
       if (activeTab.value === 0) return orderArr.value; // 全部
 
       const targetStatus = tabStatusMap[activeTab.value];
-      return orderArr.value.filter(order => order.orderState === targetStatus);
+      return orderArr.value.filter(order => Array.isArray(targetStatus)
+        ? targetStatus.includes(order.orderState)
+        : order.orderState === targetStatus);
     });
 
     // 切换标签 - 只需要改变activeTab，displayedOrders会自动更新
@@ -223,10 +221,9 @@ export default {
     const getStatusText = (state) => {
       const statusMap = {
         0: "待支付",
-        1: "待接单",
-        2: "已接单",
-        3: "已完成",
-        4: "已取消"
+        1: "待商家接单", 2: "正在派单", 3: "待骑手接单",
+        4: "骑手待取餐", 5: "配送中", 6: "已送达·待确认",
+        7: "已完成", 8: "已取消", 9: "配送异常"
       };
       return statusMap[state] || "未知状态";
     };
@@ -236,9 +233,8 @@ export default {
       const classMap = {
         0: "unpaid",
         1: "pending",
-        2: "accepted",
-        3: "done",
-        4: "canceled"
+        2: "accepted", 3: "accepted", 4: "accepted", 5: "accepted", 6: "done",
+        7: "done", 8: "canceled", 9: "unpaid"
       };
       return classMap[state] || "";
     };
@@ -261,7 +257,7 @@ export default {
       if (selectId.value === 0) return;
 
       try {
-        const response = await request.put("/api/orders/status?orderState=4&orderId=" + selectId.value);
+        const response = await request.put("/api/orders/status?orderState=8&orderId=" + selectId.value);
 
         if (response.success) {
           toast.success("订单取消成功");
@@ -293,7 +289,7 @@ export default {
       if (selectId.value === 0) return;
 
       try {
-        const response = await request.put("/api/orders/status?orderState=3&orderId=" + selectId.value);
+        const response = await request.post(`/api/v1/orders/${selectId.value}/confirm-receipt`);
 
         if (response.success) {
           toast.success("订单完成");
@@ -326,11 +322,11 @@ export default {
 
     // 初始化WebSocket
     const initWebSocket = () => {
+      if (socketStopped) return;
       userId.value = userInfo.value.id;
       if (!userId.value) return;
 
-      // 连接WebSocket（假设后端地址是 ws://localhost:8080/ws/{userId}）
-      socket.value = new WebSocket(`ws://110.42.60.144:8080/ws/${userId.value}`);
+      socket.value = new WebSocket(getWebSocketUrl(`/ws/${userId.value}`));
 
       socket.value.onopen = () => {
         console.log("WebSocket 连接成功");
@@ -346,7 +342,7 @@ export default {
       socket.value.onclose = () => {
         console.log("WebSocket 连接关闭");
         // 断线重连（可选，视需求添加）
-        setTimeout(initWebSocket, 2000);
+        if (!socketStopped) setTimeout(initWebSocket, 2000);
       };
 
       socket.value.onerror = (err) => {
@@ -356,9 +352,14 @@ export default {
 
     // 关闭WebSocket（组件销毁时调用）
     const closeWebSocket = () => {
+      socketStopped = true;
       if (socket.value && socket.value.readyState === WebSocket.OPEN) {
         socket.value.close();
       }
+    };
+
+    const handleImageError = (event) => {
+      event.target.src = require('@/assets/default-business.png');
     };
 
     onMounted(() => {
@@ -371,6 +372,7 @@ export default {
         router.push({ path: "/login" });
         return;
       }
+      socketStopped = false;
       initWebSocket();
       // 初始加载全部订单
       fetchOrders();
@@ -401,7 +403,8 @@ export default {
       confirmFinished,
       showConfirmFinishedModal,
       showConfirmCanceledModal,
-      closeModal
+      closeModal,
+      handleImageError
     };
   }
 };
@@ -820,5 +823,29 @@ export default {
     max-width: 100vw;
     width: 100vw;
   }
+}
+
+.wrapper { width:100%; max-width:600px; margin:0 auto; background: #f5f9fd; color: #24405c; overflow-x:hidden; }
+.top-background { height: 64px; background: #0097ff; background-image: none; border-radius: 0; box-shadow: 0 1px 0 rgba(0,83,145,.15); }
+.top-background::before { display: none; }
+.top-background h1 { font-size: 20px; letter-spacing: 0; text-shadow: none; }
+.fixed-header { top: 64px; }
+.page-title { padding: 12px 16px; font-size: 17px; color: #24405c; }
+.tabs { padding: 0 16px; }
+.tabs li { margin-right: 22px; padding: 11px 0; font-size: 13px; }
+.content-area { margin-top: 160px; padding: 0 16px 88px; box-sizing:border-box; }
+.order-list{padding:12px 0 0;}
+.order-item { border: 1px solid #e1edf7; border-radius: 10px; box-shadow: 0 2px 8px rgba(36,91,132,.06); padding:16px; margin-bottom:12px; }
+.order-content{gap:12px; min-width:0;}
+.order-content .meta{min-width:0;}
+.order-content .name,.order-content .time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.order-content .price{margin-top:8px;}
+.actions{padding-top:12px;border-top:1px solid #edf3f7;}
+.actions button{padding:8px 14px;border-radius:6px;font-size:13px;}
+.order-item p, .order-item span { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .top-background { height: 64px; }
+  .fixed-header { top: 64px; left: 0; transform: none; max-width: 100vw; }
+  .content-area { margin-top: 160px; width: 100%; max-width: none; padding: 0 12px 88px; }
 }
 </style>

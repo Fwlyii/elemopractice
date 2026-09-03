@@ -71,6 +71,9 @@ public class FoodServiceImpl implements FoodService {
         food.setUpdater(user.getId());
         food.setUpdateTime(LocalDateTime.now());
         food.setIsDeleted(false);
+        food.setStock(foodDTO.getStock() == null ? 100 : foodDTO.getStock());
+        food.setCategory(normalizeCategory(foodDTO.getCategory()));
+        food.setPurchaseLimit(normalizePurchaseLimit(foodDTO.getPurchaseLimit()));
         foodMapper.insertFood(food);
         return foodMapper.selectFoodVOById(food.getId());
     }
@@ -99,6 +102,8 @@ public class FoodServiceImpl implements FoodService {
         food.setFoodPrice(foodDTO.getFoodPrice() == null ? food.getFoodPrice() : foodDTO.getFoodPrice());
         food.setFoodImg(foodDTO.getFoodImg() == null ? food.getFoodImg() : foodDTO.getFoodImg());
         food.setRemarks(foodDTO.getRemarks() == null ? food.getRemarks() : foodDTO.getRemarks());
+        food.setCategory(foodDTO.getCategory() == null ? food.getCategory() : normalizeCategory(foodDTO.getCategory()));
+        food.setPurchaseLimit(foodDTO.getPurchaseLimit() == null ? food.getPurchaseLimit() : normalizePurchaseLimit(foodDTO.getPurchaseLimit()));
         food.setUpdater(user.getId());
         food.setUpdateTime(LocalDateTime.now());
         foodMapper.updateFood(food,id);
@@ -148,6 +153,9 @@ public class FoodServiceImpl implements FoodService {
         food.setUpdater(user.getId());
         food.setUpdateTime(LocalDateTime.now());
         food.setIsDeleted(false);
+        food.setStock(foodCreateDTO.getStock() == null ? 100 : foodCreateDTO.getStock());
+        food.setCategory(normalizeCategory(foodCreateDTO.getCategory()));
+        food.setPurchaseLimit(normalizePurchaseLimit(foodCreateDTO.getPurchaseLimit()));
         foodMapper.insertFood(food);
 
         return food.getId();
@@ -199,8 +207,36 @@ public class FoodServiceImpl implements FoodService {
         }
 
         ObjectCopyUtil.copyPropertiesIgnoreNull(foodUpdateDTO,food);
+        if (foodUpdateDTO.getCategory() != null) food.setCategory(normalizeCategory(foodUpdateDTO.getCategory()));
+        if (foodUpdateDTO.getPurchaseLimit() != null) food.setPurchaseLimit(normalizePurchaseLimit(foodUpdateDTO.getPurchaseLimit()));
         food.setUpdater(user.getId());
         food.setUpdateTime(LocalDateTime.now());
+        foodMapper.updateFoodMessage(food);
+        return food.getId();
+    }
+
+    @Override
+    @Transactional
+    public Long updateStock(FoodUpdateDTO foodUpdateDTO) {
+        if (foodUpdateDTO == null || foodUpdateDTO.getFoodId() == null || foodUpdateDTO.getStock() == null || foodUpdateDTO.getStock() < 0) {
+            throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+        }
+        Food food = foodMapper.selectFoodById(foodUpdateDTO.getFoodId());
+        if (food == null) throw new APIException(ResultCodeEnum.FOOD_MISSED);
+        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
+        Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        boolean admin = user.getAuthorities().stream().anyMatch(a -> "ADMIN".equals(a.getName()));
+        if (!admin && (business == null || !Objects.equals(user.getId(), business.getUserId()))) {
+            throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
+        }
+        foodUpdateDTO.setFoodPrice(food.getFoodPrice());
+        foodUpdateDTO.setFoodName(food.getFoodName());
+        foodUpdateDTO.setFoodExplain(food.getFoodExplain());
+        foodUpdateDTO.setFoodImg(food.getFoodImg());
+        foodUpdateDTO.setRemarks(food.getRemarks());
+        food.setStock(foodUpdateDTO.getStock());
+        if (food.getCategory() == null || food.getCategory().isBlank()) food.setCategory("招牌推荐");
+        food.setUpdater(user.getId()); food.setUpdateTime(LocalDateTime.now());
         foodMapper.updateFoodMessage(food);
         return food.getId();
     }
@@ -222,5 +258,17 @@ public class FoodServiceImpl implements FoodService {
 
         foodMapper.deleteFood(foodId);
         return foodId;
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null || category.trim().isEmpty()) return "招牌推荐";
+        String normalized = category.trim();
+        return normalized.length() > 32 ? normalized.substring(0, 32) : normalized;
+    }
+
+    private Integer normalizePurchaseLimit(Integer purchaseLimit) {
+        if (purchaseLimit == null) return null;
+        if (purchaseLimit <= 0) throw new APIException("单笔限购数量必须大于0");
+        return Math.min(purchaseLimit, 999);
     }
 }

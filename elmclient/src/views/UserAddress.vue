@@ -1,7 +1,6 @@
 <template>
 	<div class="wrapper">
 		<!-- header部分 -->
-		<BackButton style="margin-top: -12vw;"/>
     <div class="header">
 
       <p>订单配送地址</p>
@@ -9,7 +8,7 @@
 		<!-- 地址列表部分 -->
 		<ul class="addresslist">
 			<li v-for="item in deliveryAddressArr" :key="item.id">
-				<div class="addresslist-left" @click="setDeliveryAddress(item)">
+		<div class="addresslist-left" @click="setDeliveryAddress(item)">
 					<h3 style="color: black;">{{ item.contactName }}{{ sexFilter(item.contactSex) }} {{ item.contactTel }}</h3>
 					<p>{{ item.address }}</p>
 				</div>
@@ -29,25 +28,9 @@
 			<i class="fa fa-plus-circle"></i>
 			<p>新增收货地址</p>
 		</div>
-		<!-- 确认对话框 - 完全保留原始样式 -->
-		<div v-if="showConfirmModal" class="modal-overlay" @click.self="showConfirmModal = false">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>确认操作</h3>
-            <span class="close-btn" @click="showConfirmModal = false">&times;</span>
-          </div>
-          <div class="modal-body">
-            <p>确定要删除地址吗？</p>
-          </div>
-          <div class="modal-footer">
-            <button class="modal-btn cancel-btn" @click="showConfirmModal = false">取消</button>
-            <button class="modal-btn confirm-btn" @click="confirmRemove">确认</button>
-          </div>
-        </div>
-      </div>
 		<!-- 底部结算栏 -->
 		<div class="order-bar">
-			<button class="checkout-order-btn" @click="submitOrder">确认下单</button>
+			<button class="checkout-order-btn" :disabled="submitting" @click="submitOrder">{{ submitting ? '提交中…' : '确认下单' }}</button>
 		</div>
 
 		<!-- 确认删除弹窗 -->
@@ -71,20 +54,15 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue';
-import Footer from '../components/Footer.vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
-import BackButton from '@/components/BackButton.vue';
 import { toast } from '../utils/toast';
 export default {
 	name: 'UserAddress',
-	components: {
-		BackButton
-		},
 	setup() {
 
-		const user = reactive({});
+		const user = ref(null);
 		const deliveryAddressArr = ref([]);
 		const route = useRoute();
 		const router = useRouter();
@@ -106,20 +84,32 @@ export default {
 		});
 
 		const listDeliveryAddressByUserId = () => {
+			if (!user.value?.id) {
+				toast.error('登录已过期，请重新登录');
+				router.push({ path: '/login' });
+				return;
+			}
 			// 查询送货地址
 			request.get('/api/addresses/listDeliveryAddressByUserId', {
 				params: { userId: user.value.id }
 			}).then(response => {
-				deliveryAddressArr.value = response.data;
+				deliveryAddressArr.value = Array.isArray(response.data) ? response.data : [];
+				try {
+					const saved = JSON.parse(localStorage.getItem(String(user.value.id)) || 'null');
+					const savedId = saved?.id || saved?.daId;
+					if (savedId && deliveryAddressArr.value.some(item => item.id === savedId)) addressSelectedId.value = savedId;
+				} catch (_) { /* 忽略损坏的本地地址缓存 */ }
 			}).catch(error => {
 				console.error('获取送货地址列表失败:', error);
 			});
 		};
 
 		const setDeliveryAddress = (deliveryAddress) => {
-			// 把用户选择的默认送货地址存储到localStorage中
-			localStorage.setItem(user.value.id, JSON.stringify(deliveryAddress));
-			router.push({ path: '/orders', query: { businessId: businessId.value } });
+			// 点击地址只负责选中，不提前跳转；统一由底部“确认下单”提交。
+			const selectedId = deliveryAddress?.id || deliveryAddress?.daId;
+			if (!selectedId) return;
+			addressSelectedId.value = selectedId;
+			localStorage.setItem(String(user.value.id), JSON.stringify({ ...deliveryAddress, daId: selectedId }));
 		};
 
 		const toAddUserAddress = () => {
@@ -137,24 +127,43 @@ export default {
 			}
 		};
 
+		const submitting = ref(false);
 		const submitOrder = () => {
+			if (submitting.value) return;
 			if (addressSelectedId.value === 0) {
 				toast.error("请选择配送地址");
 				return;
 			}
 			else {
-				request.get("/api/orders/submit?businessId=" + businessId.value + "&addressId=" + addressSelectedId.value)
+				submitting.value = true;
+				const requestId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+				request.post('/api/orders/submit', null, {
+					params: {
+						businessId: businessId.value,
+						addressId: addressSelectedId.value,
+						foodIds: route.query.foodIds || undefined,
+						serviceMode: route.query.serviceMode || 'delivery'
+					},
+					headers: { 'Idempotency-Key': requestId }
+				})
 				.then(response => {
 					if (response.success) {
 						orderId.value = response.data;
-						router.push({ path: '/payment', query: { businessId: businessId.value, orderId: response.data } });
+						router.push({ path: '/payment', query: {
+							businessId: businessId.value,
+							orderId: response.data,
+							serviceMode: route.query.serviceMode || 'delivery'
+						} });
 					} else {
 						toast.error("下单失败，请重试");
 						router.push({path: '/orderList'})
 					}
 				}).catch(error => {
 					console.error('下单失败:', error);
-			});
+					toast.error(error?.message || '下单失败，请重试');
+				}).finally(() => {
+					submitting.value = false;
+				});
 			}
 		};
 
@@ -183,7 +192,8 @@ export default {
 				console.log(response.data);
 				if (response.success) {
 					// 修复：使用 addressDeleteSelectId.value 而不是未定义的 id
-					let deliveryAddress = JSON.parse(localStorage.getItem(user.value.id.toString()));
+					let deliveryAddress = null;
+					try { deliveryAddress = JSON.parse(localStorage.getItem(String(user.value.id)) || 'null'); } catch (_) { /* 忽略损坏的本地地址缓存 */ }
 					if (deliveryAddress && deliveryAddress.id === addressDeleteSelectId.value) {
 						localStorage.removeItem(user.value.id.toString());
 					}
@@ -215,6 +225,7 @@ export default {
 			sexFilter,
 			orderId,
 			addressSelectedId,
+			submitting,
 			submitOrder,
 			showConfirmModal,
 			closeModal,
@@ -222,9 +233,6 @@ export default {
 			goBack
 		};
 	},
-	// components: {
-	// 	Footer
-	// }
 }
 </script>
 
@@ -497,9 +505,11 @@ export default {
 	cursor: pointer;
 	box-shadow: 0 2vw 4vw rgba(0, 151, 255, 0.3);
 	transition: all 0.3s ease;
-	min-width: 25vw;
+	width: 100%;
+	max-width: 480px;
 	text-align: center;
-	margin-left: 220px;
+	margin: 0 auto;
+	display: block;
 }
 
 .wrapper .order-bar .checkout-order-btn:hover {

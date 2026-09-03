@@ -74,7 +74,7 @@
         COALESCE((
         SELECT COUNT(*)
         FROM orders
-        WHERE business_id = b.id AND order_state = 3 AND is_deleted = 0
+        WHERE business_id = b.id AND order_state = 7 AND is_deleted = 0
         ), 0) as salesCount
         FROM merchant_interaction mi
         LEFT JOIN business b ON mi.merchant_id = b.id
@@ -97,4 +97,3 @@
 
 
 </mapper>
-

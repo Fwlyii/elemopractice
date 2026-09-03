@@ -21,7 +21,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/permission")
-@Tag(name = "权限申请管理", description = "顾客申请成为商家与申请开店")
+@Tag(name = "权限申请管理", description = "顾客申请成为商家与商家申请开店")
 public class PermissionApplicationController {
     @Autowired
     private PermissionApplicationService permissionApplicationService;
@@ -45,10 +45,11 @@ public class PermissionApplicationController {
     }
 
     /**
-     * 顾客申请开店
+     * 已获商家权限的用户申请开店
      */
     @PostMapping("/apply-shop")
-    @Operation(summary = "申请开店", description = "顾客提交开店的申请，提交后会通知管理员审核")
+    @Operation(summary = "申请开店", description = "商家提交开店申请，提交后会通知管理员审核")
+    @PreAuthorize("hasAuthority('BUSINESS')")
     public HttpResult<BusinessPermissionVO> applyShop(@RequestBody BusinessPermissionDTO businessPermissionDTO) {
         return HttpResult.success(permissionApplicationService.applyShop(businessPermissionDTO));
     }

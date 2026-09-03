@@ -33,6 +33,11 @@
         退出登录
       </button>
 
+      <div class="stats-toolbar">
+        <label>统计区间</label><input v-model="statsFrom" type="date"><span>至</span><input v-model="statsTo" type="date">
+        <button @click="loadDetailedStats">查询</button><button class="export-btn" @click="downloadStats">导出CSV</button>
+        <span v-if="detailedStats" class="stats-summary">有效订单 {{ detailedStats.completedCount || 0 }} · 有效营业额 ¥{{ detailedStats.revenue || 0 }}</span>
+      </div>
       <div class="stats-container">
         <div class="stat-card users">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
@@ -193,7 +198,7 @@
               </div>
               <div class="modal-item" v-if="currentShopApp?.businessImg">
                 <label>店铺图片:</label>
-                <img :src="currentShopApp?.businessImg" alt="店铺图片" class="shop-img" />
+                <img :src="currentShopApp?.businessImg || require('@/assets/business-default.png')" @error="handleImageError" alt="店铺图片" class="shop-img" />
               </div>
             </div>
           </div>
@@ -203,7 +208,6 @@
           </div>
         </div>
       </div>
-      <AdminFooter />
     </div>
   </div>
 </template>
@@ -213,7 +217,7 @@ import { ref, onMounted, onUnmounted, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
-import AdminFooter from '@/components/AdminFooter.vue';
+import { getWebSocketUrl } from '@/utils/endpoints';
 
 // 路由实例
 const router = useRouter();
@@ -223,6 +227,9 @@ const currentUser = ref({}); // 当前管理员信息
 const userCount = ref(null); // 总用户数
 const shopCount = ref(null); // 总店铺数
 const totalRevenue = ref(null); // 总营业额
+const statsFrom = ref('');
+const statsTo = ref('');
+const detailedStats = ref(null);
 const activeTab = ref('user-review'); // 活跃的审核标签
 const showReviewModal = ref(false); // 审核弹窗显示状态
 const modalTitle = ref(''); // 弹窗标题
@@ -240,6 +247,13 @@ const shopApplications = ref([]); // 店铺申请列表
 const webSocket = ref(null);
 const currentPersonInfo = ref(null); // 存储用户详细信息
 const loadingPersonInfo = ref(false); // 加载状态
+
+const handleImageError = (event) => {
+  const image = event?.target;
+  if (!image || image.dataset.fallbackApplied === 'true') return;
+  image.dataset.fallbackApplied = 'true';
+  image.src = require('@/assets/business-default.png');
+};
 
 // 店铺类型映射（根据实际业务补充）
 const shopTypeMap = computed(() => ({
@@ -261,6 +275,7 @@ onMounted(() => {
   getCurrentUserInfo();
   // 2. 获取统计数据
   getStatisticData();
+  loadDetailedStats();
   // 3. 获取待审核列表
   getMerchantApplications();
   getShopApplications();
@@ -343,6 +358,13 @@ const getStatisticData = async () => {
     console.error('获取统计数据失败:', error);
     toast.error('获取统计数据失败');
   }
+};
+
+const loadDetailedStats = async () => {
+  try { const res = await request.get('/api/admin/statistics', { params: { from: statsFrom.value || undefined, to: statsTo.value || undefined } }); if (res.success) detailedStats.value = res.data; } catch (e) { toast.error('统计数据加载失败'); }
+};
+const downloadStats = async () => {
+  try { const blob = await request.get('/api/admin/statistics/export', { params: { from: statsFrom.value || undefined, to: statsTo.value || undefined }, responseType: 'blob' }); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='statistics.csv'; a.click(); URL.revokeObjectURL(url); } catch (e) { toast.error('导出失败'); }
 };
 
 /**
@@ -442,10 +464,7 @@ const initWebSocket = () => {
   const sid = `admin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   // 2. 构造WebSocket连接地址（匹配后端的/ws/{sid}端点）
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // 注意：这里的地址需要根据你的后端实际域名/端口修改
-  //const wsUrl = `${wsProtocol}//${window.location.host}/ws/${sid}`;
-  const wsUrl = `${wsProtocol}//110.42.60.144:8080/ws/${sid}`;
+  const wsUrl = getWebSocketUrl(`/ws/${sid}`);
 
   webSocket.value = new WebSocket(wsUrl);
 
@@ -1132,4 +1151,21 @@ const getShopTypeName = (typeId) => {
   /* 可选：图片居中显示 */
   object-position: center;
 }
+
+/* 管理首页去掉装饰性渐变，保持蓝白工作台的统一密度 */
+.admin-container { background: #f5f9fd; color: #24405c; }
+.admin-container .container { background: #f5f9fd; border-radius: 0; box-shadow: none; padding-top: 88px; padding-bottom: 88px; }
+.admin-container .top-background { height: 64px; background: #0097ff; background-image: none; border-radius: 0; box-shadow: 0 1px 0 rgba(0,83,145,.15); }
+.admin-container .top-background::before { display: none; }
+.admin-container .top-background h1 { font-size: 20px; letter-spacing: 0; text-shadow: none; }
+.admin-container .logout-btn { background: #0097ff; box-shadow: none; border-radius: 7px; transform: none; }
+.admin-container .logout-btn:hover { background: #087dcc; box-shadow: none; }
+@media (max-width: 480px) {
+  .admin-container .container { padding-top: 78px; }
+  .admin-container .top-background { height: 64px; }
+}
+</style>
+
+<style scoped>
+.stats-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:calc(100% - 32px);max-width:568px;margin:16px auto 0;color:#668095;font-size:13px}.stats-toolbar input{border:1px solid #d7e5ef;border-radius:6px;padding:7px;color:#49677f;min-width:0;flex:1 1 120px}.stats-toolbar button{border:0;border-radius:6px;padding:7px 12px;background:#168bd1;color:#fff;cursor:pointer;flex:0 0 auto}.stats-toolbar .export-btn{background:#fff;color:#168bd1;border:1px solid #168bd1}.stats-summary{width:100%;margin-left:0;color:#3d6d8c}.stats-container{transform:none;margin-top:16px}
 </style>

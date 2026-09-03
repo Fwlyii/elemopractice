@@ -10,7 +10,7 @@
 
     <div class="business-info-card">
       <div class="business-logo">
-        <img :src="business.businessImg || require('@/assets/default-business.png')" />
+        <img :src="business.businessImg || require('@/assets/default-business.png')" @error="handleImageError" alt="商家图片" />
       </div>
       <div class="info-details">
         <h1>{{ business.businessName }}</h1>
@@ -19,6 +19,11 @@
           <span class="info-item">配送费 &#165;{{ business.deliveryPrice }}</span>
         </p>
         <p class="explain-text">{{ business.businessExplain }}</p>
+        <div class="store-settings">
+          <span v-if="business.dineInAvailable">堂食店</span>
+          <span v-if="business.promotionThreshold && business.promotionDiscount">满{{ Number(business.promotionThreshold).toFixed(0) }}减{{ Number(business.promotionDiscount).toFixed(0) }}</span>
+          <span v-else class="muted-setting">未设置满减</span>
+        </div>
       </div>
     </div>
 
@@ -40,12 +45,16 @@
     <ul class="food">
       <li v-for="(item, index) in foodArr" :key="item.foodId">
         <div class="food-left">
-          <img :src="item.foodImg" />
+          <img :src="item.foodImg || require('@/assets/food-default.png')" @error="handleImageError" alt="商品图片" />
           <div class="food-left-info">
             <h3>{{ item.foodName }}</h3>
             <text class="food-status" v-if="item.shelveStatus === 0">(已下架)</text>
             <p>{{ item.foodExplain }}</p>
-            <p class="food-price">&#165;{{ item.foodPrice }}</p>
+            <p class="food-price">&#165;{{ item.foodPrice }}
+              <span class="food-meta-chip">{{ item.category || '招牌推荐' }}</span>
+              <span v-if="item.purchaseLimit" class="food-meta-chip limit-chip">每单限{{ item.purchaseLimit }}份</span>
+              <span class="stock-label">库存 {{ item.stock ?? 0 }}</span>
+            </p>
           </div>
         </div>
         <div class="food-right">
@@ -126,6 +135,9 @@ export default {
       let selectedFile = null;
       let currentImageUrl = business.value.businessImg;
       const currentOrderTypeId = business.value.orderTypeId || '';
+      const currentDineInAvailable = Boolean(business.value.dineInAvailable);
+      const currentPromotionValue = business.value.promotionThreshold && business.value.promotionDiscount
+        ? `${business.value.promotionThreshold}-${business.value.promotionDiscount}` : '';
 
       const { value: formValues } = await Swal.fire({
         title: '编辑商铺信息',
@@ -141,6 +153,13 @@ export default {
           <input id="businessName" class="swal2-input" placeholder="商铺名称" value="${business.value.businessName}">
           <input id="startPrice" type="number" class="swal2-input" placeholder="起送费" value="${business.value.startPrice}">
           <input id="deliveryPrice" type="number" class="swal2-input" placeholder="配送费" value="${business.value.deliveryPrice}">
+          <label style="display:flex;align-items:center;gap:8px;width:90%;margin:8px auto;color:#45677d;font-size:13px;text-align:left;"><input id="dineInAvailable" type="checkbox" ${currentDineInAvailable ? 'checked' : ''}>支持堂食 <small style="margin-left:auto;color:#9aadb9;">首页显示“堂食店”</small></label>
+          <select id="promotionPreset" class="swal2-input" style="width:90%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+            <option value="" ${!currentPromotionValue ? 'selected' : ''}>不设置满减</option>
+            <option value="20-3" ${currentPromotionValue === '20-3' ? 'selected' : ''}>满20减3</option>
+            <option value="30-5" ${currentPromotionValue === '30-5' ? 'selected' : ''}>满30减5</option>
+            <option value="50-10" ${currentPromotionValue === '50-10' ? 'selected' : ''}>满50减10</option>
+          </select>
           <textarea id="businessExplain" class="swal2-textarea" placeholder="商铺介绍">${business.value.businessExplain}</textarea>
           <select id="orderTypeId" class="swal2-input" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             <option value="" disabled ${!currentOrderTypeId ? 'selected' : ''}>请选择商铺类型</option>
@@ -258,6 +277,8 @@ export default {
           const deliveryPrice = parseFloat(document.getElementById('deliveryPrice').value);
           const businessExplain = document.getElementById('businessExplain').value.trim();
           const orderTypeId = document.getElementById('orderTypeId').value;
+          const dineInAvailable = document.getElementById('dineInAvailable').checked;
+          const promotionValue = document.getElementById('promotionPreset').value;
 
           if (!businessName || isNaN(startPrice) || isNaN(deliveryPrice) || !orderTypeId) {
             Swal.showValidationMessage('请填写完整且正确的信息');
@@ -303,7 +324,10 @@ export default {
             startPrice,
             deliveryPrice,
             businessExplain,
-            orderTypeId: parseInt(orderTypeId)
+            orderTypeId: parseInt(orderTypeId),
+            dineInAvailable,
+            promotionThreshold: promotionValue ? parseFloat(promotionValue.split('-')[0]) : null,
+            promotionDiscount: promotionValue ? parseFloat(promotionValue.split('-')[1]) : null
           };
         }
       });
@@ -324,7 +348,10 @@ export default {
             startPrice: formValues.startPrice,
             deliveryPrice: formValues.deliveryPrice,
             businessExplain: formValues.businessExplain,
-            orderTypeId: formValues.orderTypeId
+            orderTypeId: formValues.orderTypeId,
+            dineInAvailable: formValues.dineInAvailable,
+            promotionThreshold: formValues.promotionThreshold,
+            promotionDiscount: formValues.promotionDiscount
           };
 
           const response = await request.patch(`/api/businesses/own/${businessId.value}`, updateData);
@@ -371,6 +398,15 @@ console.log('修改成功，新的接口测试ok');
           <input id="foodName" class="swal2-input" placeholder="商品名称">
           <input id="foodExplain" class="swal2-input" placeholder="商品简介">
           <input id="foodPrice" type="number" class="swal2-input" placeholder="商品价格">
+          <input id="foodStock" type="number" min="0" class="swal2-input" placeholder="可售库存（默认100）" value="100">
+          <select id="foodCategory" class="swal2-input" aria-label="商品分类">
+            <option value="招牌推荐">招牌推荐</option>
+            <option value="主食">主食</option>
+            <option value="小吃">小吃</option>
+            <option value="饮品">饮品</option>
+            <option value="套餐">套餐</option>
+          </select>
+          <input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="单笔限购（可选）">
         `,
         focusConfirm: false,
         showCancelButton: true,
@@ -466,8 +502,12 @@ console.log('修改成功，新的接口测试ok');
           const foodName = document.getElementById('foodName').value.trim();
           const foodExplain = document.getElementById('foodExplain').value.trim();
           const foodPrice = parseFloat(document.getElementById('foodPrice').value);
+          const stock = parseInt(document.getElementById('foodStock').value || '100', 10);
+          const category = document.getElementById('foodCategory').value || '招牌推荐';
+          const limitInput = document.getElementById('purchaseLimit').value;
+          const purchaseLimit = limitInput ? parseInt(limitInput, 10) : null;
 
-          if (!foodName || !foodExplain || isNaN(foodPrice)) {
+          if (!foodName || !foodExplain || isNaN(foodPrice) || isNaN(stock) || stock < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
             Swal.showValidationMessage('请填写完整且正确的信息');
             return false;
           }
@@ -501,7 +541,7 @@ console.log('修改成功，新的接口测试ok');
                 foodName,
                 foodImg: uploadResponse.data,
                 foodExplain,
-                foodPrice
+                foodPrice, stock, category, purchaseLimit
               };
             } else {
               throw new Error('上传失败');
@@ -529,6 +569,9 @@ console.log('修改成功，新的接口测试ok');
             foodExplain: formValues.foodExplain,
             foodPrice: formValues.foodPrice,
             businessId: businessId.value,
+            stock: formValues.stock,
+            category: formValues.category,
+            purchaseLimit: formValues.purchaseLimit,
             shelveStatus: 1
           };
 
@@ -573,6 +616,15 @@ console.log('修改成功，新的接口测试ok');
           <input id="foodName" class="swal2-input" placeholder="商品名称" value="${foodItem.foodName}">
           <input id="foodExplain" class="swal2-input" placeholder="商品简介" value="${foodItem.foodExplain}">
           <input id="foodPrice" type="number" class="swal2-input" placeholder="商品价格" value="${foodItem.foodPrice}">
+          <input id="foodStock" type="number" min="0" class="swal2-input" placeholder="可售库存" value="${foodItem.stock ?? 0}">
+          <select id="foodCategory" class="swal2-input" aria-label="商品分类">
+            <option value="招牌推荐" ${(foodItem.category || '招牌推荐') === '招牌推荐' ? 'selected' : ''}>招牌推荐</option>
+            <option value="主食" ${foodItem.category === '主食' ? 'selected' : ''}>主食</option>
+            <option value="小吃" ${foodItem.category === '小吃' ? 'selected' : ''}>小吃</option>
+            <option value="饮品" ${foodItem.category === '饮品' ? 'selected' : ''}>饮品</option>
+            <option value="套餐" ${foodItem.category === '套餐' ? 'selected' : ''}>套餐</option>
+          </select>
+          <input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="单笔限购（可选）" value="${foodItem.purchaseLimit ?? ''}">
         `,
         focusConfirm: false,
         showCancelButton: true,
@@ -665,8 +717,12 @@ console.log('修改成功，新的接口测试ok');
           const foodName = document.getElementById('foodName').value.trim();
           const foodExplain = document.getElementById('foodExplain').value.trim();
           const foodPrice = parseFloat(document.getElementById('foodPrice').value);
+          const stock = parseInt(document.getElementById('foodStock').value || '0', 10);
+          const category = document.getElementById('foodCategory').value || '招牌推荐';
+          const limitInput = document.getElementById('purchaseLimit').value;
+          const purchaseLimit = limitInput ? parseInt(limitInput, 10) : null;
 
-          if (!foodName || !foodExplain || isNaN(foodPrice)) {
+          if (!foodName || !foodExplain || isNaN(foodPrice) || isNaN(stock) || stock < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
             Swal.showValidationMessage('请填写完整且正确的信息');
             return false;
           }
@@ -708,7 +764,7 @@ console.log('修改成功，新的接口测试ok');
             foodName,
             foodImg: finalImageUrl,
             foodExplain,
-            foodPrice
+            foodPrice, stock, category, purchaseLimit
           };
         }
       });
@@ -729,7 +785,10 @@ console.log('修改成功，新的接口测试ok');
             foodImg: formValues.foodImg,
             foodExplain: formValues.foodExplain,
             foodPrice: formValues.foodPrice,
-            businessId: businessId.value
+            businessId: businessId.value,
+            stock: formValues.stock,
+            category: formValues.category,
+            purchaseLimit: formValues.purchaseLimit
           };
 
           const response = await request.post('/api/foods/modifyItem', updateData);
@@ -740,7 +799,10 @@ console.log('修改成功，新的接口测试ok');
               foodName: formValues.foodName,
               foodImg: formValues.foodImg,
               foodExplain: formValues.foodExplain,
-              foodPrice: formValues.foodPrice
+              foodPrice: formValues.foodPrice,
+              stock: formValues.stock,
+              category: formValues.category,
+              purchaseLimit: formValues.purchaseLimit
             };
 
             Swal.fire({
@@ -796,6 +858,15 @@ console.log('修改成功，新的接口测试ok');
       });
     };
 
+    const handleImageError = (event) => {
+      const image = event?.target;
+      if (!image || image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = image.closest('.food')
+        ? require('@/assets/food-default.png')
+        : require('@/assets/business-default.png');
+    };
+
     return {
       business,
       favoriteCount,
@@ -804,13 +875,27 @@ console.log('修改成功，新的接口测试ok');
       showAddNewFoodModal,
       showEditFoodModal,
       shelveFood,
-      deleteFood
+      deleteFood,
+      handleImageError
     };
   }
 };
 </script>
 
 <style scoped>
+.food-meta-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #edf6fc;
+  color: #2384bd;
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.food-meta-chip.limit-chip { background: #fff5e8; color: #c27a1a; }
+.stock-label { margin-left: 6px; color: #8aa0b2; font-size: 11px; font-weight: 400; }
 /* 实时校验错误提示样式 */
 .field-error-message {
   color: #dc3545 !important;
@@ -1090,4 +1175,9 @@ console.log('修改成功，新的接口测试ok');
 .add-food-button:hover {
   background-color: #007bb6;
 }
+
+.stock-label{font-size:12px;color:#7891a5;margin-left:6px}
+.store-settings { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.store-settings span { padding: 3px 7px; border: 1px solid #cfe3f0; border-radius: 4px; background: #f5fbff; color: #168bd1; font-size: 11px; }
+.store-settings .muted-setting { border-color: #e1e9ee; background: #fafcfd; color: #9aadb9; }
 </style>

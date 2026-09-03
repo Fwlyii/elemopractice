@@ -1,6 +1,5 @@
 <template>
   <div class="notifications-container">
-    <BackButton style="margin-top: -13vw;"/>
     <div class="header">
       <h1 class="title">消息与通知</h1>
       <div v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</div>
@@ -47,7 +46,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import request from '@/utils/request';
 import { toast } from '@/utils/toast';
-import BackButton from "@/components/BackButton.vue";
+import { getWebSocketUrl } from '@/utils/endpoints';
 
 // 状态管理
 const messages = ref([]);
@@ -124,10 +123,9 @@ const initWebSocket = () => {
     //   return;
     // }
 
-    // 创建WebSocket连接（根据实际后端地址修改）
+    // 创建WebSocket连接
     const sid = `client-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//110.42.60.144:8080/ws/${sid}`;
+    const wsUrl = getWebSocketUrl(`/ws/${sid}`);
     
     webSocket.value = new WebSocket(wsUrl);
 

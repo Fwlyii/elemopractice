@@ -39,6 +39,9 @@ public interface AiChatHistoryMapper {
     @Select("SELECT * FROM ai_chat_history WHERE session_id = #{sessionId} AND is_deleted = 0 " +
             "ORDER BY create_time ASC")
     List<AiChatHistory> selectBySessionId(String sessionId);
+
+    @Select("SELECT user_id FROM ai_chat_history WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY id LIMIT 1")
+    Long findUserIdBySessionId(@Param("sessionId") String sessionId);
     
     /**
      * 根据用户ID和对话类型查询最近的对话记录

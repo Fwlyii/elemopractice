@@ -15,6 +15,9 @@ public interface PersonMapper {
     @Select("select * from person where id = #{id}")
     Person getPersonByUserId(Long id);
 
+    @Select("SELECT COUNT(*) FROM person WHERE phone = #{phone}")
+    int countByPhone(String phone);
+
     void updateById(Person updateDTO);
 
     @Select("select * from person")
@@ -29,4 +32,3 @@ public interface PersonMapper {
             "AND u.is_deleted = 0")  // 筛选未删除的用户
     List<PersonVO> searchByKeyword(String keyword);
 }
-

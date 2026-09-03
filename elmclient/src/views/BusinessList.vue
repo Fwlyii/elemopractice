@@ -1,18 +1,23 @@
 <template>
 	<div class="wrapper">
-		<BackButton :show-back-button="true" style="margin-top: -10vw;" />
 		<!-- header部分 -->
 		<div class="header">
 			<p>商家列表</p>
 		</div>
 
 		<!-- 商家列表部分 -->
-		<div class="business-list">
+		<div v-if="loading" class="list-state">正在加载商家…</div>
+		<div v-else-if="loadError" class="list-state error">商家列表加载失败，请稍后重试</div>
+		<div v-else-if="businessArr.length === 0" class="list-state">
+			<i class="fa fa-store-o"></i>
+			<p>该分类暂时没有商家</p>
+		</div>
+		<div v-if="businessArr.length" class="business-list">
 			<div class="business-item" v-for="business in businessArr" :key="business.id"
 				@click="toBusinessInfo(business.id)">
 				<div class="business-info">
-					<img :src="business.businessImg || 'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/bbd37656-0eae-41be-995e-e2be0b96aca2.png'"
-						:alt="business.businessName" />
+					<img :src="business.businessImg || require('@/assets/business-default.png')"
+						:alt="business.businessName" @error="handleImageError" />
 					<div class="business-details">
 						<div class="business-header">
 							<h3>{{ business.businessName || '未知商铺' }}</h3>
@@ -21,8 +26,8 @@
 						<p class="description">{{ business.businessAddress || '暂无地址信息' }}</p>
 						<div class="business-info-bottom">
 							<div class="price-info">
-								<span>起送 ¥{{ business.startPrice.toFixed(2) || 0 }}元</span>
-								<span>配送 ¥{{ business.deliveryPrice.toFixed(2) || 0 }}元</span>
+								<span>起送 ¥{{ money(business.startPrice) }}元</span>
+								<span>配送 ¥{{ money(business.deliveryPrice) }}元</span>
 							</div>
 						</div>
 					</div>
@@ -36,22 +41,22 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import request from "@/utils/request";
-import BackButton from "@/components/BackButton.vue";
 export default {
 	name: "BusinessList",
-	components: { BackButton },
 	setup() {
 		const businessArr = ref([]);
+		const loading = ref(true);
+		const loadError = ref(false);
 		const route = useRoute();
 		const router = useRouter();
 
-		onMounted(async () => {
+			onMounted(async () => {
 			const orderTypeId = route.query.orderTypeId || 1; // 默认为类型1
 
 			try {
 				// 获取商家列表
 				const response = await request.get(
-					"http://110.42.60.144:8080/api/businesses/type",
+					"/api/businesses/type",
 					{
 						params: {
 							type: orderTypeId
@@ -60,14 +65,20 @@ export default {
 				);
 
 				if (response.success) {
-					businessArr.value = response.data;
+					businessArr.value = Array.isArray(response.data) ? response.data : [];
 				} else {
+					loadError.value = true;
 					console.error("获取商家列表失败:", response.message);
 				}
 			} catch (error) {
+				loadError.value = true;
 				console.error("请求商家列表出错:", error);
+			} finally {
+				loading.value = false;
 			}
 		});
+
+		const money = (value) => Number(value || 0).toFixed(2);
 
 		const toBusinessInfo = (businessId) => {
 			router.push({
@@ -75,10 +86,20 @@ export default {
 				query: { businessId }
 			});
 		};
+		const handleImageError = (event) => {
+			const image = event?.target;
+			if (!image || image.dataset.fallbackApplied === 'true') return;
+			image.dataset.fallbackApplied = 'true';
+			image.src = require('@/assets/business-default.png');
+		};
 
 		return {
 			businessArr,
+			loading,
+			loadError,
+			money,
 			toBusinessInfo,
+			handleImageError,
 		};
 	},
 };
@@ -120,6 +141,9 @@ export default {
 	margin-top: 12vw;
 	margin-bottom: 15vw;
 }
+.list-state { min-height: 240px; padding: 120px 16px 40px; box-sizing: border-box; text-align: center; color: #8aa0b2; font-size: 14px; }
+.list-state i { display: block; margin-bottom: 10px; color: #8fc2e4; font-size: 28px; }
+.list-state.error { color: #c87878; }
 
 .wrapper .business-item {
 	background: #fff;

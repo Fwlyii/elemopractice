@@ -26,6 +26,7 @@ public interface FoodService {
     Long setFoodStatus(Long foodId,Integer shelveStatus);
 
     Long modifyFoodMessage(FoodUpdateDTO foodUpdateDTO);
+    Long updateStock(FoodUpdateDTO foodUpdateDTO);
 
     Long deleteFood(Long foodId);
 

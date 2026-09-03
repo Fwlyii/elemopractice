@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.swing.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,4 +54,13 @@ public class Food {
 
     @Schema(description = "是否上架 0-已下架 1-已上架")
     private Integer shelveStatus;
+
+    @Schema(description = "可售库存")
+    private Integer stock;
+
+    @Schema(description = "商品分类")
+    private String category;
+
+    @Schema(description = "单笔限购数量，空表示不限购")
+    private Integer purchaseLimit;
 }

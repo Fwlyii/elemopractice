@@ -53,4 +53,13 @@ public class FoodVO {
 
     @Schema(description = "所属商家")
     private BusinessVO business;
+
+    @Schema(description = "可售库存")
+    private Integer stock;
+
+    @Schema(description = "商品分类")
+    private String category;
+
+    @Schema(description = "单笔限购数量，空表示不限购")
+    private Integer purchaseLimit;
 }

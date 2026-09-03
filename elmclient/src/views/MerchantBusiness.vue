@@ -1,7 +1,13 @@
 <template>
   <div class="shop-management-page">
     <div class="top-background">
-      <h1>我的商铺</h1>
+      <h1>经营工作台</h1>
+    </div>
+
+    <div class="workbench-summary">
+      <div><strong>{{ shops.length }}</strong><span>我的店铺</span></div>
+      <div><strong>{{ approvedCount }}</strong><span>已上线</span></div>
+      <div><strong>{{ pendingCount }}</strong><span>待审核</span></div>
     </div>
 
     <div class="status-tabs">
@@ -13,7 +19,7 @@
 
     <div class="container wrapper">
       <ul class="business-list">
-        <li v-for="shop in filteredShops" :key="shop?.id || index">
+        <li v-for="(shop, index) in filteredShops" :key="shop?.id || index">
           <!-- <div class="status-badge" :class="getStatusClass(shop.status)">
             {{ getStatusText(shop.status) }}
           </div> -->
@@ -32,6 +38,10 @@
             <div class="business-info-delivery">
               <p>商家地址：{{ shop?.businessAddress || '暂无地址信息' }}</p>
             </div>
+            <div class="shop-tags">
+              <span v-if="shop?.dineInAvailable">堂食店</span>
+              <span v-if="shop?.promotionThreshold && shop?.promotionDiscount">满{{ Number(shop.promotionThreshold).toFixed(0) }}减{{ Number(shop.promotionDiscount).toFixed(0) }}</span>
+            </div>
           </div>
           <div class="action-buttons">
             <button class="edit-btn" @click="editShop(shop?.id || index)" :disabled="shop.status === 2">编辑</button>
@@ -45,20 +55,6 @@
       <button class="apply-button" @click="applyNewShop">申请新店</button>
     </div>
 
-    <div class="footer-nav">
-      <router-link to="/merchant/business" class="nav-item active">
-        <i class="fa fa-store-alt"></i>
-        <span>商铺</span>
-      </router-link>
-      <router-link to="/merchant/orders" class="nav-item">
-        <i class="fa fa-clipboard-list"></i>
-        <span>订单</span>
-      </router-link>
-      <router-link to="/merchant/profile" class="nav-item">
-        <i class="fa fa-user"></i>
-        <span>我的</span>
-      </router-link>
-    </div>
   </div>
 </template>
 
@@ -107,12 +103,22 @@ export default {
       }
     };
 
+    // 外部对象存储图片可能失效，工作台始终保留本地兜底图，避免出现破图图标和 alt 文本。
+    const handleImageError = (event) => {
+      const image = event?.target;
+      if (!image || image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = require('@/assets/business-default.png');
+    };
+
     const filteredShops = computed(() => {
       if (activeTab.value === null) {
         return shops.value;
       }
       return shops.value.filter(shop => shop.status === activeTab.value);
     });
+    const approvedCount = computed(() => shops.value.filter(shop => shop.status === 1).length);
+    const pendingCount = computed(() => shops.value.filter(shop => shop.status === 0).length);
 
     const changeTab = (status) => {
       activeTab.value = status;
@@ -220,6 +226,13 @@ export default {
               <textarea id="businessExplain" class="swal2-textarea modern-textarea" placeholder="商铺介绍"></textarea>
               <input id="deliveryPrice" class="swal2-input modern-input" placeholder="配送费(元)" type="number" min="0" step="0.1" required>
               <input id="startPrice" class="swal2-input modern-input" placeholder="起送价(元)" type="number" min="0" step="0.1" required>
+              <label class="shop-setting-row"><input id="dineInAvailable" type="checkbox"><span>支持堂食</span><small>在首页显示“堂食店”</small></label>
+              <select id="promotionPreset" class="swal2-input modern-input">
+                <option value="">不设置满减</option>
+                <option value="20-3">满20减3</option>
+                <option value="30-5">满30减5</option>
+                <option value="50-10">满50减10</option>
+              </select>
               
               <div class="input-with-button-container">
                 <input id="orderTypeInput" class="swal2-input modern-input" placeholder="请选择商铺类型" readonly required>
@@ -417,6 +430,8 @@ export default {
             const businessExplain = document.getElementById('businessExplain').value.trim();
             const deliveryPriceStr = document.getElementById('deliveryPrice').value.trim();
             const startPriceStr = document.getElementById('startPrice').value.trim();
+            const dineInAvailable = document.getElementById('dineInAvailable').checked;
+            const promotionValue = document.getElementById('promotionPreset').value;
 
             // 基础必填项校验
             if (!businessName || !businessAddress || !selectedOrderType) {
@@ -433,6 +448,9 @@ export default {
 
             const deliveryPrice = parseFloat(deliveryPriceStr) || 0;
             const startPrice = parseFloat(startPriceStr) || 0;
+            const [promotionThreshold, promotionDiscount] = promotionValue
+              ? promotionValue.split('-').map(value => parseFloat(value))
+              : [null, null];
 
             if (uploadedFile) {
               const formData = new FormData();
@@ -462,6 +480,9 @@ export default {
               businessExplain,
               deliveryPrice,
               startPrice,
+              dineInAvailable,
+              promotionThreshold,
+              promotionDiscount,
               businessImg: imageUrl,
               orderTypeId: selectedOrderType.id
             };
@@ -502,18 +523,21 @@ export default {
       tabs,
       activeTab,
       filteredShops,
+      approvedCount,
+      pendingCount,
       deleteShop,
       editShop,
       applyNewShop,
       getStatusText,
       getStatusClass,
+      handleImageError,
       changeTab
     };
   }
 };
 </script>
 
-<style>
+<style scoped>
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
 /* ----------------------- 基础样式 ----------------------- */
@@ -560,7 +584,7 @@ body {
 }
 
 /* ----------------------- 顶部标题栏 ----------------------- */
-.top-background {
+.shop-management-page .top-background {
   width: 100%;
   height: 100px;
   background: linear-gradient(to right, #3a7bd5, #00d2ff);
@@ -579,7 +603,7 @@ body {
   max-width: 600px;
 }
 
-.top-background::before {
+.shop-management-page .top-background::before {
   content: '';
   position: absolute;
   top: -50%;
@@ -864,6 +888,30 @@ body {
 
 .footer-nav .nav-item.active {
   color: #0097ff;
+}
+
+.workbench-summary {
+  width: min(92%, 560px);
+  margin: 18px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.workbench-summary > div {
+  padding: 14px 12px;
+  background: #fff;
+  border: 1px solid #e1edf8;
+  border-radius: 8px;
+  text-align: center;
+}
+.workbench-summary strong,.workbench-summary span { display: block; }
+.workbench-summary strong { color: #173b60; font-size: 20px; }
+.workbench-summary span { color: #8297aa; font-size: 11px; margin-top: 4px; }
+.workbench-summary { margin-top: 154px; }
+.shop-management-page > .container { padding-top: 18px; }
+@media (max-width: 480px) {
+  .workbench-summary { margin-top: 142px; }
+  .shop-management-page > .container { padding-top: 18px; }
 }
 
 /* 加载状态 */
@@ -1218,4 +1266,146 @@ body {
     padding-top: 140px;
   }
 }
+
+/* 蓝白版工作台：收紧信息密度，避免移动端横向挤压 */
+.shop-management-page {
+  width: 100%;
+  max-width: 600px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #f5f9fd;
+  color: #24405c;
+  overflow-x: hidden;
+}
+.shop-management-page .top-background {
+  height: 64px;
+  max-width: 600px;
+  border-radius: 0;
+  background: #0097ff;
+  background-image: none;
+  box-shadow: 0 1px 0 rgba(0, 83, 145, .15);
+}
+.shop-management-page .top-background::before { display: none; }
+.shop-management-page .top-background h1 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+.shop-management-page .workbench-summary {
+  width: calc(100% - 32px);
+  margin: 118px auto 10px;
+  gap: 8px;
+}
+.shop-management-page .workbench-summary > div {
+  min-width: 0;
+  padding: 12px 8px;
+  border: 1px solid #dcebf7;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.shop-management-page .workbench-summary strong { font-size: 18px; color: #1d537d; }
+.shop-management-page .workbench-summary span { font-size: 12px; color: #6c8499; white-space: nowrap; }
+.shop-management-page .status-tabs {
+  top: 64px;
+  height: 44px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #dcebf7;
+  box-shadow: none;
+}
+.shop-management-page .status-tabs button {
+  min-width: 56px;
+  padding: 7px 8px;
+  font-size: 13px;
+  color: #678198;
+}
+.shop-management-page .status-tabs button.active { color: #0879c7; background: #e8f5ff; }
+.shop-management-page .container {
+  width: calc(100% - 32px);
+  max-width: 568px;
+  padding: 0 0 132px;
+}
+.shop-management-page .business-list { margin: 0; }
+.shop-management-page .business-list li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid #e1edf7;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(36, 91, 132, .06);
+  transition: none;
+}
+.shop-management-page .business-list li:hover { transform: none; box-shadow: 0 2px 8px rgba(36, 91, 132, .06); }
+.shop-management-page .logo {
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.shop-management-page .business-info-detail { min-width: 0; }
+.shop-management-page .business-info-detail h3 {
+  margin: 0 0 6px;
+  color: #24405c;
+  font-size: 16px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shop-management-page .delivery-info-container { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.shop-management-page .business-info-delivery {
+  min-width: 0;
+  margin: 2px 0;
+  color: #71879a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.shop-management-page .business-info-delivery p { overflow-wrap: anywhere; }
+.shop-management-page .action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 0;
+}
+.shop-management-page .action-buttons button {
+  min-width: 52px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  box-shadow: none;
+}
+.shop-management-page .action-buttons button.edit-btn { color: #0879c7; border-color: #9bcdf0; background: #f4fbff; }
+.shop-management-page .action-buttons button.delete-btn { color: #b45a5a; border-color: #e7bcbc; background: #fffafa; }
+.shop-management-page .footer-button-container { bottom: 72px; padding: 0 16px; }
+.shop-management-page .apply-button { max-width: 568px; padding: 10px 0; border-radius: 7px; font-size: 15px; box-shadow: 0 3px 10px rgba(0, 116, 194, .18); }
+.shop-management-page .footer-nav { height: 64px; border-top-color: #dcebf7; }
+.shop-management-page .footer-nav .nav-item { padding: 7px 0; color: #7890a4; }
+.shop-management-page .footer-nav .nav-item.active { color: #0097ff; }
+@media (max-width: 480px) {
+  .shop-management-page .top-background { height: 64px; }
+  .shop-management-page .status-tabs { top: 64px; left: 0; transform: none; max-width: 100vw; }
+  .shop-management-page .workbench-summary { margin-top: 118px; }
+  .shop-management-page .container { width: calc(100% - 24px); padding-bottom: 132px; }
+  .shop-management-page .business-list li { grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; padding: 12px; }
+  .shop-management-page .logo { width: 52px; height: 52px; }
+}
+.shop-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: calc(100% - 1.5rem);
+  margin: 8px auto;
+  color: #45677d;
+  font-size: 13px;
+  text-align: left;
+}
+.shop-setting-row input { width: 16px; height: 16px; margin: 0; accent-color: #168bd1; }
+.shop-setting-row small { margin-left: auto; color: #9aadb9; font-size: 11px; }
+.shop-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.shop-tags span { padding: 2px 6px; border: 1px solid #cfe3f0; border-radius: 3px; background: #f5fbff; color: #168bd1; font-size: 11px; }
 </style>

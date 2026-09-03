@@ -67,12 +67,12 @@
           </div>
 
           <div class="price-row">
-            <br><span class="items-title">配送费: &#165;{{ order.deliveryPrice.toFixed(2) || '0.00' }}</span>
+            <br><span class="items-title">配送费: &#165;{{ Number(order.deliveryPrice || 0).toFixed(2) }}</span>
           </div>
           
           <div class="order-footer">
             <span class="order-time">下单时间: {{ formatTime(order.orderDate) }}</span>
-            <span class="order-total">总计: ¥ {{ order.orderTotal.toFixed(2) }}</span>
+            <span class="order-total">总计: ¥ {{ Number(order.orderTotal || 0).toFixed(2) }}</span>
           </div>
         </div>
 
@@ -82,16 +82,15 @@
             <button class="cancel-btn" @click.stop="rejectOrder(order.id)">拒单</button>
             <button class="confirm-btn" @click.stop="acceptOrder(order.id)">接单</button>
           </template>
-
-          <!-- 已接单：完成订单 -->
           <template v-else-if="order.orderState === 2">
-            <button class="complete-btn" @click.stop="completeOrder(order.id)">完成订单</button>
+            <button class="confirm-btn" @click.stop="readyOrder(order.id)">确认出餐</button>
           </template>
+
+          <div v-else class="fulfillment-tip"><i class="fas fa-route"></i> {{ fulfillmentTip(order.orderState) }}</div>
         </div>
       </li>
     </ul>
 
-    <BusinessFooter />
 
     <!-- 接单确认弹窗 -->
     <div v-if="showAcceptModal" class="modal-overlay" @click.self="closeModal">
@@ -150,12 +149,11 @@
 import { ref, onMounted, computed,onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import request from '../utils/request';
-import BusinessFooter from '@/components/BusinessFooter.vue';
 import { toast } from '../utils/toast';
+import { getWebSocketUrl } from '../utils/endpoints';
 
 export default {
   name: 'BusinessOrderManage',
-  components: { BusinessFooter },
   setup() {
     const router = useRouter();
     const route = useRoute();
@@ -169,7 +167,7 @@ export default {
     const loadingMerchants = ref(false);
 
     // 订单状态标签
-    const statusTabs = ref(['全部', '待接单', '已接单', '已完成', '已取消']);
+    const statusTabs = ref(['全部', '待接单', '待骑手', '配送中', '已完成', '已取消']);
     const activeStatusTab = ref(0);
 
     // 弹窗相关状态
@@ -181,15 +179,21 @@ export default {
     // 订单状态映射
     const statusMap = {
       0: "待支付",
-      1: "待接单",
-      2: "已接单",
-      3: "已完成",
-      4: "已取消"
+      1: "待商家接单",
+      2: "制作中",
+      3: "待骑手接单",
+      4: "骑手待取餐",
+      5: "配送中",
+      6: "已送达",
+      7: "已完成",
+      8: "已取消",
+      9: "配送异常"
     };
 
     // --- WebSocket 相关 ---
     const socket = ref(null);
     const userId = ref(null); // 存储当前商家用户ID
+    let socketStopped = false;
 
     // 获取商铺列表
     const fetchMerchantList = async () => {
@@ -251,14 +255,15 @@ export default {
 
     // 计算各状态订单数量
     const orderCounts = computed(() => {
-      const counts = [0, 0, 0, 0, 0]; // 全部, 待接单, 已接单, 已完成, 已取消
+      const counts = [0, 0, 0, 0, 0, 0];
 
       orders.value.forEach(order => {
         counts[0]++; // 全部
-        if (order.orderState === 1) counts[1]++; // 待接单
-        else if (order.orderState === 2) counts[2]++; // 已接单
-        else if (order.orderState === 3) counts[3]++; // 已完成
-        else if (order.orderState === 4) counts[4]++; // 已取消
+        if (order.orderState === 1) counts[1]++;
+        else if ([2, 3].includes(order.orderState)) counts[2]++;
+        else if ([4, 5, 6, 9].includes(order.orderState)) counts[3]++;
+        else if (order.orderState === 7) counts[4]++;
+        else if (order.orderState === 8) counts[5]++;
       });
 
       return counts;
@@ -268,15 +273,14 @@ export default {
     const filteredOrders = computed(() => {
       if (activeStatusTab.value === 0) return orders.value; // 全部
 
-      const statusMap = {
-        1: 1, // 待接单
-        2: 2, // 已接单
-        3: 3, // 已完成
-        4: 4  // 已取消
+      const groups = {
+        1: [1],
+        2: [2, 3],
+        3: [4, 5, 6, 9],
+        4: [7],
+        5: [8]
       };
-
-      const targetStatus = statusMap[activeStatusTab.value];
-      return orders.value.filter(order => order.orderState === targetStatus);
+      return orders.value.filter(order => groups[activeStatusTab.value].includes(order.orderState));
     });
 
     // 获取状态文本
@@ -289,9 +293,8 @@ export default {
       const classMap = {
         0: "unpaid",
         1: "pending",
-        2: "accepted",
-        3: "done",
-        4: "canceled"
+        2: "accepted", 3: "accepted", 4: "accepted", 5: "accepted", 6: "accepted",
+        7: "done", 8: "canceled", 9: "unpaid"
       };
       return classMap[state] || "";
     };
@@ -318,7 +321,7 @@ export default {
       if (selectId.value === 0) return;
 
       try {
-        const response = await request.put("/api/orders/status?orderState=2&orderId=" + selectId.value);
+        const response = await request.post(`/api/v1/orders/${selectId.value}/merchant-accept`);
         if (response.success) {
           toast.success("接单成功");
           fetchOrders(); // 重新加载订单
@@ -332,6 +335,14 @@ export default {
       }
     };
 
+    const readyOrder = async (id) => {
+      try {
+        const response = await request.post(`/api/v1/orders/${id}/merchant-ready`);
+        if (response.success) { toast.success('已确认出餐，配送任务已发布'); fetchOrders(); }
+        else toast.error(response.message || '确认出餐失败');
+      } catch (error) { toast.error(error.response?.data?.message || '确认出餐失败，请稍后重试'); }
+    };
+
     // 拒单
     const rejectOrder = (id) => {
       selectId.value = id;
@@ -343,7 +354,7 @@ export default {
       if (selectId.value === 0) return;
 
       try {
-        const response = await request.put("/api/orders/status?orderState=4&orderId=" + selectId.value);
+        const response = await request.post(`/api/v1/orders/${selectId.value}/merchant-reject`);
         if (response.success) {
           toast.success("拒绝成功");
           fetchOrders(); // 重新加载订单
@@ -382,6 +393,11 @@ export default {
       }
     };
 
+    const fulfillmentTip = state => ({
+      2: '餐品制作中，完成后请确认出餐', 3: '任务已进入骑手大厅', 4: '骑手正在前往商家',
+      5: '骑手配送中', 6: '等待顾客确认', 7: '订单已闭环', 8: '订单已取消', 9: '调度员正在处理'
+    }[state] || '履约中');
+
     // 关闭弹窗
     const closeModal = () => {
       showAcceptModal.value = false;
@@ -400,9 +416,11 @@ export default {
 
     // 初始化WebSocket
     const initWebSocket = () => {
+      if (socketStopped) return;
       const tokenFromLocal = localStorage.getItem('token');
       const tokenFromSession = sessionStorage.getItem('token');
       const storage = tokenFromLocal ? localStorage : (tokenFromSession ? sessionStorage : null);
+      if (!storage) return;
       // 从sessionStorage获取商家用户ID（需确保登录后存储了userId）
       const userData = storage.getItem("userInfo");
       if (userData) {
@@ -411,8 +429,7 @@ export default {
       }
       if (!userId.value) return;
 
-      // 连接WebSocket（假设后端地址是 ws://localhost:8080/ws/{userId}）
-      socket.value = new WebSocket(`ws://110.42.60.144:8080/ws/${userId.value}`);
+      socket.value = new WebSocket(getWebSocketUrl(`/ws/${userId.value}`));
 
       socket.value.onopen = () => {
         console.log("WebSocket 连接成功");
@@ -428,7 +445,7 @@ export default {
       socket.value.onclose = () => {
         console.log("WebSocket 连接关闭");
         // 断线重连（可选）
-        setTimeout(initWebSocket, 2000);
+        if (!socketStopped) setTimeout(initWebSocket, 2000);
       };
 
       socket.value.onerror = (err) => {
@@ -438,12 +455,14 @@ export default {
 
     // 关闭WebSocket（组件销毁时调用）
     const closeWebSocket = () => {
+      socketStopped = true;
       if (socket.value && socket.value.readyState === WebSocket.OPEN) {
         socket.value.close();
       }
     };
 
     onMounted(() => {
+      socketStopped = false;
       initWebSocket();
       // 先获取商铺列表，然后自动加载第一个商铺的订单
       fetchMerchantList().then(() => {
@@ -482,7 +501,9 @@ export default {
       closeModal,
       confirmAccept,
       confirmReject,
-      confirmComplete
+      confirmComplete,
+      fulfillmentTip,
+      readyOrder
     };
   }
 };
@@ -574,14 +595,14 @@ export default {
 .merchant-tabs {
   display: flex;
   align-items: center;
-  padding: 0 4vw;
+  padding: 0 16px;
   overflow-x: auto;
   white-space: nowrap;
-  padding-bottom: 3vw;
+  padding-bottom: 12px;
   scrollbar-width: none;
   -ms-overflow-style: none;
   touch-action: pan-x;
-  height: 14vw;
+  height: 76px;
   scroll-behavior: auto; /* 禁用平滑滚动，更直接 */
   -webkit-overflow-scrolling: touch; /* 启用动量滚动 */
 }
@@ -603,12 +624,12 @@ export default {
 }
 
 .merchant-tabs li {
-  margin-right: 4vw;
-  padding: 2.5vw 4vw;
-  font-size: 3.6vw;
+  margin-right: 16px;
+  padding: 12px 16px;
+  font-size: 16px;
   color: #2f3335;
   background: #d0dff1;
-  border-radius: 2vw;
+  border-radius: 8px;
   cursor: pointer;
   flex: 0 0 auto;
   transition: all 0.3s ease;
@@ -634,24 +655,24 @@ export default {
 .tabs {
   display: flex;
   align-items: center;
-  padding: 0 4vw;
+  padding: 0 16px;
   background: #c3ecfe;
   border-bottom: 1px solid #f0f0f0;
   overflow-x: auto;
   white-space: nowrap;
   position: fixed;
-  top: calc(100px + 17vw); /* 顶部背景100px + 商铺栏17vw */
+  top: 176px; /* 顶部标题栏100px + 商铺选择栏76px */
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   max-width: 600px;
   z-index: 998;
-  height: 14vw;
+  height: 64px;
   scrollbar-width: none;
   -ms-overflow-style: none;
   touch-action: pan-x;
   box-shadow: 0 1vw 2vw rgba(0, 0, 0, 0.1);
-  border-radius: 0 0 3vw 3vw;
+  border-radius: 0 0 12px 12px;
   scroll-behavior: auto; /* 禁用平滑滚动，更直接 */
   -webkit-overflow-scrolling: touch; /* 启用动量滚动 */
 }
@@ -661,9 +682,9 @@ export default {
 }
 
 .tabs li {
-  margin-right: 6vw;
-  padding: 3vw 0;
-  font-size: 3.8vw;
+  margin-right: 24px;
+  padding: 12px 0;
+  font-size: 16px;
   color: #666;
   position: relative;
   cursor: pointer;
@@ -686,16 +707,16 @@ export default {
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 0.8vw;
+  height: 3px;
   background: #409eff;
-  border-radius: 0.4vw;
+  border-radius: 2px;
 }
 
 /* 调整订单列表的上边距，为固定栏留出空间 */
 .order-list {
-  padding: 4vw;
-  margin-top: calc(100px + 17vw + 14vw + 4vw); /* 顶部背景100px + 商铺栏17vw + 状态栏14vw + 间距4vw */
-  margin-bottom: 15vw;
+  padding: 16px;
+  margin-top: 264px; /* 固定标题、店铺和状态栏后留出间距 */
+  margin-bottom: 90px;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
@@ -706,13 +727,13 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 10vw;
-  font-size: 4vw;
+  padding: 48px;
+  font-size: 16px;
   color: #999;
   background: white;
-  margin: 3vw auto;
-  border-radius: 2vw;
-  margin-top: calc(100px + 17vw + 14vw + 7vw); /* 顶部背景100px + 商铺栏17vw + 状态栏14vw + 间距7vw */
+  margin: 24px auto;
+  border-radius: 10px;
+  margin-top: 288px;
   max-width: 600px;
 }
 
@@ -722,38 +743,38 @@ export default {
 }
 
 .empty-state img {
-  width: 30vw;
-  height: 30vw;
-  margin-bottom: 4vw;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 20px;
   opacity: 0.5;
 }
 
 .order-item {
   background: #fff;
-  border-radius: 2vw;
-  box-shadow: 0 1vw 2vw rgba(0,0,0,.05);
-  padding: 4vw;
-  margin-bottom: 4vw;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
 .order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 3vw;
+  padding-bottom: 14px;
   border-bottom: 1px solid #f5f5f5;
-  margin-bottom: 3vw;
+  margin-bottom: 14px;
 }
 
 .order-id {
-  font-size: 3.6vw;
+  font-size: 16px;
   color: #999;
 }
 
 .status-badge {
-  padding: 1vw 2vw;
-  border-radius: 1vw;
-  font-size: 3.2vw;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 14px;
   font-weight: 500;
   position: relative;
   z-index: 10; /* 确保在最上层 */
@@ -781,37 +802,37 @@ export default {
 }
 
 .order-content {
-  margin-bottom: 4vw;
+  margin-bottom: 18px;
 }
 
 .customer-info p {
-  font-size: 3.6vw;
+  font-size: 16px;
   color: #333;
-  margin: 1.5vw 0;
+  margin: 8px 0;
   display: flex;
 }
 
 .customer-info span {
   color: #666;
-  margin-right: 2vw;
-  min-width: 12vw;
+  margin-right: 10px;
+  min-width: 56px;
 }
 
 .items-title {
-  font-size: 3.8vw;
+  font-size: 16px;
   color: #333;
   font-weight: 500;
-  margin: 3vw 0 2vw 0;
+  margin: 16px 0 10px 0;
   border-top: 1px solid #f0f0f0;
-  padding-top: 3vw;
+  padding-top: 14px;
 }
 
 .item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5vw 0;
-  font-size: 3.6vw;
+  padding: 8px 0;
+  font-size: 15px;
   color: #333;
 }
 
@@ -820,7 +841,7 @@ export default {
 }
 
 .item-quantity {
-  margin: 0 3vw;
+  margin: 0 12px;
   color: #666;
 }
 
@@ -832,18 +853,18 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 3vw;
-  padding-top: 3vw;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid #f0f0f0;
 }
 
 .order-time {
-  font-size: 3.4vw;
+  font-size: 13px;
   color: #999;
 }
 
 .order-total {
-  font-size: 4vw;
+  font-size: 18px;
   color: #ff6b00;
   font-weight: bold;
 }
@@ -851,15 +872,15 @@ export default {
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 2vw;
-  padding-top: 3vw;
+  gap: 10px;
+  padding-top: 14px;
   border-top: 1px solid #f5f5f5;
 }
 
 .actions button {
-  padding: 2.5vw 4vw;
-  border-radius: 1.6vw;
-  font-size: 3.6vw;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 15px;
   cursor: pointer;
   border: none;
 }
@@ -1027,5 +1048,29 @@ export default {
     margin-top: calc(90px + 17vw + 14vw + 7vw);
     max-width: 100vw;
   }
+}
+
+/* 与用户端统一的朴素蓝白头部和筛选栏 */
+.wrapper { background: #f5f9fd; color: #24405c; }
+.top-background { height: 64px; background: #0097ff; background-image: none; border-radius: 0; box-shadow: 0 1px 0 rgba(0,83,145,.15); }
+.top-background::before { display: none; }
+.top-background h1 { font-size: 20px; letter-spacing: 0; text-shadow: none; }
+.merchant-selector { top: 64px; height: 56px; padding: 6px 0 0; background: #fff; box-shadow: none; border-bottom: 1px solid #dcebf7; }
+.merchant-header { padding: 0 16px 4px; }
+.merchant-tabs { height: 42px; padding: 0 16px 5px; }
+.merchant-tabs li { margin-right: 8px; padding: 6px 12px; font-size: 13px; border-radius: 6px; background: #edf6fc; border: 1px solid #dcebf7; backdrop-filter: none; }
+.merchant-tabs li.active { background: #e5f3ff; color: #0879c7; border-color: #a9d6f4; box-shadow: none; transform: none; }
+.tabs { top: 120px; height: 46px; background: #fff; box-shadow: none; border-radius: 0; border-bottom: 1px solid #dcebf7; }
+.tabs li { margin-right: 22px; padding: 12px 0; font-size: 13px; }
+.tabs li.active { color: #0879c7; }
+.order-list { margin-top: 184px; padding: 12px 16px 84px; }
+.order-item { border: 1px solid #e1edf7; border-radius: 10px; box-shadow: 0 2px 8px rgba(36,91,132,.06); }
+.order-item .order-content, .order-item .order-footer { min-width: 0; }
+.order-item p, .order-item span { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .top-background { height: 64px; }
+  .merchant-selector { top: 64px; }
+  .tabs { top: 120px; left: 0; transform: none; max-width: 100vw; }
+  .order-list { margin-top: 184px; width: 100vw; max-width: 100vw; padding: 12px 12px 84px; }
 }
 </style>

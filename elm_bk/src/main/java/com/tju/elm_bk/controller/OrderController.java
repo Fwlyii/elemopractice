@@ -1,7 +1,9 @@
 package com.tju.elm_bk.controller;
 
 import com.tju.elm_bk.dto.OrderDTO;
+import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.result.HttpResult;
+import com.tju.elm_bk.result.ResultCodeEnum;
 import com.tju.elm_bk.service.OrderService;
 import com.tju.elm_bk.vo.OrderItemDetailVO;
 import com.tju.elm_bk.vo.OrderItemVO;
@@ -12,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -60,15 +64,44 @@ public class OrderController {
     }
 
     @PutMapping("/status")
-    @Operation(summary = "设置订单状态",description = "订单状态(0-待支付,1-待接单,2-已接单,3-已完成,4-已取消)")
-    public HttpResult<Long> setOrderStatus(@RequestParam Integer orderState,@RequestParam Long orderId) {
-        return HttpResult.success(orderService.setOrderState(orderId,orderState));
+    @Operation(summary = "支付或取消订单", description = "只允许目标状态1（待商家接单）或8（已取消）；配送流转请使用/api/v1专用接口")
+    public HttpResult<Long> setOrderStatus(@RequestParam Integer orderState,
+                                           @RequestParam Long orderId,
+                                           @RequestParam(required = false, defaultValue = "simulated") String paymentMethod,
+                                           @RequestParam(required = false, defaultValue = "0") Integer pointsToUse,
+                                           @RequestParam(required = false) Long couponId) {
+        return HttpResult.success(orderService.setOrderState(orderId, orderState, paymentMethod, pointsToUse, couponId));
     }
 
-    @GetMapping("/submit")
-    @Operation(summary = "(前端调这个)下单")
-    public HttpResult<Long> orderSubmit(@RequestParam Long businessId,@RequestParam Long addressId) {
-        return HttpResult.success(orderService.orderSubmit(businessId,addressId));
+    @PostMapping("/submit")
+    @Operation(summary = "提交订单", description = "使用幂等键避免重复点击创建多笔订单")
+    public HttpResult<Long> orderSubmit(@RequestParam Long businessId,
+                                        @RequestParam Long addressId,
+                                        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                        @RequestParam(required = false) String requestId,
+                                        @RequestParam(required = false, defaultValue = "delivery") String serviceMode,
+                                        @RequestParam(required = false) String foodIds) {
+        // 兼容旧前端：没有请求头时也接受 requestId 查询参数。
+        List<Long> selectedFoodIds = parseFoodIds(foodIds);
+        return HttpResult.success(orderService.orderSubmit(businessId, addressId,
+                idempotencyKey == null ? requestId : idempotencyKey, serviceMode, selectedFoodIds));
+    }
+
+    private List<Long> parseFoodIds(String foodIds) {
+        if (foodIds == null || foodIds.trim().isEmpty()) return null;
+        try {
+            List<Long> ids = Arrays.stream(foodIds.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .map(Long::valueOf)
+                    .filter(id -> id > 0)
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (ids.isEmpty()) throw new NumberFormatException("empty");
+            return ids;
+        } catch (NumberFormatException ex) {
+            throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+        }
     }
 
 

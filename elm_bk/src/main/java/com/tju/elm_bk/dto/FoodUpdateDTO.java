@@ -29,7 +29,18 @@ public class FoodUpdateDTO {
     @Schema(description = "备注")
     private String remarks;
 
+    @Schema(description = "可售库存")
+    private Integer stock;
+
+    @Schema(description = "商品分类")
+    private String category;
+
+    @Schema(description = "单笔限购数量，空表示不限购")
+    private Integer purchaseLimit;
+
     public boolean verify() {
-        return foodId != null && foodPrice != null && foodPrice.compareTo(BigDecimal.ZERO) > 0;
+        return foodId != null && foodPrice != null && foodPrice.compareTo(BigDecimal.ZERO) > 0
+                && (stock == null || stock >= 0)
+                && (purchaseLimit == null || purchaseLimit > 0);
     }
 }

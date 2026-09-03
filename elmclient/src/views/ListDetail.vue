@@ -2,7 +2,6 @@
 	<div class="wrapper">
 		<!-- 固定顶部栏 -->
 		<div class="fixed-top">
-			<BackButton :show-back-button="true" style="margin-top: 2vw;"/>
 			<div class="header">
 				<p>订单详情</p>
 			</div>
@@ -42,6 +41,20 @@
 						<p><span>收货人:</span> {{ orderDetail.contactName || '-' }} {{ getGenderText(orderDetail.contactSex) }}</p>
 						<p><span>联系电话:</span> {{ orderDetail.contactTel || '-' }}</p>
 						<p><span>配送地址:</span> {{ orderDetail.address || '-' }}</p>
+					</div>
+				</div>
+
+				<div v-if="orderDetail.orderState === 7" class="info-section review-section">
+					<h3 class="section-title">订单评价</h3>
+					<div v-if="review" class="review-exists">
+						<div class="stars">{{ '★'.repeat(review.rating) }}<span>{{ '★'.repeat(5-review.rating) }}</span></div>
+						<p>{{ review.content || '用户未填写文字评价' }}</p>
+						<p v-if="review.merchantReply" class="merchant-reply">商家回复：{{ review.merchantReply }}</p>
+					</div>
+					<div v-else class="review-form">
+						<div class="star-picker"><button v-for="n in 5" :key="n" :class="{active:n<=reviewRating}" @click="reviewRating=n">★</button></div>
+						<textarea v-model="reviewContent" maxlength="500" placeholder="说说这次用餐体验（选填，最多500字）"></textarea>
+						<button class="review-submit" @click="submitReview" :disabled="reviewSubmitting">{{ reviewSubmitting ? '提交中...' : '提交评价' }}</button>
 					</div>
 				</div>
 
@@ -100,10 +113,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 
-import BackButton from '../components/BackButton.vue';
 export default {
 	name: 'ListDetail',
-	components: { BackButton },
 	setup() {
 		const route = useRoute();
 		const router = useRouter();
@@ -111,6 +122,10 @@ export default {
 		const orderDetail = ref({});
 		const loading = ref(true);
 		const error = ref('');
+		const review = ref(null);
+		const reviewRating = ref(5);
+		const reviewContent = ref('');
+		const reviewSubmitting = ref(false);
 		
 		// 配送费（这里假设固定值，实际应该从API获取）
 		const deliveryPrice = ref(5);
@@ -127,6 +142,7 @@ export default {
 				
 				if (response.success) {
 					orderDetail.value = response.data || {};
+					if (orderDetail.value.orderState === 7) fetchReview();
 					console.log("订单详情:", orderDetail.value);
 				} else {
 					error.value = '获取订单详情失败: ' + response.message;
@@ -137,6 +153,13 @@ export default {
 			} finally {
 				loading.value = false;
 			}
+		};
+		const fetchReview = async () => {
+			try { const res = await request.get(`/api/v1/reviews/order/${orderId.value}`); if (res.success) review.value = res.data || null; } catch (e) { console.warn('评价查询失败', e); }
+		};
+		const submitReview = async () => {
+			reviewSubmitting.value = true;
+			try { const res = await request.post('/api/v1/reviews', { orderId: orderId.value, rating: reviewRating.value, content: reviewContent.value }); if (res.success) { review.value=res.data; alert('评价提交成功'); } else alert(res.message || '评价提交失败'); } catch (e) { alert(e?.message || '评价提交失败'); } finally { reviewSubmitting.value=false; }
 		};
 
 		// 重新加载
@@ -263,6 +286,7 @@ export default {
 			formatTime,
 			cancelOrder,
 			payOrder
+			,review,reviewRating,reviewContent,reviewSubmitting,submitReview
 		};
 	}
 };
@@ -515,4 +539,8 @@ export default {
 	background: #409eff;
 	color: #fff;
 }
+</style>
+
+<style scoped>
+.review-form textarea{width:100%;min-height:76px;border:1px solid #dbe7f0;border-radius:8px;padding:10px;box-sizing:border-box;resize:vertical;font:inherit}.star-picker{display:flex;gap:6px;margin:4px 0 10px}.star-picker button{border:0;background:none;color:#c4d0da;font-size:28px;padding:0;cursor:pointer}.star-picker button.active{color:#f4b63e}.review-submit{margin-top:10px;border:0;border-radius:7px;background:#168bd1;color:#fff;padding:9px 18px}.review-submit:disabled{opacity:.6}.stars{color:#f4b63e;letter-spacing:2px}.stars span{color:#ccd8e2;letter-spacing:2px}.review-exists p{color:#52697c;line-height:1.6;margin:8px 0}.merchant-reply{padding:9px 12px;background:#f5f9fc;border-left:3px solid #168bd1;font-size:13px}
 </style>

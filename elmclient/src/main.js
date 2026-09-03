@@ -5,8 +5,10 @@ import { toast } from './utils/toast';
 //import { getToken,removeToken} from './utils/auth';
 import BackButton from '@/components/BackButton.vue';
 import 'font-awesome/css/font-awesome.min.css';
+import './assets/styles/global.css';
 import qs from 'qs';
 import request from './utils/request';
+import { hasAuthority as userHasAuthority } from './utils/roles';
 import {
   getCurDate,
   setSessionStorage,
@@ -44,6 +46,29 @@ router.beforeEach((to, from, next) => {
   const userFromSession = sessionStorage.getItem('userInfo') ? JSON.parse(sessionStorage.getItem('userInfo')) : null;
   const user = userFromLocal || userFromSession;
   console.log(user);
+
+  const hasRoleAuthority = (authority) => {
+    if (authority === 'BUSINESS' && businessUser?.isBusiness) return true;
+    return userHasAuthority(user, authority);
+  };
+
+  // 四个工作台的入口必须与账号身份匹配，避免用户通过地址栏误入其他角色页面。
+  if (to.path.startsWith('/merchant/')) {
+    if (!user && !businessUser) return next('/login?role=merchant');
+    if (!hasRoleAuthority('BUSINESS')) return next('/myInformation');
+  }
+  if (to.path.startsWith('/admin/')) {
+    if (!user) return next('/login?role=admin');
+    if (!hasRoleAuthority('ADMIN')) return next('/myInformation');
+  }
+  if (to.path.startsWith('/rider/dashboard')) {
+    if (!user) return next('/login?role=rider');
+    if (!hasRoleAuthority('RIDER')) return next('/rider/apply');
+  }
+  if (to.path === '/myInformation' && to.query.role === 'rider') {
+    if (!user) return next('/login?role=rider');
+    if (!hasRoleAuthority('RIDER')) return next('/rider/apply');
+  }
 
   
   // 商家专属页面的路径

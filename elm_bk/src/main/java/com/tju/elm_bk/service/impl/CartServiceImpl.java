@@ -51,6 +51,7 @@ public class CartServiceImpl implements CartService {
         if (food == null) {
             throw new APIException(ResultCodeEnum.FOOD_MISSED);
         }
+        ensurePurchasable(food, cartItemCreateDTO.getQuantity(), user.getId());
 //        Business business = businessMapper.selectBusinessById(cartItemCreateDTO.getBusiness().getId());
 //        if (business == null) {
 //            throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
@@ -106,6 +107,7 @@ public class CartServiceImpl implements CartService {
         }
 
         Long userId = userMapper.getUserIdByUsername(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
+        ensurePurchasable(food, quantity, userId);
         Cart cart = new Cart();
 
         cart.setCustomerId(userId);
@@ -143,6 +145,11 @@ public class CartServiceImpl implements CartService {
             return cartId;
         }
 
+        Food food = foodMapper.selectFoodById(cart.getFoodId());
+        if (food == null || food.getShelveStatus() != 1 || (food.getStock() != null && quantity > food.getStock())) {
+            throw new APIException("商品已下架或库存不足");
+        }
+
         cartMapper.updateCartItem(cartId, quantity);
         return cart.getId();
     }
@@ -163,5 +170,31 @@ public class CartServiceImpl implements CartService {
         }
         cartMapper.removeCartItem(cartId);
         return cartId;
+    }
+
+    private void ensurePurchasable(Food food, Integer quantity, Long userId) {
+        if (food.getShelveStatus() == null || food.getShelveStatus() != 1) {
+            throw new APIException("商品已下架");
+        }
+        if (food.getStock() != null && quantity > food.getStock()) {
+            throw new APIException("商品库存不足");
+        }
+        if (food.getPurchaseLimit() != null && quantity > food.getPurchaseLimit()) {
+            throw new APIException("商品“" + food.getFoodName() + "”单笔限购" + food.getPurchaseLimit() + "份");
+        }
+        Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+        if (business.getStatus() != null && business.getStatus() != 1) {
+            throw new APIException("商家当前未营业");
+        }
+        int existing = cartMapper.selectCartItems(userId, food.getBusinessId()).stream()
+                .filter(item -> Objects.equals(item.getFoodId(), food.getId()))
+                .mapToInt(item -> item.getQuantity() == null ? 0 : item.getQuantity()).sum();
+        if (food.getStock() != null && existing + quantity > food.getStock()) {
+            throw new APIException("加入后数量超过库存");
+        }
+        if (food.getPurchaseLimit() != null && existing + quantity > food.getPurchaseLimit()) {
+            throw new APIException("商品“" + food.getFoodName() + "”单笔限购" + food.getPurchaseLimit() + "份");
+        }
     }
 }

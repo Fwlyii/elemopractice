@@ -2,6 +2,7 @@
 package com.tju.elm_bk.service.impl;
 
 import com.tju.elm_bk.entity.MerchantInteraction;
+import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.MerchantInteractionMapper;
 import com.tju.elm_bk.mapper.UserMapper;
@@ -48,14 +49,22 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
                 throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
             }
 
+            User currentUser = currentUser();
+            // userId 来自请求体只用于兼容旧前端，真正的身份必须来自 JWT。
+            if (!isAdmin(currentUser) && !java.util.Objects.equals(dto.getUserId(), currentUser.getId())) {
+                throw new APIException(ResultCodeEnum.USER_UNMATCHED);
+            }
+            Long operatorId = isAdmin(currentUser) ? dto.getUserId() : currentUser.getId();
+            if (operatorId == null) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+
             // 查询现有记录
             MerchantInteraction interaction = interactionMapper.selectByUserAndMerchant(
-                    dto.getUserId(), dto.getMerchantId());
+                    operatorId, dto.getMerchantId());
 
             if (interaction == null) {
                 // 创建新记录
                 interaction = new MerchantInteraction();
-                interaction.setUserId(dto.getUserId());
+                interaction.setUserId(operatorId);
                 interaction.setMerchantId(dto.getMerchantId());
                 interaction.setLiked(dto.getLiked() != null ? dto.getLiked() : false);
                 interaction.setCollected(dto.getCollected() != null ? dto.getCollected() : false);
@@ -71,7 +80,7 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
                 interactionMapper.update(interaction);
             }
 
-            log.info("用户{}对商家{}的互动状态更新成功", dto.getUserId(), dto.getMerchantId());
+            log.info("用户{}对商家{}的互动状态更新成功", operatorId, dto.getMerchantId());
 
         } catch (APIException e) {
             log.warn("业务异常: {}", e.getMessage());
@@ -131,6 +140,11 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
     }
     @Override
     public List<BusinessSearchVO> getUserCollections(Long userId) {
+        User currentUser = currentUser();
+        if (!isAdmin(currentUser) && !java.util.Objects.equals(userId, currentUser.getId())) {
+            throw new APIException(ResultCodeEnum.USER_UNMATCHED);
+        }
+        if (userId == null) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         //先写一个通过用户id查询商铺id列表的方法
         List< Long> businessIds = interactionMapper.selectUserCollectionIds(userId);
         //通过商家id查询商铺信息 —— 只没有评分和销售量
@@ -220,6 +234,11 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
                 throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
             }
 
+            User currentUser = currentUser();
+            if (!isAdmin(currentUser) && !java.util.Objects.equals(userId, currentUser.getId())) {
+                throw new APIException(ResultCodeEnum.USER_UNMATCHED);
+            }
+
             MerchantInteraction interaction = interactionMapper.selectByUserAndMerchant(userId, merchantId);
 
             MerchantInteractionVO vo = new MerchantInteractionVO();
@@ -244,5 +263,18 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
             log.error("获取用户商家互动状态失败: userId={}, merchantId={}", userId, merchantId, e);
             throw new APIException(ResultCodeEnum.SERVER_ERROR);
         }
+    }
+
+    private User currentUser() {
+        String username = com.tju.elm_bk.utils.SecurityUtils.getCurrentUsername()
+                .orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED));
+        User user = userMapper.findByUsernameWithAuthorities(username);
+        if (user == null) throw new APIException(ResultCodeEnum.USER_MISSED);
+        return user;
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getAuthorities() != null && user.getAuthorities().stream()
+                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
     }
 }

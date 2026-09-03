@@ -7,7 +7,7 @@
     <div class="user-card">
       <div class="user-info-row">
         <div class="avatar">
-          <img :src="merchant?.avatar || defaultAvatar" alt="商家头像">
+          <img :src="merchant?.avatar || defaultAvatar" alt="商家头像" @error="handleImageError">
         </div>
         <div class="user-details">
           <div class="user-name">
@@ -29,43 +29,30 @@
         </button>
       </div>
     </div>
-    <!-- 修改为显示商铺列表 -->
-    <div class="stores-container">
-      <div class="store-card" v-for="store in stores" :key="store.merchantId">
-        <div class="store-name">{{ store.merchantName }}</div>
-        <div class="store-data-bar">
-          <div class="data-item">
-            <div class="data-value">{{ store.likeCount }}</div>
-            <div class="data-label">点赞</div>
-          </div>
-          <div class="data-item">
-            <div class="data-value">{{ store.collectCount }}</div>
-            <div class="data-label">收藏</div>
-          </div>
-          <div class="data-item">
-            <div class="data-value">{{ store.rating }}</div>
-            <div class="data-label">评分</div>
-          </div>
+    <section class="merchant-entry-card">
+      <div class="entry-heading">
+        <div>
+          <span class="entry-kicker">经营管理</span>
+          <h2>店铺与菜单</h2>
+          <p>店铺资料、营业状态和商品统一在工作台维护。</p>
         </div>
+        <button class="entry-button" @click="goToWorkbench">进入工作台 <i class="fas fa-arrow-right"></i></button>
       </div>
-    </div>
+      <div class="entry-stats">
+        <div><strong>{{ stores.length }}</strong><span>店铺总数</span></div>
+        <div><strong>{{ approvedStoreCount }}</strong><span>营业中</span></div>
+        <div><strong>{{ pendingStoreCount }}</strong><span>审核中</span></div>
+      </div>
+      <button class="reviews-link" @click="$router.push('/merchant/reviews')"><i class="fas fa-comment-alt"></i> 查看顾客评价并回复</button>
+    </section>
 
-    
+    <section v-if="stores.length === 0 && !loading" class="empty-store-tip">
+      <i class="fas fa-store"></i>
+      <p>还没有店铺，去工作台申请第一家店吧。</p>
+      <button @click="goToWorkbench">申请新店</button>
+    </section>
 
-    <div class="bottom-nav">
-      <router-link to="/merchant/business" class="nav-item">
-        <i class="fas fa-store"></i>
-        <span>商铺</span>
-      </router-link>
-      <router-link to="/merchant/orders" class="nav-item">
-        <i class="fas fa-list-alt"></i>
-        <span>订单</span>
-      </router-link>
-      <router-link to="/merchant/profile" class="nav-item active">
-        <i class="fas fa-user-circle"></i>
-        <span>我的</span>
-      </router-link>
-    </div>
+
   </div>
 </template>
 
@@ -82,9 +69,11 @@ export default {
     const defaultAvatar = require('@/assets/default-avatar.png'); // 备用默认头像
 
     const merchant = ref(null);
-    const stores = ref([]); // 存储商铺列表
+    const stores = ref([]); // 仅保留门店数量与状态摘要，明细统一在工作台维护
     
     const loading = ref(false);
+    const approvedStoreCount = computed(() => stores.value.filter(store => store.status === 1).length);
+    const pendingStoreCount = computed(() => stores.value.filter(store => store.status === 0).length);
 
     // 格式化手机号显示
     const formattedPhone = computed(() => {
@@ -96,7 +85,7 @@ export default {
       await loadMerchantData();
       // 在获取到 merchant.id 后，再加载统计数据
       if (merchant.value?.id) {
-        await loadMerchantStats(merchant.value.id);
+        await loadMerchantStores(merchant.value.id);
       }
     });
 
@@ -124,19 +113,19 @@ export default {
       }
     };
     
-    // 修改：加载商家统计数据，现在获取的是商铺列表
-    const loadMerchantStats = async (userId) => {
+    // “我的”只显示门店摘要，门店明细统一由经营工作台负责
+    const loadMerchantStores = async (userId) => {
       try {
-        const response = await request.get(`http://110.42.60.144:8080/api/merchant/interaction/statsByUserId/${userId}`);
+        const response = await request.get(`/api/businesses/merchant?userId=${userId}`);
         
         if (response && response.success && response.data) {
-          stores.value = response.data;
+          stores.value = Array.isArray(response.data) ? response.data : [];
         } else {
-          toast.error('获取商家统计数据失败！');
+          stores.value = [];
         }
       } catch (error) {
-        console.error('获取商家统计数据失败:', error);
-        toast.error('获取商家统计数据失败，请重试！');
+        console.error('获取商家店铺摘要失败:', error);
+        toast.error('获取店铺信息失败，请重试！');
       }
     };
 
@@ -150,7 +139,16 @@ export default {
     };
 
     const switchToCustomer = () => {
-      router.push({ path: '/myinformation' });
+      router.push({ path: '/myInformation' });
+    };
+    const goToWorkbench = () => {
+      router.push('/merchant/business');
+    };
+    const handleImageError = (event) => {
+      const image = event?.target;
+      if (!image || image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = defaultAvatar;
     };
 
     return {
@@ -158,9 +156,13 @@ export default {
       stores,
       formattedPhone,
       loading,
+      approvedStoreCount,
+      pendingStoreCount,
       defaultAvatar,
       logout,
-      switchToCustomer
+      switchToCustomer,
+      goToWorkbench,
+      handleImageError
     };
   }
 };
@@ -607,4 +609,93 @@ export default {
     border-radius: 0;
   }
 }
+
+/* 商家“我的”只承担账号与入口职责，门店明细统一放在经营工作台。 */
+.container {
+  max-width: 600px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 0 16px 88px;
+  background: #f6f9fd;
+  box-shadow: none;
+  border-radius: 0;
+  align-items: stretch;
+}
+.top-background {
+  position: sticky;
+  top: 0;
+  left: auto;
+  transform: none;
+  width: calc(100% + 32px);
+  max-width: none;
+  height: 64px;
+  margin-left: -16px;
+  margin-bottom: 0;
+  background: #fff;
+  border-radius: 0;
+  border-bottom: 1px solid #e3edf7;
+  box-shadow: 0 2px 8px rgba(40, 92, 145, .05);
+}
+.top-background h1 {
+  color: #173b62;
+  font-size: 20px;
+  text-shadow: none;
+  letter-spacing: 0;
+}
+.user-card {
+  width: 100%;
+  max-width: none;
+  margin: 18px 0 14px;
+  padding: 18px;
+  border: 1px solid #dfeaf5;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(51, 101, 150, .05);
+  transform: none;
+  top: auto;
+  gap: 16px;
+}
+.user-info-row { gap: 14px; }
+.avatar { width: 64px; height: 64px; margin-left: 0; border: 2px solid #fff; box-shadow: 0 3px 10px rgba(0, 151, 255, .16); }
+.user-details { padding: 0; margin-right: 0; background: transparent; border: 0; box-shadow: none; gap: 7px; }
+.user-name, .user-phone { padding: 0; background: transparent; box-shadow: none; border-radius: 0; }
+.user-name { color: #244d73; font-size: 17px; margin-bottom: 2px; }
+.user-phone { color: #7189a2; font-size: 12px; }
+.user-actions { gap: 10px; }
+.switch-btn, .logout-btn { padding: 10px 12px; border-radius: 7px; border: 1px solid transparent; box-shadow: none; font-size: 12px; margin-bottom: 0; }
+.switch-btn { background: #edf7ff; color: #1479c3; border-color: #cfe6f8; }
+.logout-btn { background: #fff5f3; color: #c65a4d; border-color: #f2d8d3; }
+.switch-btn:hover, .logout-btn:hover { transform: none; box-shadow: none; }
+.merchant-entry-card {
+  width: 100%;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #dfeaf5;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(51, 101, 150, .04);
+}
+.entry-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.entry-kicker { color: #1683c8; font-size: 11px; font-weight: 700; }
+.entry-heading h2 { margin: 6px 0; color: #244d73; font-size: 19px; }
+.entry-heading p { color: #7c91a6; font-size: 12px; line-height: 1.6; }
+.entry-button { flex: none; padding: 10px 13px; border: 0; border-radius: 7px; background: #0097ff; color: #fff; font-size: 12px; cursor: pointer; }
+.entry-button i { margin-left: 5px; }
+.entry-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; padding-top: 15px; border-top: 1px solid #edf3f8; }
+.entry-stats div { text-align: center; }
+.entry-stats strong, .entry-stats span { display: block; }
+.entry-stats strong { color: #1e5a87; font-size: 20px; }
+.entry-stats span { margin-top: 4px; color: #8398ad; font-size: 11px; }
+.empty-store-tip { width: 100%; margin-top: 14px; padding: 28px 16px; text-align: center; background: #fff; border: 1px dashed #cfe1f1; border-radius: 12px; color: #8195a8; }
+.empty-store-tip i { color: #6faeda; font-size: 24px; }
+.empty-store-tip p { margin: 8px 0 13px; font-size: 12px; }
+.empty-store-tip button { padding: 8px 16px; border: 1px solid #9dccf3; border-radius: 6px; background: #edf7ff; color: #1479c3; cursor: pointer; }
+@media (max-width: 480px) {
+  .container { padding-left: 12px; padding-right: 12px; }
+  .top-background { width: calc(100% + 24px); margin-left: -12px; }
+  .entry-heading { align-items: stretch; flex-direction: column; gap: 12px; }
+  .entry-button { width: 100%; }
+}
+</style>
+
+<style scoped>
+.reviews-link{margin-top:12px;border:1px solid #168bd1;color:#168bd1;background:#fff;border-radius:7px;padding:9px 14px;cursor:pointer}.reviews-link:hover{background:#f2f8fd}
 </style>

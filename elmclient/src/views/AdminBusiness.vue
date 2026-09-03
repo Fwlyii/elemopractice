@@ -77,7 +77,7 @@ export default {
         // 加载商家列表（从后端接口获取）
         const loadBusinesses = async () => {
             try {
-                const response = await request.get('http://110.42.60.144:8080/api/businesses/active');
+                const response = await request.get('/api/businesses/active');
                 businessList.value = response;
 				console.log('response.data:', response.data);
 				console.log('response:', response);
@@ -129,12 +129,12 @@ export default {
             try {
                 if (editor.mode === 'create') {
                     // 调用新增接口
-                    const response = await request.post('http://110.42.60.144:8080/api/businesses', editor.form);
+                    const response = await request.post('/api/businesses', editor.form);
                     businessList.value.push(response.data);
                     console.log('新增商家:', response.data);
                 } else {
                     // 调用更新接口
-                    const response = await request.patch(`http://110.42.60.144:8080/api/businesses/${editor.form.userId}`, editor.form);
+                    const response = await request.patch(`/api/businesses/${editor.form.userId}`, editor.form);
                     const index = businessList.value.findIndex(
                         b => b.userId === editor.form.userId
                     );
@@ -281,5 +281,23 @@ export default {
     max-width: 100vw;
     width: 100vw;
   }
+}
+
+.wrapper { background: #f5f9fd; color: #24405c; }
+.top-background { height: 64px; background: #0097ff; background-image: none; border-radius: 0; box-shadow: 0 1px 0 rgba(0,83,145,.15); }
+.top-background::before { display: none; }
+.top-background h1 { font-size: 20px; letter-spacing: 0; text-shadow: none; }
+.content { margin-top: 0; padding: 84px 16px 72px; max-width: 600px; }
+.business-item { padding: 14px 0; border-bottom-color: #e1edf7; gap: 12px; }
+.info { min-width: 0; flex: 1; }
+.meta { min-width: 0; }
+.name { color: #24405c; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.addr { color: #71879a; font-size: 12px; overflow-wrap: anywhere; }
+.logo { width: 52px; height: 52px; margin-right: 0; border-radius: 8px; }
+.business-item .actions { flex: 0 0 auto; }
+.toggle { color: #0879c7; border-color: #a9d6f4; background: #f4fbff; padding: 7px 10px; font-size: 12px; }
+@media (max-width: 480px) {
+  .top-background { height: 64px; }
+  .content { width: 100vw; max-width: 100vw; padding: 84px 12px 72px; }
 }
 </style>

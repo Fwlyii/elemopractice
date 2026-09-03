@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tju.elm_bk.mapper.ReviewMapper">
+    <resultMap id="reviewMap" type="com.tju.elm_bk.vo.ReviewVO">
+        <id property="id" column="id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="businessId" column="business_id"/>
+        <result property="businessName" column="business_name"/>
+        <result property="rating" column="rating"/>
+        <result property="content" column="content"/>
+        <result property="images" column="images"/>
+        <result property="merchantReply" column="merchant_reply"/>
+        <result property="replyTime" column="reply_time"/>
+        <result property="createTime" column="create_time"/>
+        <result property="hidden" column="is_hidden"/>
+    </resultMap>
+    <select id="selectByOrderId" resultMap="reviewMap">
+        SELECT r.*, u.username customer_name, b.business_name
+        FROM review r JOIN users u ON u.id=r.customer_id
+        JOIN business b ON b.id=r.business_id
+        WHERE r.order_id=#{orderId} AND r.is_hidden=0 LIMIT 1
+    </select>
+    <select id="selectById" resultMap="reviewMap">
+        SELECT r.*, u.username customer_name, b.business_name
+        FROM review r JOIN users u ON u.id=r.customer_id
+        JOIN business b ON b.id=r.business_id
+        WHERE r.id=#{id} LIMIT 1
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO review(order_id,customer_id,business_id,rating,content,images,create_time,update_time)
+        VALUES(#{orderId},#{customerId},#{businessId},#{rating},#{content},#{images},NOW(),NOW())
+    </insert>
+    <update id="updateReply">
+        UPDATE review SET merchant_reply=#{reply}, reply_time=NOW(), update_time=NOW()
+        WHERE id=#{id} AND (merchant_reply IS NULL OR merchant_reply='')
+    </update>
+    <select id="listByBusiness" resultMap="reviewMap">
+        SELECT r.*, u.username customer_name, b.business_name
+        FROM review r JOIN users u ON u.id=r.customer_id
+        JOIN business b ON b.id=r.business_id
+        WHERE r.business_id=#{businessId} AND r.is_hidden=0 ORDER BY r.create_time DESC
+    </select>
+    <select id="listAll" resultMap="reviewMap">
+        SELECT r.*, u.username customer_name, b.business_name
+        FROM review r JOIN users u ON u.id=r.customer_id JOIN business b ON b.id=r.business_id
+        ORDER BY r.create_time DESC
+    </select>
+    <update id="hide">
+        UPDATE review SET is_hidden=1, update_time=NOW() WHERE id=#{id} AND is_hidden=0
+    </update>
+</mapper>

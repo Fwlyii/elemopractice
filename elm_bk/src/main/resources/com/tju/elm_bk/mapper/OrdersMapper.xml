@@ -14,6 +14,7 @@
         <result property="orderDate" column="order_date"/>
         <result property="orderState" column="order_state"/>
         <result property="orderTotal" column="order_total"/>
+        <result property="serviceMode" column="service_mode"/>
         <association property="business" resultMap="businessVOResultMap"/>
         <association property="customer" resultMap="customerUserVOResultMap"/>
         <association property="deliveryAddress" resultMap="addressVOResultMap"/>
@@ -95,6 +96,7 @@
                O.order_date,
                O.order_state,
                O.order_total,
+               O.service_mode,
                O.business_id,
                O.customer_id,
                O.address_id,
@@ -135,10 +137,10 @@
                ad.is_deleted as ad_is_deleted,
                ad.update_time as ad_update_time,
                ad.updater as ad_updater,
-               ad.address as ad_address,
-               ad.contact_name as ad_contact_name,
-               ad.contact_sex as ad_contact_sex,
-               ad.contact_tel as ad_contact_tel,
+               COALESCE(O.address_snapshot, ad.address) as ad_address,
+               COALESCE(O.contact_name_snapshot, ad.contact_name) as ad_contact_name,
+               COALESCE(O.contact_sex_snapshot, ad.contact_sex) as ad_contact_sex,
+               COALESCE(O.contact_tel_snapshot, ad.contact_tel) as ad_contact_tel,
                ad.user_id as ad_user_id
 
         FROM orders O
@@ -160,6 +162,7 @@
                O.order_date,
                O.order_state,
                O.order_total,
+               O.service_mode,
                O.business_id,
                O.customer_id,
                O.address_id,
@@ -200,10 +203,10 @@
                ad.is_deleted as ad_is_deleted,
                ad.update_time as ad_update_time,
                ad.updater as ad_updater,
-               ad.address as ad_address,
-               ad.contact_name as ad_contact_name,
-               ad.contact_sex as ad_contact_sex,
-               ad.contact_tel as ad_contact_tel,
+               COALESCE(O.address_snapshot, ad.address) as ad_address,
+               COALESCE(O.contact_name_snapshot, ad.contact_name) as ad_contact_name,
+               COALESCE(O.contact_sex_snapshot, ad.contact_sex) as ad_contact_sex,
+               COALESCE(O.contact_tel_snapshot, ad.contact_tel) as ad_contact_tel,
                ad.user_id as ad_user_id
 
         FROM orders O
@@ -216,8 +219,8 @@
 
 
     <insert id="insertOrder" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO orders (create_time, creator, is_deleted, update_time, updater, order_date, order_state, order_total, business_id, customer_id, address_id)
-        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{orderDate}, #{orderState}, #{orderTotal}, #{businessId}, #{customerId}, #{addressId})
+        INSERT INTO orders (create_time, creator, is_deleted, update_time, updater, order_date, order_state, order_total, business_id, customer_id, address_id, delivery_price, address_snapshot, contact_name_snapshot, contact_sex_snapshot, contact_tel_snapshot, idempotency_key, service_mode)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{orderDate}, #{orderState}, #{orderTotal}, #{businessId}, #{customerId}, #{addressId}, #{deliveryPrice}, #{addressSnapshot}, #{contactNameSnapshot}, #{contactSexSnapshot}, #{contactTelSnapshot}, #{idempotencyKey}, COALESCE(#{serviceMode}, 'DELIVERY'))
     </insert>
 
 
@@ -226,7 +229,7 @@
 
 
     <insert id="insertOrderPlus" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO orders (create_time, creator, is_deleted, update_time, updater, order_date, order_state, order_total, business_id, customer_id, address_id,delivery_price)
-        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{orderDate}, #{orderState}, #{orderTotal}, #{businessId}, #{customerId}, #{addressId},#{deliveryPrice})
+        INSERT INTO orders (create_time, creator, is_deleted, update_time, updater, order_date, order_state, order_total, business_id, customer_id, address_id,delivery_price, address_snapshot, contact_name_snapshot, contact_sex_snapshot, contact_tel_snapshot, idempotency_key, service_mode)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{orderDate}, #{orderState}, #{orderTotal}, #{businessId}, #{customerId}, #{addressId},#{deliveryPrice}, #{addressSnapshot}, #{contactNameSnapshot}, #{contactSexSnapshot}, #{contactTelSnapshot}, #{idempotencyKey}, COALESCE(#{serviceMode}, 'DELIVERY'))
     </insert>
 </mapper>

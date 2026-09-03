@@ -1,6 +1,5 @@
 <template>
 
-    <BackButton style="margin-top: 2vw;"/>
     <div class="header">
       <!-- <i class="fas fa-chevron-left back-icon" @click="goBack"></i> -->
       <h1>我的收藏</h1>
@@ -48,10 +47,8 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from '@/utils/toast';
 import request from '@/utils/request';
-import BackButton from '@/components/BackButton.vue';
 export default {
   name: 'Favorites',
-  components: { BackButton },
   setup() {
     const router = useRouter();
     const favoriteList = ref([]);
@@ -103,6 +100,13 @@ export default {
       router.back();
     };
 
+    const handleImageError = (event) => {
+      const image = event?.target;
+      if (!image || image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = require('@/assets/business-default.png');
+    };
+
     onMounted(() => {
       fetchFavorites();
     });
@@ -112,7 +116,8 @@ export default {
       loading,
       errorMessage,
       goToBusinessInfo,
-      goBack
+      goBack,
+      handleImageError
     };
   }
 };

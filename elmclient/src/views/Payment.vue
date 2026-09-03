@@ -1,7 +1,4 @@
 <template>
-	<div class="back-btn-container">
-    <BackButton style="margin-top: 2vw;"/>
-  </div>
 	<div class="wrapper">
 		<!-- header部分 -->
 		<header>
@@ -45,7 +42,7 @@
 					<!-- 商家信息和订单明细部分 -->
 					<div class="merchant-details" v-show="isShowDetailet">
 						<div class="merchant-info">
-							<img :src="orderDetail.businessImg" :alt="orderDetail.businessName" class="merchant-logo">
+							<img :src="orderDetail.businessImg || require('../assets/business-default.png')" :alt="orderDetail.businessName || '商家图片'" class="merchant-logo" @error="handleImageError">
 							<div class="merchant-name">
 								{{ orderDetail.businessName || '未知商家' }}
 							</div>
@@ -61,9 +58,27 @@
 							</template>
 							<div class="detail-item delivery-fee">
 								<span>配送费</span>
-								<span>&#165;{{ orderDetail.deliveryPrice.toFixed(2) || '0.00' }}</span>
+								<span>&#165;{{ Number(orderDetail.deliveryPrice || 0).toFixed(2) }}</span>
+							</div>
+							<div v-if="couponDiscount > 0" class="detail-item coupon-discount">
+								<span>{{ selectedCoupon.name || '红包优惠' }}</span>
+								<span>-&#165;{{ couponDiscount.toFixed(2) }}</span>
 							</div>
 						</div>
+					</div>
+
+					<div class="coupon-panel" aria-label="红包优惠">
+						<div class="coupon-panel-header"><h3>红包</h3><span v-if="couponDiscount > 0">已减 ¥{{ couponDiscount.toFixed(2) }}</span></div>
+						<div v-if="couponLoading" class="coupon-empty">正在加载可用红包…</div>
+						<template v-else-if="usableCoupons.length">
+							<button type="button" class="coupon-option" :class="{ active: selectedCouponId === null }" @click="selectCoupon(null)">
+								<span><b>不使用红包</b><small>保留本次红包</small></span><i v-if="selectedCouponId === null" class="fa fa-check-circle"></i>
+							</button>
+							<button v-for="coupon in usableCoupons" :key="coupon.id" type="button" class="coupon-option" :class="{ active: selectedCouponId === coupon.id }" @click="selectCoupon(coupon.id)">
+								<span><b>{{ coupon.name || '红包' }} · 减 ¥{{ Number(coupon.discountAmount || 0).toFixed(2) }}</b><small>满 ¥{{ Number(coupon.minOrderAmount || 0).toFixed(2) }} 可用 · {{ formatCouponExpiry(coupon.expiresAt) }}到期</small></span><i v-if="selectedCouponId === coupon.id" class="fa fa-check-circle"></i>
+							</button>
+						</template>
+						<div v-else class="coupon-empty">暂无满足本单门槛的红包</div>
 					</div>
 				</div>
 
@@ -81,6 +96,19 @@
 							<img src="../assets/wechat.png" alt="微信支付">
 							<i class="fa fa-check-circle"></i>
 						</div>
+						<div class="payment-option wallet-option" :class="{ active: selectedPayment === 'wallet' }"
+							@click="selectPayment('wallet')">
+							<span class="wallet-icon">¥</span>
+							<strong>钱包余额</strong>
+							<i class="fa fa-check-circle"></i>
+						</div>
+					</div>
+					<div v-if="assetInfo" class="asset-pay-hint">
+						<span>钱包余额 ¥{{ Number(assetInfo.balance || 0).toFixed(2) }} · 可用积分 {{ assetInfo.points || 0 }}</span>
+						<label v-if="assetInfo.points > 0">积分抵扣
+							<input v-model.number="pointsToUse" type="number" min="0" step="100" :max="maxPoints" @input="normalizePoints">
+						</label>
+						<small v-if="maxPoints > 0">本单最多可抵 {{ maxPoints }} 积分（应付金额的20%）</small>
 					</div>
 				</div>
 
@@ -88,7 +116,7 @@
 				<div class="payment-action">
 					<button class="pay-button" @click="handlePayment">
 						<span v-if="paying">支付中...</span>
-						<span v-else>确认支付 &#165;{{ orderDetail?.orderTotal || '0.00' }}</span>
+						<span v-else>确认支付 &#165;{{ payableAmount }}</span>
 					</button>
 				</div>
 			</div>
@@ -103,13 +131,9 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
-import BackButton from '../components/BackButton.vue';
 
 export default {
 	name: 'Payment',
-	components: {
-		BackButton
-	},
 	setup() {
 		const orderDetail = ref(null);
 		const isShowDetailet = ref(true);
@@ -119,7 +143,24 @@ export default {
 		const loading = ref(true);
 		const selectedPayment = ref('alipay');
 		const paying = ref(false);
+		const assetInfo = ref(null);
+		const pointsToUse = ref(0);
+		const availableCoupons = ref([]);
+		const selectedCouponId = ref(null);
+		const couponLoading = ref(false);
 		const deliveryPrice = ref(5); // 默认配送费，可根据实际情况调整
+		const couponBaseAmount = computed(() => Math.max(0, Number(orderDetail.value?.orderTotal || 0) - Number(orderDetail.value?.deliveryPrice || 0)));
+		const usableCoupons = computed(() => availableCoupons.value.filter(coupon => Number(coupon.minOrderAmount || 0) <= couponBaseAmount.value));
+		const selectedCoupon = computed(() => usableCoupons.value.find(coupon => coupon.id === selectedCouponId.value) || {});
+		const couponDiscount = computed(() => {
+			const discount = Number(selectedCoupon.value.discountAmount || 0);
+			return Math.min(Math.max(0, discount), couponBaseAmount.value);
+		});
+		const maxPoints = computed(() => {
+			const total = Math.max(0, Number(orderDetail.value?.orderTotal || 0) - couponDiscount.value);
+			return Math.floor(total * 0.2 * 100);
+		});
+		const payableAmount = computed(() => (Math.max(0, Number(orderDetail.value?.orderTotal || 0) - couponDiscount.value - Number(pointsToUse.value || 0) / 100)).toFixed(2));
 
 		// 获取订单详情
 		const fetchOrderDetails = async () => {
@@ -147,11 +188,38 @@ export default {
 				loading.value = false;
 			}
 		};
+		const fetchCoupons = async () => {
+			couponLoading.value = true;
+			try {
+				const response = await request.get('/api/v1/assets/coupons');
+				availableCoupons.value = response?.success && Array.isArray(response.data) ? response.data : [];
+				// 默认勾选优惠力度最大的可用红包，用户仍可手动取消或改选。
+				selectedCouponId.value = usableCoupons.value[0]?.id ?? null;
+			} catch (error) {
+				availableCoupons.value = [];
+				selectedCouponId.value = null;
+			} finally {
+				couponLoading.value = false;
+			}
+		};
+		const selectCoupon = (couponId) => {
+			selectedCouponId.value = couponId;
+			pointsToUse.value = Math.min(pointsToUse.value, maxPoints.value);
+		};
+		const formatCouponExpiry = (value) => value ? new Date(value).toLocaleDateString('zh-CN') : '近期';
 
 		// 支付处理
 		const handlePayment = async () => {
+			if (paying.value) return;
+			paying.value = true;
 			try {
-				const response = await request.put("/api/orders/status?orderState=1&orderId=" + orderId.value);
+				const response = await request.put('/api/orders/status', null, { params: {
+					orderState: 1,
+					orderId: orderId.value,
+					paymentMethod: selectedPayment.value === 'wallet' ? 'wallet' : 'simulated',
+					pointsToUse: Number(pointsToUse.value || 0),
+					couponId: selectedCouponId.value || undefined
+				} });
 				if (response.success) {
 					// 支付成功，跳转到成功页面
 					router.push({
@@ -176,11 +244,24 @@ export default {
 		const selectPayment = (type) => {
 			selectedPayment.value = type;
 		};
+		const normalizePoints = () => {
+			const available = Number(assetInfo.value?.points || 0);
+			pointsToUse.value = Math.min(maxPoints.value, available, Math.max(0, Math.floor(Number(pointsToUse.value || 0) / 100) * 100));
+		};
+		const handleImageError = (event) => {
+			// 远程图片失效时回退到随前端一起部署的本地占位图，避免只显示 alt 文本。
+			if (event.target.dataset.fallbackApplied) return;
+			event.target.dataset.fallbackApplied = 'true';
+			event.target.src = require('../assets/business-default.png');
+		};
 
-		onMounted(() => {
+			onMounted(() => {
 			orderId.value = route.query.orderId;
 			console.log("获取到的orderId:", orderId.value);
-			fetchOrderDetails();
+			fetchOrderDetails().then(fetchCoupons);
+			request.get('/api/v1/assets/me').then(response => {
+				if (response?.success) assetInfo.value = response.data;
+			}).catch(() => { /* 未登录或资产接口不可用时仍可使用模拟支付 */ });
 		});
 
 		return {
@@ -194,6 +275,20 @@ export default {
 			selectPayment,
 			paying,
 			deliveryPrice,
+			assetInfo,
+			pointsToUse,
+			maxPoints,
+			payableAmount,
+			normalizePoints,
+			availableCoupons,
+			usableCoupons,
+			selectedCouponId,
+			selectedCoupon,
+			couponDiscount,
+			couponLoading,
+			selectCoupon,
+			formatCouponExpiry,
+			handleImageError,
 		};
 	}
 }
@@ -334,6 +429,7 @@ export default {
 
 .payment-options {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 3vw;
 	margin-top: 4vw;
 }
@@ -372,6 +468,27 @@ export default {
 	color: #38CA73;
 }
 
+.wallet-option { color: #526f8b; gap: 2vw; }
+.wallet-option strong { flex: 1; font-size: 3.4vw; font-weight: 600; }
+.wallet-icon { width: 8vw; height: 8vw; display: grid; place-items: center; border-radius: 50%; background: #e8f5ff; color: #168bd1; font-size: 5vw; font-weight: 700; }
+.asset-pay-hint { margin-top: 3vw; padding: 3vw; border: 1px solid #dcebf7; border-radius: 2vw; background: #f7fbff; color: #607b92; font-size: 3.2vw; line-height: 1.8; }
+.asset-pay-hint label { display: flex; align-items: center; gap: 2vw; margin-top: 1vw; color: #315a79; }
+.asset-pay-hint input { width: 28vw; border: 1px solid #c9deed; border-radius: 1.2vw; padding: 1.5vw 2vw; font-size: 3.2vw; color: #315a79; }
+.asset-pay-hint small { display: block; color: #8aa1b4; }
+.coupon-panel { margin-top: 3vw; padding-top: 3vw; border-top: 0.2vw solid #f5f7fa; }
+.coupon-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2vw; }
+.coupon-panel-header h3 { margin: 0; color: #333; font-size: 4.2vw; font-weight: 500; }
+.coupon-panel-header span { color: #e76c48; font-size: 3.2vw; }
+.coupon-option { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 3vw; margin-top: 2vw; padding: 3vw; border: 1px solid #e1edf5; border-radius: 1.8vw; background: #fbfdff; color: #31556d; text-align: left; cursor: pointer; }
+.coupon-option.active { border-color: #78bde8; background: #f0f9ff; }
+.coupon-option span { min-width: 0; flex: 1; }
+.coupon-option b, .coupon-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coupon-option b { color: #d96d49; font-size: 3.5vw; font-weight: 600; }
+.coupon-option small { margin-top: 1vw; color: #8aa1b4; font-size: 2.9vw; }
+.coupon-option i { flex: 0 0 auto; color: #168bd1; font-size: 4.5vw; }
+.coupon-empty { padding: 3vw 0 1vw; color: #98aab7; font-size: 3.2vw; }
+.coupon-discount { color: #df7049; }
+
 .payment-action {
 	position: fixed;
 	bottom: 0;
@@ -387,7 +504,7 @@ export default {
 	height: 12vw;
 	border: none;
 	border-radius: 6vw;
-	background: linear-gradient(to right, #38CA73, #2EAF62);
+	background: #0097ff;
 	color: white;
 	font-size: 4.2vw;
 	font-weight: bold;
@@ -416,19 +533,43 @@ export default {
 	font-size: 4vw;
 	color: #666;
 }
-/* 1. 给 BackButton 父容器加固定定位，与 header 对齐 */
-.back-btn-container {
-  position: fixed; /* 固定定位，不随滚动移动 */
-  left: 0vw; /* 距离左侧的距离，可根据需求调整 */
-  top: 0vw; /* 距离顶部的距离，与 header 高度（12vw）适配，确保垂直居中 */
-  z-index: 1001; /* 比 header 的 z-index:1000 高，避免被遮挡 */
-}
-
-/* 2. 样式穿透：确保 BackButton 内部图标/文字正常显示（可选，根据组件内部结构调整） */
-::v-deep .back-button { /* 这里的 .back-button 是 BackButton 组件根元素的类名，需与组件内部一致 */
-  width: 8vw; /* 调整按钮大小，按需修改 */
-  height: 8vw;
-  color: #fff; /* 按钮颜色，与 header 白色文字匹配 */
-  /* 如果组件内部是图标，可加图标大小控制 */
-}
+/* 桌面窗口下仍保持移动端容器宽度，避免 vw 按整块屏幕放大文字。 */
+.wrapper { max-width: 600px; margin: 0 auto; }
+.wrapper header { width: min(100%, 600px); height: 64px; left: 50%; transform: translateX(-50%); font-size: 20px; }
+.content { padding-top: 80px; padding-bottom: 104px; }
+.section { border-radius: 12px; margin: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0, 0, 0, .05); }
+.section-header { margin-bottom: 18px; }
+.section-header h3 { font-size: 20px; }
+.total-amount { font-size: 28px; }
+.delivery-info { margin-bottom: 18px; padding-bottom: 14px; }
+.info-item { margin-bottom: 10px; font-size: 15px; }
+.info-item i { margin-right: 10px; width: 20px; }
+.merchant-info { padding: 14px 0; }
+.merchant-logo { width: 64px; height: 64px; border-radius: 8px; margin-right: 14px; }
+.merchant-name { font-size: 17px; gap: 8px; }
+.order-details { margin-top: 14px; padding-top: 14px; border-top-width: 1px; }
+.detail-item { padding: 9px 0; font-size: 15px; }
+.delivery-fee { border-top-width: 1px; margin-top: 9px; padding-top: 9px; }
+.payment-options { gap: 12px; margin-top: 18px; }
+.payment-option { padding: 16px; border-width: 1px; border-radius: 10px; }
+.payment-option img { height: 32px; }
+.payment-option .fa-check-circle { font-size: 20px; }
+.wallet-option { gap: 10px; }
+.wallet-option strong { font-size: 14px; }
+.wallet-icon { width: 32px; height: 32px; font-size: 20px; }
+.asset-pay-hint { margin-top: 14px; padding: 14px; border-radius: 10px; font-size: 13px; }
+.asset-pay-hint label { gap: 8px; margin-top: 5px; }
+.asset-pay-hint input { width: 120px; border-radius: 6px; padding: 7px 9px; font-size: 13px; }
+.coupon-panel { margin-top: 14px; padding-top: 14px; border-top-width: 1px; }
+.coupon-panel-header { margin-bottom: 10px; }
+.coupon-panel-header h3 { font-size: 18px; }
+.coupon-panel-header span { font-size: 13px; }
+.coupon-option { gap: 12px; margin-top: 8px; padding: 12px; border-radius: 9px; }
+.coupon-option b { font-size: 14px; }
+.coupon-option small { margin-top: 4px; font-size: 12px; }
+.coupon-option i { font-size: 18px; }
+.coupon-empty { padding: 12px 0 4px; font-size: 13px; }
+.payment-action { left: 50%; right: auto; width: min(100%, 600px); transform: translateX(-50%); padding: 16px; box-shadow: 0 -2px 10px rgba(0, 0, 0, .05); }
+.pay-button { height: 48px; border-radius: 24px; font-size: 18px; }
+.loading { font-size: 16px; }
 </style>

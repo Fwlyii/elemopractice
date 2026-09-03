@@ -24,6 +24,14 @@
         <i class="fas fa-store"></i>
         <span>商铺管理</span>
       </router-link>
+      <router-link
+        to="/admin/riders"
+        class="nav-item"
+        :class="{ active: $route.path === '/admin/riders' }"
+      >
+        <i class="fas fa-motorcycle"></i>
+        <span>配送调度</span>
+      </router-link>
     </div>
   </template>
 

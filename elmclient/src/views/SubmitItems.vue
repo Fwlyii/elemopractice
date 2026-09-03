@@ -55,7 +55,6 @@
 
 <script>
 import { ref, reactive } from 'vue';
-import Footer from '../components/Footer.vue';
 import qs from 'qs';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
@@ -126,9 +125,6 @@ export default {
             handleFileUpload,
             register
         };
-    },
-    components: {
-        Footer
     }
 
 

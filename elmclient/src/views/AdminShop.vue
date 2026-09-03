@@ -1,6 +1,6 @@
 <template>
 	<div class="wrapper">
-    <BackButton style="margin-top: -10vw;"/>  
+    <BackButton />
 	  <!-- <header class="topbar"><p>商铺管理 - {{ businessName || '商家' }}</p></header> -->
     <div class="header">
             <p>商铺管理 - {{ businessName || '商家' }}</p>

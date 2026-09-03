@@ -2,9 +2,6 @@
 	<div class="wrapper">
 	  <!-- header部分 -->
 	  <header>
-		<div class="back-btn-container">
-		  <button @click="goBack" class="back-btn">←</button>
-		</div>
 		<p>编辑送货地址</p>
 	  </header>
   
@@ -61,16 +58,12 @@
   
   <script>
   import { ref, onMounted } from 'vue';
-  import Footer from '../components/Footer.vue';
   import request from '../utils/request';
   import { useRoute,useRouter } from 'vue-router';
   import { toast } from '../utils/toast';
 
   export default {
 	name: 'EditUserAddress',
-	components: {
-	  Footer
-	},
 	setup() {
 	  const businessId = ref(null);
 	  const id = ref(null);
@@ -99,10 +92,6 @@
 			}
 		});
 		
-		const goBack = () => {
-			router.back();
-		};
-  
 	  const editUserAddress = () => {
 		if (!(deliveryAddress.value.contactName?.trim())) {
 				toast.error("联系人姓名不能为空！");
@@ -138,8 +127,7 @@
   
 	  return {
 		deliveryAddress,
-		editUserAddress,
-		goBack
+		editUserAddress
 	  };
 	}
   }
@@ -183,30 +171,6 @@ header {
   justify-content: center;
   align-items: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* -------------------- 返回按钮 -------------------- */
-.back-btn-container {
-  position: fixed;
-  left: 4vw;
-  top: 2vw;
-  z-index: 1001;
-}
-
-.back-btn {
-  width: 10vw;
-  height: 10vw;
-  max-width: 40px;
-  max-height: 40px;
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 6vw;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
 
 /* -------------------- 表单部分 -------------------- */
@@ -344,15 +308,5 @@ header {
     margin-top: 120px;
   }
   
-  .back-btn-container {
-    left: 20px;
-    top: 10px;
-  }
-  
-  .back-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 24px;
-  }
 }
 </style>

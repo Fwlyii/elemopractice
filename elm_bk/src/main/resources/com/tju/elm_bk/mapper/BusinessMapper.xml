@@ -13,6 +13,9 @@
         <result property="startPrice" column="start_price"/>
         <result property="deliveryPrice" column="delivery_price"/>
         <result property="remarks" column="remarks"/>
+        <result property="dineInAvailable" column="dine_in_available"/>
+        <result property="promotionThreshold" column="promotion_threshold"/>
+        <result property="promotionDiscount" column="promotion_discount"/>
         <result property="creator" column="business_creator"/>
         <result property="updater" column="business_updater"/>
         <result property="createTime" column="business_create_time"/>
@@ -50,6 +53,9 @@
         b.start_price,
         b.delivery_price,
         b.remarks,
+        b.dine_in_available,
+        b.promotion_threshold,
+        b.promotion_discount,
         b.creator as business_creator,
         b.updater as business_updater,
         b.create_time as business_create_time,
@@ -80,6 +86,9 @@
             start_price = #{updateDto.startPrice, jdbcType=DECIMAL},
             delivery_price = #{updateDto.deliveryPrice, jdbcType=DECIMAL},
             remarks = #{updateDto.remarks},
+            dine_in_available = #{updateDto.dineInAvailable, jdbcType=BOOLEAN},
+            promotion_threshold = #{updateDto.promotionThreshold, jdbcType=DECIMAL},
+            promotion_discount = #{updateDto.promotionDiscount, jdbcType=DECIMAL},
             updater = #{updateDto.updater},
             update_time = NOW()
         WHERE id = #{id} AND is_deleted = 0
@@ -114,6 +123,15 @@
             </if>
             <if test="updateDto.remarks != null and updateDto.remarks != ''">
                 remarks = #{updateDto.remarks},
+            </if>
+            <if test="updateDto.dineInAvailable != null">
+                dine_in_available = #{updateDto.dineInAvailable},
+            </if>
+            <if test="updateDto.promotionThreshold != null">
+                promotion_threshold = #{updateDto.promotionThreshold},
+            </if>
+            <if test="updateDto.promotionDiscount != null">
+                promotion_discount = #{updateDto.promotionDiscount},
             </if>
             <if test="updateDto.updater != null">
                 updater = #{updateDto.updater},
@@ -161,6 +179,9 @@
             b.start_price,
             b.delivery_price,
             b.remarks,
+            b.dine_in_available,
+            b.promotion_threshold,
+            b.promotion_discount,
             b.creator as business_creator,
             b.updater as business_updater,
             b.create_time as business_create_time,
@@ -192,6 +213,9 @@
             start_price,
             delivery_price,
             remarks,
+            dine_in_available,
+            promotion_threshold,
+            promotion_discount,
             user_id,
             creator,
             updater,
@@ -207,6 +231,9 @@
                      #{businessDto.startPrice},
                      #{businessDto.deliveryPrice},
                      #{businessDto.remarks},
+                     COALESCE(#{businessDto.dineInAvailable}, 0),
+                     #{businessDto.promotionThreshold},
+                     #{businessDto.promotionDiscount},
                      #{businessDto.businessOwner.id},
                      #{businessDto.creator},
                      #{businessDto.updater},
@@ -226,6 +253,9 @@
         start_price,
         delivery_price,
         remarks,
+        dine_in_available,
+        promotion_threshold,
+        promotion_discount,
         user_id,
         creator,
         updater,
@@ -242,6 +272,9 @@
         #{startPrice},
         #{deliveryPrice},
         #{remarks},
+        COALESCE(#{dineInAvailable}, 0),
+        #{promotionThreshold},
+        #{promotionDiscount},
         #{userId},
         #{creator},
         #{updater},
@@ -257,9 +290,20 @@
         id,
         business_name as businessName,
         business_img as businessImg,
+        business_address as businessAddress,
+        order_type_id as orderTypeId,
         start_price as startPrice,
-        delivery_price as deliveryPrice
-        FROM business
+        delivery_price as deliveryPrice,
+        dine_in_available as dineInAvailable,
+        promotion_threshold as promotionThreshold,
+        promotion_discount as promotionDiscount,
+        demo_rating as score,
+        demo_sales_count as salesCount,
+        create_time as createTime,
+        (SELECT COALESCE(AVG(o.order_total), b.start_price)
+           FROM orders o
+          WHERE o.business_id = b.id AND o.order_state = 7 AND o.is_deleted = 0) as averagePrice
+        FROM business b
         WHERE is_deleted = 0 AND status = 1
         <if test="keyword != null and keyword != ''">
             AND (business_name LIKE CONCAT('%', #{keyword}, '%')
@@ -288,6 +332,9 @@
             start_price,
             order_type_id,
             remarks,
+            dine_in_available,
+            promotion_threshold,
+            promotion_discount,
             create_time,
             creator,
             is_deleted,
@@ -304,6 +351,9 @@
                      #{startPrice},
                      #{orderTypeId},
                      #{remarks},
+                     COALESCE(#{dineInAvailable}, 0),
+                     #{promotionThreshold},
+                     #{promotionDiscount},
                      #{createTime},
                      #{creator},
                      #{is_deleted},

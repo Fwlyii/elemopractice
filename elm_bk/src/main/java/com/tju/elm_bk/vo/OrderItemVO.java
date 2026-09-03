@@ -36,4 +36,7 @@ public class OrderItemVO {
     @Schema(description = "商家图片")
     private String businessImg;
 
+    @Schema(description = "履约方式：DELIVERY 外送、PICKUP 自取")
+    private String serviceMode;
+
 }

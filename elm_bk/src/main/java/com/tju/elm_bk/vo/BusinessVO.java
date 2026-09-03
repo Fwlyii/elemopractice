@@ -60,6 +60,15 @@ public class BusinessVO {
     @Schema(description = "备注")
     private String remarks;
 
+    @Schema(description = "是否支持堂食")
+    private Boolean dineInAvailable;
+
+    @Schema(description = "满减门槛")
+    private BigDecimal promotionThreshold;
+
+    @Schema(description = "满减优惠金额")
+    private BigDecimal promotionDiscount;
+
     @Schema(description = "所属商家用户")
     private UserVO businessOwner;
 

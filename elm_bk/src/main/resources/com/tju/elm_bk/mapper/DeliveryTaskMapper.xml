@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tju.elm_bk.mapper.DeliveryTaskMapper">
+
+    <sql id="taskViewColumns">
+        dt.id, dt.order_id, dt.rider_user_id, dt.task_status, dt.version,
+        dt.distance_km, dt.rider_fee, dt.accepted_time, dt.arrived_store_time,
+        dt.pickup_time, dt.delivered_time, dt.completed_time, dt.create_time,
+        o.order_state, o.order_total,
+        b.business_name, b.business_address,
+        u.username AS customer_name,
+        da.address AS delivery_address, da.contact_name, da.contact_tel,
+        rp.real_name AS rider_name
+    </sql>
+
+    <sql id="taskViewJoins">
+        FROM delivery_task dt
+        JOIN orders o ON o.id = dt.order_id AND o.is_deleted = 0
+        JOIN business b ON b.id = o.business_id AND b.is_deleted = 0
+        JOIN users u ON u.id = o.customer_id AND u.is_deleted = 0
+        JOIN delivery_address da ON da.id = o.address_id AND da.is_deleted = 0
+        LEFT JOIN rider_profile rp ON rp.user_id = dt.rider_user_id
+    </sql>
+
+    <insert id="insertTask" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO delivery_task
+          (order_id, rider_user_id, task_status, version, distance_km, rider_fee, create_time, update_time)
+        VALUES
+          (#{orderId}, #{riderUserId}, #{taskStatus}, 0, #{distanceKm}, #{riderFee}, NOW(), NOW())
+    </insert>
+
+    <select id="selectById" resultType="com.tju.elm_bk.entity.DeliveryTask">
+        SELECT * FROM delivery_task WHERE id = #{id}
+    </select>
+
+    <select id="selectByOrderId" resultType="com.tju.elm_bk.entity.DeliveryTask">
+        SELECT * FROM delivery_task WHERE order_id = #{orderId}
+    </select>
+
+    <select id="selectViewById" resultType="com.tju.elm_bk.vo.DeliveryTaskVO">
+        SELECT <include refid="taskViewColumns"/>
+        <include refid="taskViewJoins"/>
+        WHERE dt.id = #{id}
+    </select>
+
+    <select id="selectViewByOrderId" resultType="com.tju.elm_bk.vo.DeliveryTaskVO">
+        SELECT <include refid="taskViewColumns"/>
+        <include refid="taskViewJoins"/>
+        WHERE dt.order_id = #{orderId}
+    </select>
+
+    <select id="listAvailable" resultType="com.tju.elm_bk.vo.DeliveryTaskVO">
+        SELECT <include refid="taskViewColumns"/>
+        <include refid="taskViewJoins"/>
+        WHERE dt.task_status = 'WAITING_RIDER' AND dt.rider_user_id IS NULL
+        ORDER BY dt.create_time
+    </select>
+
+    <select id="listByRider" resultType="com.tju.elm_bk.vo.DeliveryTaskVO">
+        SELECT <include refid="taskViewColumns"/>
+        <include refid="taskViewJoins"/>
+        WHERE dt.rider_user_id = #{riderUserId}
+        <if test="active != null and active">
+            AND dt.task_status NOT IN ('COMPLETED', 'CANCELLED')
+        </if>
+        <if test="active != null and !active">
+            AND dt.task_status IN ('COMPLETED', 'CANCELLED')
+        </if>
+        ORDER BY dt.create_time DESC
+    </select>
+
+    <update id="acceptTask">
+        UPDATE delivery_task
+        SET rider_user_id = #{riderUserId}, task_status = 'ACCEPTED', accepted_time = NOW(),
+            version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND rider_user_id IS NULL AND task_status = 'WAITING_RIDER'
+    </update>
+
+    <update id="markArrivedStore">
+        UPDATE delivery_task
+        SET task_status = 'ARRIVED_STORE', arrived_store_time = NOW(), version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND rider_user_id = #{riderUserId} AND task_status = 'ACCEPTED'
+    </update>
+
+    <update id="markPickedUp">
+        UPDATE delivery_task
+        SET task_status = 'DELIVERING', pickup_time = NOW(), version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND rider_user_id = #{riderUserId} AND task_status = 'ARRIVED_STORE'
+    </update>
+
+    <update id="markDelivered">
+        UPDATE delivery_task
+        SET task_status = 'DELIVERED', delivered_time = NOW(), version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND rider_user_id = #{riderUserId} AND task_status = 'DELIVERING'
+    </update>
+
+    <update id="markCompleted">
+        UPDATE delivery_task
+        SET task_status = 'COMPLETED', completed_time = NOW(), version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND task_status = 'DELIVERED'
+    </update>
+
+    <update id="autoCompleteDelivered">
+        UPDATE delivery_task SET task_status='COMPLETED', completed_time=NOW(), version=version+1, update_time=NOW()
+        WHERE order_id=#{orderId} AND task_status='DELIVERED'
+    </update>
+
+    <update id="markException">
+        UPDATE delivery_task
+        SET task_status = 'EXCEPTION', version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND rider_user_id = #{riderUserId}
+          AND task_status IN ('ACCEPTED', 'ARRIVED_STORE', 'DELIVERING', 'DELIVERED')
+    </update>
+
+    <update id="resumeFromException">
+        UPDATE delivery_task
+        SET task_status = #{targetStatus}, version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND task_status = 'EXCEPTION'
+    </update>
+
+    <update id="reassignFromException">
+        UPDATE delivery_task
+        SET rider_user_id = NULL, task_status = 'WAITING_RIDER', accepted_time = NULL,
+            arrived_store_time = NULL, pickup_time = NULL, delivered_time = NULL,
+            version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND task_status = 'EXCEPTION'
+    </update>
+
+    <update id="cancelFromException">
+        UPDATE delivery_task
+        SET task_status = 'CANCELLED', version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND task_status = 'EXCEPTION'
+    </update>
+
+    <update id="cancelWaitingTask">
+        UPDATE delivery_task
+        SET task_status = 'CANCELLED', version = version + 1, update_time = NOW()
+        WHERE id = #{taskId} AND task_status = 'WAITING_RIDER'
+    </update>
+
+    <select id="countActiveByRider" resultType="int">
+        SELECT COUNT(*) FROM delivery_task
+        WHERE rider_user_id = #{riderUserId} AND task_status NOT IN ('COMPLETED', 'CANCELLED')
+    </select>
+
+    <insert id="insertException" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO delivery_exception
+          (task_id, rider_user_id, exception_type, description, previous_task_status, status, create_time)
+        VALUES
+          (#{taskId}, #{riderUserId}, #{exceptionType}, #{description}, #{previousTaskStatus}, 0, NOW())
+    </insert>
+
+    <select id="selectExceptionById" resultType="com.tju.elm_bk.entity.DeliveryException">
+        SELECT * FROM delivery_exception WHERE id = #{id}
+    </select>
+
+    <select id="selectOpenExceptionByTask" resultType="com.tju.elm_bk.entity.DeliveryException">
+        SELECT * FROM delivery_exception WHERE task_id = #{taskId} AND status = 0 ORDER BY id DESC LIMIT 1
+    </select>
+
+    <select id="listExceptions" resultType="com.tju.elm_bk.vo.DeliveryExceptionVO">
+        SELECT de.*, dt.order_id, rp.real_name AS rider_name,
+               b.business_name, u.username AS customer_name
+        FROM delivery_exception de
+        JOIN delivery_task dt ON dt.id = de.task_id
+        JOIN orders o ON o.id = dt.order_id
+        JOIN business b ON b.id = o.business_id
+        JOIN users u ON u.id = o.customer_id
+        LEFT JOIN rider_profile rp ON rp.user_id = de.rider_user_id
+        <where>
+            <if test="status != null">de.status = #{status}</if>
+        </where>
+        ORDER BY de.create_time DESC
+    </select>
+
+    <update id="resolveException">
+        UPDATE delivery_exception
+        SET status = 1, resolution_action = #{action}, resolution_note = #{note},
+            resolver_user_id = #{resolverUserId}, resolved_time = NOW()
+        WHERE id = #{id} AND status = 0
+    </update>
+</mapper>

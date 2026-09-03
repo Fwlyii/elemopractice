@@ -26,7 +26,7 @@
 			<ul class="order-detailed">
 				<li v-for="item in cartArr" :key="item.id">
 					<div class="order-detailed-left">
-						<img :src="item.food.foodImg">
+						<img :src="item.food.foodImg || require('../assets/food-default.png')" @error="handleImageError" alt="食物图片">
 						<p>{{ item.food.foodName }} x {{ item.quantity }}</p>
 					</div>
 					<p>&#165;{{ (item.food.foodPrice * item.quantity).toFixed(2) }}</p>
@@ -45,7 +45,7 @@
 					<!-- 先检查 food[item.foodId] 是否存在 -->
 					<template v-if="food[item.foodId]">
 						<div class="cart-img">
-							<img :src="food[item.foodId].foodImg">
+							<img :src="food[item.foodId].foodImg || require('../assets/food-default.png')" @error="handleImageError" alt="食物图片">
 							<div class="cart-img-quantity" v-show="item.quantity > 0">{{ item.quantity }}</div>
 						</div>
 						<div class="cart-info">
@@ -82,7 +82,6 @@
 
 <script>
 import { ref, computed, onMounted, defineComponent } from 'vue';
-import Footer from '../components/Footer.vue';
 import axios from 'axios';
 import { useRouter, useRoute } from 'vue-router';
 import { toast } from '../utils/toast';
@@ -262,6 +261,13 @@ if (businessId.value) {
 			}
 		};
 
+		const handleImageError = (event) => {
+			const image = event?.target;
+			if (!image || image.dataset.fallbackApplied === 'true') return;
+			image.dataset.fallbackApplied = 'true';
+			image.src = require('../assets/food-default.png');
+		};
+
 		return {
 			businessId,
 			business,
@@ -272,12 +278,10 @@ if (businessId.value) {
 			sexFilter,
 			toUserAddress,
 			toPayment,
+			handleImageError,
 			deliver,
 			loading
 		};
-	},
-	components: {
-		Footer
 	}
 };
 </script>

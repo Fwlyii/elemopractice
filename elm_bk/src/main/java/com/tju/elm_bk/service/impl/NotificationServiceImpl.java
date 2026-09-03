@@ -22,7 +22,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void readNotification(Long id) {
-        notificationMapper.updateRead(id, LocalDateTime.now());
+    public void readNotification(Long id, Long userId) {
+        notificationMapper.updateRead(id, userId, LocalDateTime.now());
     }
 }

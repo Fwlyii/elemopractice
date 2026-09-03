@@ -34,4 +34,10 @@ public class CartItemVO {
 
     @Schema(description = "商品单价")
     private Double foodPrice;
+
+    @Schema(description = "可售库存")
+    private Integer stock;
+
+    @Schema(description = "单笔限购数量，空表示不限购")
+    private Integer purchaseLimit;
 }

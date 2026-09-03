@@ -54,4 +54,7 @@ public class OrderVO {
 
     @Schema(description = "地址对象")
     private AddressVO deliveryAddress;
+
+    @Schema(description = "履约方式：DELIVERY 外送、PICKUP 自取")
+    private String serviceMode;
 }

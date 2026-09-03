@@ -520,7 +520,7 @@ export default {
 
 /* 触发按钮 */
 .chat-trigger {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0097ff;
   color: white;
   border-radius: 15px;
   padding: 10px 20px; /* 进一步减少内边距 */
@@ -540,7 +540,7 @@ export default {
 
 .chat-trigger:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 6px 18px rgba(0, 151, 255, 0.28);
 }
 
 .chat-trigger.active {
@@ -590,7 +590,7 @@ export default {
 
 /* 聊天头部 */
 .chat-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0097ff;
   color: white;
   padding: 15px 20px;
   display: flex;
@@ -600,7 +600,7 @@ export default {
 }
 
 .chat-header:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6d4190 100%);
+  background: #087dcc;
 }
 
 .header-left {

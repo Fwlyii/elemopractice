@@ -297,10 +297,7 @@
                         // 在实际项目中，这里应该调用您的SpringBoot后端
                         // 前端直接调用高德API仅用于演示，实际生产应通过后端调用
                         const ip = ipAddress.value || '42.81.64.7';
-                        const apiKey = new URLSearchParams(window.location.search).get('amapKey');
-                        if (!apiKey) {
-                            throw new Error('缺少高德地图 API Key，请通过 ?amapKey=... 提供');
-                        }
+                        const apiKey = '7784a0a8b44aa4fcc9bdc34c218c4a0c';
                         const url = `https://restapi.amap.com/v3/ip?ip=${ip}&output=JSON&key=${apiKey}`;
                         
                         const response = await fetch(url);

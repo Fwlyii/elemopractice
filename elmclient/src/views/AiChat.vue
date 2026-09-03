@@ -19,6 +19,12 @@
       </div>
     </div>
 
+    <section class="smart-order-bar">
+      <div class="smart-order-title"><i class="fa fa-magic"></i><span>智能点餐</span><small>按口味和预算匹配在售菜品</small></div>
+      <div class="smart-order-form"><input v-model="smartQuery" placeholder="例如：清淡、牛肉、早餐" @keyup.enter="findSmartFoods"><input v-model="smartBudget" type="number" min="1" placeholder="预算¥"><button @click="findSmartFoods" :disabled="smartLoading">{{ smartLoading ? '匹配中' : '开始匹配' }}</button></div>
+      <div v-if="smartFoods.length" class="smart-results"><div v-for="food in smartFoods" :key="food.foodId" class="smart-food"><div><b>{{ food.foodName }}</b><span>{{ food.businessName }} · ¥{{ food.price }}</span></div><button @click="addSmartToCart(food)">加入购物车</button></div></div>
+    </section>
+
     <!-- 聊天区域 -->
     <div class="chat-area">
       <!-- 消息列表 -->
@@ -201,6 +207,7 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import aiChatService from '../services/aiChatService'
+import request from '../utils/request'
 
 export default {
   name: 'AiChat',
@@ -218,6 +225,10 @@ export default {
     const messageInput = ref(null)
     const currentSessionId = ref(null)
     const detectedChatType = ref('general')
+    const smartQuery = ref('')
+    const smartBudget = ref('')
+    const smartFoods = ref([])
+    const smartLoading = ref(false)
     
     // AI状态
     const aiStatus = ref({
@@ -327,6 +338,12 @@ export default {
       inputMessage.value = question
       sendMessage()
     }
+
+    const findSmartFoods = async () => {
+      smartLoading.value = true
+      try { const result = await request.get('/api/ai/chat/recommendations', { params: { query: smartQuery.value, budget: smartBudget.value || undefined } }); if (result.success) smartFoods.value = result.data || []; if (!smartFoods.value.length) messages.value.push({ type:'ai', content:'暂时没有符合条件的在售菜品，可以换个口味或提高预算试试。', timestamp:new Date() }) } catch (e) { messages.value.push({type:'ai',content:'智能点餐暂时不可用，请稍后再试。',timestamp:new Date()}) } finally { smartLoading.value = false }
+    }
+    const addSmartToCart = async (food) => { try { const result = await request.get('/api/carts/add', { params: { foodId: food.foodId, quantity: 1 } }); if (result.success) messages.value.push({type:'ai',content:`已将${food.foodName}加入购物车，可前往购物车确认。`,timestamp:new Date()}) } catch (e) { messages.value.push({type:'ai',content:'加入购物车失败，请先登录或刷新重试。',timestamp:new Date()}) } }
 
     // 获取AI回复
     const getAIResponse = async (userInput) => {
@@ -519,6 +536,7 @@ export default {
       formatTime,
       truncateText,
       getChatTypeText
+      ,smartQuery,smartBudget,smartFoods,smartLoading,findSmartFoods,addSmartToCart
     }
   }
 }
@@ -529,7 +547,7 @@ export default {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f5f9fd;
 }
 
 /* 页面头部 */
@@ -1242,4 +1260,8 @@ export default {
     padding: 20px 15px;
   }
 }
+</style>
+
+<style scoped>
+.smart-order-bar{background:#fff;border-bottom:1px solid #deebf4;padding:12px 18px}.smart-order-title{display:flex;align-items:center;gap:8px;color:#168bd1}.smart-order-title small{color:#8aa0b2;font-size:12px;margin-left:4px}.smart-order-form{display:flex;gap:8px;margin-top:9px}.smart-order-form input{min-width:0;flex:1;border:1px solid #d7e4ee;border-radius:6px;padding:8px 10px}.smart-order-form input[type=number]{max-width:78px}.smart-order-form button,.smart-food button{border:0;border-radius:6px;background:#168bd1;color:#fff;padding:8px 12px;white-space:nowrap}.smart-results{display:grid;gap:7px;margin-top:10px;max-height:150px;overflow:auto}.smart-food{display:flex;align-items:center;justify-content:space-between;background:#f6faff;border:1px solid #e4eef6;border-radius:7px;padding:8px 10px}.smart-food b,.smart-food span{display:block}.smart-food b{font-size:13px;color:#315a78}.smart-food span{font-size:11px;color:#8ba0b1;margin-top:3px}.smart-food button{font-size:12px;padding:6px 9px}@media(max-width:375px){.smart-order-form{flex-wrap:wrap}.smart-order-form input:first-child{flex-basis:100%}.smart-order-form input[type=number]{max-width:none}.smart-order-form button{flex:1}}
 </style>

@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,15 @@ import java.util.Map;
 import java.util.HashMap;
 import com.tju.elm_bk.entity.Order;
 import com.tju.elm_bk.mapper.OrdersMapper;
+import com.tju.elm_bk.mapper.FoodMapper;
+import com.tju.elm_bk.mapper.BusinessMapper;
+import com.tju.elm_bk.mapper.PreferenceMapper;
+import com.tju.elm_bk.mapper.AiChatHistoryMapper;
+import com.tju.elm_bk.entity.Food;
+import com.tju.elm_bk.entity.Business;
+import com.tju.elm_bk.vo.AiRecommendationVO;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 
 @Slf4j
 @RestController
@@ -36,6 +46,10 @@ public class AiChatController {
     private final AiChatService aiChatService;
     private final UserMapper userMapper;
     private final OrdersMapper ordersMapper;
+    private final FoodMapper foodMapper;
+    private final BusinessMapper businessMapper;
+    private final PreferenceMapper preferenceMapper;
+    private final AiChatHistoryMapper chatHistoryMapper;
     
     /**
      * 获取当前用户ID的辅助方法
@@ -59,12 +73,18 @@ public class AiChatController {
     @Operation(summary = "发送消息给AI客服", description = "用户发送消息给AI客服，获取智能回复")
     public HttpResult<AiChatResponseVO> chat(@Valid @RequestBody AiChatRequestDTO request) {
         try {
-            // 如果请求中没有用户ID，尝试从安全上下文获取
-            if (request.getUserId() == null) {
-                Long currentUserId = getCurrentUserId();
-                if (currentUserId != null) {
-                    request.setUserId(currentUserId);
+            // 账号上下文优先于请求体中的 userId，避免伪造身份读取或写入他人会话。
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId != null) {
+                request.setUserId(currentUserId);
+                if (request.getSessionId() != null && !request.getSessionId().isBlank()) {
+                    Long sessionUserId = chatHistoryMapper.findUserIdBySessionId(request.getSessionId());
+                    if (sessionUserId != null && !currentUserId.equals(sessionUserId) && !isAdmin()) {
+                        throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
+                    }
                 }
+            } else if (request.getUserId() != null) {
+                request.setUserId(null);
             }
             
             log.info("AI聊天请求: userId={}, message={}, chatType={}", 
@@ -77,6 +97,8 @@ public class AiChatController {
             
             return HttpResult.success(response);
             
+        } catch (APIException e) {
+            throw e;
         } catch (Exception e) {
             log.error("AI聊天处理失败", e);
             throw new APIException(ResultCodeEnum.SERVER_ERROR);
@@ -97,18 +119,14 @@ public class AiChatController {
             @RequestParam(defaultValue = "20") Integer size) {
         
         try {
-            // 如果没有传入用户ID，使用当前登录用户
-            if (userId == null) {
-                userId = getCurrentUserId();
-                if (userId == null) {
-                    throw new APIException(ResultCodeEnum.UNAUTHORIZED);
-                }
-            }
-            
-            // 权限检查：只能查看自己的对话历史（除非是管理员）
             Long currentUserId = getCurrentUserId();
-            if (currentUserId != null && !currentUserId.equals(userId)) {
-                // 这里可以添加管理员权限检查
+            if (currentUserId == null) {
+                throw new APIException(ResultCodeEnum.UNAUTHORIZED);
+            }
+            if (userId == null) {
+                userId = currentUserId;
+            }
+            if (!currentUserId.equals(userId) && !isAdmin()) {
                 throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
             }
             
@@ -136,7 +154,11 @@ public class AiChatController {
             if (sessionId == null || sessionId.trim().isEmpty()) {
                 throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
             }
-            
+            Long currentUserId = getCurrentUserId();
+            Long sessionUserId = chatHistoryMapper.findUserIdBySessionId(sessionId);
+            if (currentUserId == null || sessionUserId == null || (!currentUserId.equals(sessionUserId) && !isAdmin())) {
+                throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
+            }
             List<AiChatHistoryVO> history = aiChatService.getChatHistoryBySession(sessionId);
             return HttpResult.success(history);
             
@@ -218,11 +240,61 @@ public class AiChatController {
             throw new APIException(ResultCodeEnum.SERVER_ERROR);
         }
     }
+
+    /** 结构化智能点餐：推荐结果来自在售菜品，前端可直接加入购物车，不把模型文本当作价格或商品事实。 */
+    @GetMapping("/recommendations")
+    @Operation(summary = "结构化智能点餐推荐")
+    public HttpResult<List<AiRecommendationVO>> recommendations(
+        @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(required = false) BigDecimal budget) {
+        String keyword = query == null ? "" : query.trim();
+        User preferenceUser = currentUserOrNull();
+        if (keyword.isEmpty() && preferenceUser != null) {
+            var preference = preferenceMapper.findByUserId(preferenceUser.getId());
+            if (preference != null && preference.getTasteTags() != null && !preference.getTasteTags().isBlank()) {
+                keyword = preference.getTasteTags().split("[,，\\s]+", 2)[0];
+            } else if (preference != null && preference.getCategoryTags() != null && !preference.getCategoryTags().isBlank()) {
+                keyword = preference.getCategoryTags().split("[,，\\s]+", 2)[0];
+            }
+        }
+        List<Food> foods = foodMapper.searchByKeyword(keyword, 20);
+        if (preferenceUser != null) {
+            var preference = preferenceMapper.findByUserId(preferenceUser.getId());
+            if (preference != null && preference.getAvoidTags() != null && !preference.getAvoidTags().isBlank()) {
+                var avoid = java.util.Arrays.stream(preference.getAvoidTags().split("[,，\\s]+"))
+                        .filter(s -> !s.isBlank()).toList();
+                foods = foods.stream().filter(f -> avoid.stream().noneMatch(tag ->
+                        (f.getFoodName() != null && f.getFoodName().contains(tag)) ||
+                        (f.getFoodExplain() != null && f.getFoodExplain().contains(tag)))).toList();
+            }
+        }
+        if (budget != null && budget.compareTo(BigDecimal.ZERO) > 0) foods = foods.stream().filter(f -> f.getFoodPrice() != null && f.getFoodPrice().compareTo(budget) <= 0).toList();
+        List<AiRecommendationVO> result = new ArrayList<>();
+        for (Food food : foods.stream().limit(6).toList()) {
+            Business b = businessMapper.selectBusinessById(food.getBusinessId());
+            result.add(new AiRecommendationVO(food.getId(), food.getFoodName(), food.getFoodPrice(), food.getFoodImg(), food.getBusinessId(), b == null ? "" : b.getBusinessName(), "根据在售菜品与预算匹配"));
+        }
+        return HttpResult.success(result);
+    }
+
+    private boolean isAdmin() {
+        try {
+            User u = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElse(""));
+            return u != null && u.getAuthorities() != null
+                    && u.getAuthorities().stream().anyMatch(a -> "ADMIN".equals(a.getName()));
+        } catch (Exception ignored) { return false; }
+    }
+
+    private User currentUserOrNull() {
+        try { return userMapper.findByUsername(SecurityUtils.getCurrentUsername().orElse("")); }
+        catch (Exception ignored) { return null; }
+    }
     
     /**
      * 调试接口：查看用户订单数据
      */
     @GetMapping("/debug/orders/{userId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "调试：查看用户所有订单（测试用）", description = "仅用于调试订单查询问题")
     public HttpResult<Map<String, Object>> debugUserOrders(@PathVariable Long userId) {
         try {

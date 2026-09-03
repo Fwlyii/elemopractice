@@ -4,6 +4,7 @@ import com.tju.elm_bk.entity.Notification;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,6 +16,6 @@ public interface NotificationMapper {
     @Select("SELECT * FROM notification WHERE user_id = #{userId} AND is_deleted = 0 ORDER BY create_time DESC;")
     List<Notification> list(Long userId);
 
-    @Update("UPDATE notification SET is_read =1,read_time = #{readTime} WHERE id = #{id}")
-    void updateRead(Long id, LocalDateTime readTime);
+    @Update("UPDATE notification SET is_read =1,read_time = #{readTime} WHERE id = #{id} AND user_id = #{userId}")
+    void updateRead(@Param("id") Long id, @Param("userId") Long userId, @Param("readTime") LocalDateTime readTime);
 }

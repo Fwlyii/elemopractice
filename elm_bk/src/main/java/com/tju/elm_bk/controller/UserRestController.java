@@ -247,6 +247,17 @@ public class UserRestController {
         if (username == null || username.trim().isEmpty()) {
             throw new APIException("用户名不能为空");
         }
+        if (newUser.getPhone() == null || !newUser.getPhone().matches("^1[3-9]\\d{9}$")) {
+            throw new APIException("手机号必须为11位有效手机号");
+        }
+        if (personMapper.countByPhone(newUser.getPhone()) > 0) {
+            throw new APIException("手机号已注册，请更换其他手机号");
+        }
+        String rawPassword = newUser.getPassword();
+        if (rawPassword == null || rawPassword.length() < 8 || rawPassword.length() > 32
+                || !rawPassword.matches(".*[A-Za-z].*") || !rawPassword.matches(".*\\d.*")) {
+            throw new APIException("密码长度需为8-32位且同时包含字母和数字");
+        }
 
         // 检查数据库中是否已存在相同用户名
         User existingUser = userService.findByUsername(username);
@@ -262,7 +273,7 @@ public class UserRestController {
         user.setIsDeleted(false);
 
         // 加密密码
-        user.setPassword(passwordEncoder.encode(user.getPassword() != null ? user.getPassword() : "password"));
+        user.setPassword(passwordEncoder.encode(rawPassword));
         Person person = new Person();
         BeanUtils.copyProperties(newUser, person);
 

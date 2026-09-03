@@ -3,13 +3,13 @@
     <!-- 固定顶部栏 -->
     <div class="fixed-top">
       <div class="top-background">
-        <h1>个人信息</h1>
+        <h1>{{ riderMode ? '骑手中心' : '个人信息' }}</h1>
       </div>
     </div>
 
     <div class="user-card">
       <div class="avatar" @click="triggerFileInput">
-        <img :src="userInfo?.photo || require('@/assets/default-avatar.png')" alt="用户头像">
+        <img :src="userInfo?.photo || require('@/assets/default-avatar.png')" alt="用户头像" @error="handleImageError">
         <div class="avatar-overlay">
           <i class="fas fa-camera"></i>
           <span>更换头像</span>
@@ -35,9 +35,8 @@
         </div>
       </div>
       <div class="card-button-section">
-        <button class="switch-btn" @click="switchToMerchant">
-          <i class="fas fa-store"></i>
-          {{ userInfo.authorities?.some(auth => auth.name === 'BUSINESS') ? '切换到商家端' : '申请成为商家' }}
+        <button v-if="riderMode" class="switch-btn rider-entry-btn" @click="backToRiderDashboard">
+          <i class="fas fa-route"></i> 返回配送工作台
         </button>
         <button class="logout-btn" @click="logout">
           <i class="fas fa-sign-out-alt"></i>退出登录
@@ -45,10 +44,36 @@
       </div>
     </div>
 
+    <div v-if="!riderMode" class="identity-section">
+      <div class="section-title">身份中心</div>
+      <div class="identity-grid">
+        <button class="identity-item" @click="goToRole('user')">
+          <span class="identity-icon user"><i class="fas fa-user"></i></span>
+          <span class="identity-copy"><b>用户端</b><small>浏览商家、下单</small></span>
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        <button class="identity-item" @click="goToRole('merchant')">
+          <span class="identity-icon merchant"><i class="fas fa-store"></i></span>
+          <span class="identity-copy"><b>商家端</b><small>{{ hasBusiness ? '进入经营工作台' : '登录或申请商家身份' }}</small></span>
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        <button class="identity-item" @click="goToRole('rider')">
+          <span class="identity-icon rider"><i class="fas fa-motorcycle"></i></span>
+          <span class="identity-copy"><b>骑手端</b><small>{{ hasRider ? '进入接单广场' : '登录或申请骑手身份' }}</small></span>
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        <button v-if="hasAdmin" class="identity-item" @click="goToRole('admin')">
+          <span class="identity-icon admin"><i class="fas fa-shield-alt"></i></span>
+          <span class="identity-copy"><b>管理端</b><small>进入平台管理后台</small></span>
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
     <!-- 隐藏的文件输入框 -->
     <input type="file" ref="fileInput" style="display: none" accept="image/*" @change="handleFileUpload">
 
-    <div class="menu-section">
+    <div v-if="!riderMode" class="menu-section">
       <div class="section-title">常用功能</div>
       <div class="menu-list">
         <div class="menu-item" @click="showAddressSection = !showAddressSection">
@@ -58,6 +83,7 @@
           <span class="menu-text">收货地址</span>
           <i class="fas fa-chevron-right menu-arrow"></i>
         </div>
+        <AddressManager v-if="showAddressSection" :id="userInfo?.id" class="address-manager" />
         <div class="menu-item" @click="myfavorite">
           <div class="menu-icon">
             <i class="fas fa-heart"></i>
@@ -75,6 +101,43 @@
           </div>
           <i class="fas fa-chevron-right menu-arrow"></i>
         </div>
+        <div class="menu-item" @click="navigateTo('assets')">
+          <div class="menu-icon"><i class="fas fa-wallet"></i></div>
+          <span class="menu-text">钱包与优惠</span>
+          <i class="fas fa-chevron-right menu-arrow"></i>
+        </div>
+        <div class="menu-item" @click="navigateTo('preferences')">
+          <div class="menu-icon"><i class="fas fa-palette"></i></div>
+          <span class="menu-text">偏好与外观</span>
+          <i class="fas fa-chevron-right menu-arrow"></i>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="menu-section rider-menu-section">
+      <div class="section-title">骑手工具</div>
+      <div class="menu-list">
+        <div class="menu-item" @click="goRiderTab('active')">
+          <div class="menu-icon"><i class="fas fa-route"></i></div>
+          <span class="menu-text">配送中的订单</span>
+          <i class="fas fa-chevron-right menu-arrow"></i>
+        </div>
+        <div class="menu-item" @click="goRiderTab('history')">
+          <div class="menu-icon"><i class="fas fa-history"></i></div>
+          <span class="menu-text">历史配送</span>
+          <i class="fas fa-chevron-right menu-arrow"></i>
+        </div>
+        <div class="menu-item message-item" @click="navigateTo('notifications')">
+          <div class="menu-icon"><i class="fas fa-bell"></i></div>
+          <span class="menu-text">消息与通知</span>
+          <div class="notification-badge" v-if="unreadMessageCount > 0">{{ unreadMessageCount }}</div>
+          <i class="fas fa-chevron-right menu-arrow"></i>
+        </div>
+        <div class="menu-item" @click="openEditModal">
+          <div class="menu-icon"><i class="fas fa-id-card"></i></div>
+          <span class="menu-text">个人资料</span>
+          <i class="fas fa-chevron-right menu-arrow"></i>
+        </div>
       </div>
     </div>
 
@@ -83,8 +146,6 @@
       <i class="fas fa-spinner fa-spin"></i> 上传中...
     </div>
 
-    <AddressManager v-if="showAddressSection" :id="userInfo?.id" class="address-manager" />
-
     <div class="loading" v-if="loading">
       <i class="fas fa-spinner fa-spin"></i> 加载中...
     </div>
@@ -92,8 +153,6 @@
     <div class="error-message" v-if="errorMessage">
       <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
     </div>
-
-    <Footer />
 
     <div v-if="showEditModal" class="modal-overlay">
       <div class="modal-content">
@@ -121,50 +180,41 @@
       </div>
     </div>
 
-    <div v-if="showMerchantApplyModal" class="modal-overlay">
-      <div class="modal-content merchant-apply-modal">
-        <div class="modal-icon">
-          <i class="fas fa-store"></i>
-        </div>
-        <h3>申请成为商家</h3>
-        <p class="modal-message">当前无商家权限，是否申请成为商家？</p>
-        <div class="modal-buttons">
-          <button class="apply-btn" @click="applyForMerchant">申请</button>
-          <button class="cancel-btn" @click="closeMerchantApplyModal">否</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
 // (保持 script 部分不变)
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import Footer from '../components/Footer.vue';
 import AddressManager from '../components/AddressManager.vue';
 import request from '../utils/request';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { toast } from '../utils/toast';
+import { getWebSocketUrl } from '../utils/endpoints';
+import { hasAuthority } from '../utils/roles';
 
 export default {
   name: 'MyApplication',
   components: {
-    Footer,
     AddressManager
   },
   setup() {
+    const route = useRoute();
     const router = useRouter();
     const userInfo = ref({});
     const loading = ref(false);
     const errorMessage = ref('');
     const showEditModal = ref(false);
-    const showMerchantApplyModal = ref(false);
     const showAddressSection = ref(false);
     const unreadMessageCount = ref(0);
     const uploading = ref(false);
     const fileInput = ref(null);
     const webSocket = ref(null);
     const isConnected = ref(false);
+    const riderMode = computed(() => route.query.role === 'rider');
+    const hasBusiness = computed(() => hasAuthority(userInfo.value, 'BUSINESS'));
+    const hasRider = computed(() => hasAuthority(userInfo.value, 'RIDER'));
+    const hasAdmin = computed(() => hasAuthority(userInfo.value, 'ADMIN'));
 
     const editFormData = ref({
       firstName: '',
@@ -190,8 +240,7 @@ export default {
 
       try {
         const sid = `client-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//110.42.60.144:8080/ws/${sid}`; // 替换为实际后端 WebSocket 地址
+        const wsUrl = getWebSocketUrl(`/ws/${sid}`);
 
         webSocket.value = new WebSocket(wsUrl);
 
@@ -248,7 +297,7 @@ export default {
       toast.info(`新消息：${message.content}`);
       if (message.content.includes('您的成为商家申请已通过审核')) {
         if (userInfo.value.authorities && Array.isArray(userInfo.value.authorities)) {
-          const hasBusinessAuth = userInfo.value.authorities.some(auth => auth.name === 'BUSINESS');
+          const hasBusinessAuth = hasAuthority(userInfo.value, 'BUSINESS');
           if (!hasBusinessAuth) {
             userInfo.value.authorities.push({ name: 'BUSINESS' });
             const tokenFromLocal = localStorage.getItem('token');
@@ -380,20 +429,17 @@ export default {
       sessionStorage.removeItem('userInfo');
       router.push({ path: '/index' });
     };
-    const switchToMerchant = async () => {
-      try {
-        const hasBusinessPermission = userInfo.value.authorities?.some(
-          auth => auth.name === 'BUSINESS'
-        );
-        if (hasBusinessPermission) {
-          router.push({ name: 'MerchantProfile' });
-        } else {
-          showMerchantApplyModal.value = true;
-        }
-      } catch (error) {
-        console.error('检查商家权限失败:', error);
-        toast.error('请勿重复申请');
-      }
+    const backToRiderDashboard = () => {
+      router.push({ path: '/rider/dashboard', query: { tab: 'available' } });
+    };
+    const goRiderTab = (tab) => {
+      router.push({ path: '/rider/dashboard', query: { tab } });
+    };
+    const goToRole = (role) => {
+      if (role === 'user') return router.push('/index');
+      if (role === 'admin') return hasAdmin.value ? router.push('/admin/home') : toast.warning('当前账号没有管理员权限');
+      if (role === 'merchant') return hasBusiness.value ? router.push('/merchant/business') : router.push('/login?role=merchant');
+      if (role === 'rider') return hasRider.value ? router.push('/rider/dashboard?tab=available') : router.push('/rider/apply');
     };
     const openEditModal = () => {
       if (userInfo.value) {
@@ -406,28 +452,6 @@ export default {
     };
     const closeEditModal = () => {
       showEditModal.value = false;
-    };
-    const closeMerchantApplyModal = () => {
-      showMerchantApplyModal.value = false;
-    };
-    const applyForMerchant = async () => {
-      try {
-        const token = getToken();
-        const response = await request.post('/api/permission/apply-merchant', {}, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response && response.success) {
-          toast.success('申请成功，请等待管理员审核！');
-          closeMerchantApplyModal();
-        } else {
-          toast.error(response.message);
-        }
-      } catch (error) {
-        // console.error('申请成为商家失败:', error);
-        toast.error(error);
-      }
     };
     const submitEdits = async () => {
       if (!editFormData.value.phone) {
@@ -467,12 +491,23 @@ export default {
     const myfavorite = () => {
       router.push({ path: '/favorites' });
     };
+    const handleImageError = (event) => {
+      const image = event?.target;
+      if (!image || image.dataset.fallbackApplied === 'true') return;
+      image.dataset.fallbackApplied = 'true';
+      image.src = require('@/assets/default-avatar.png');
+    };
     const navigateTo = (page) => {
       const pageRoutes = {
-        'notifications': '/notifications'
+        'notifications': '/notifications',
+        'assets': '/assets',
+        'preferences': '/preferences'
       };
       if (pageRoutes[page]) {
-        router.push({ path: pageRoutes[page] });
+        router.push({
+          path: pageRoutes[page],
+          ...(riderMode.value && page === 'notifications' ? { query: { role: 'rider' } } : {})
+        });
         if (page === 'notifications') {
           unreadMessageCount.value = 0;
         }
@@ -487,18 +522,22 @@ export default {
       uploading,
       errorMessage,
       showEditModal,
-      showMerchantApplyModal,
       editFormData,
       fileInput,
       logout,
       openEditModal,
       closeEditModal,
-      closeMerchantApplyModal,
-      applyForMerchant,
       submitEdits,
       myfavorite,
+      handleImageError,
       navigateTo,
-      switchToMerchant,
+      backToRiderDashboard,
+      goRiderTab,
+      goToRole,
+      riderMode,
+      hasBusiness,
+      hasRider,
+      hasAdmin,
       showAddressSection,
       triggerFileInput,
       handleFileUpload,
@@ -511,62 +550,42 @@ export default {
 <style scoped>
 /* 保持原有的样式，只修改或新增以下部分 */
 .container {
+  width: 100%;
   max-width: 600px;
   background: #fff;
   min-height: 100vh;
+  margin: 0 auto;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border-radius: 16px;
-  padding-bottom: 20vh;
+  border-radius: 0;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   position: relative;
+  box-sizing: border-box;
 }
 
 /****************** 固定顶部栏 ******************/
 .fixed-top {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
+  left: auto;
   width: 100%;
   z-index: 1000;
-  max-width: 600px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 .top-background {
   width: 100%;
-  height: 100px;
-  background: linear-gradient(to right, #3a7bd5, #00d2ff);
+  height: 72px;
+  background: #168bd1;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-radius: 16px 16px 0 0;
+  box-shadow: 0 2px 8px rgba(25, 104, 156, 0.14);
+  border-radius: 0;
   position: relative;
-  overflow: hidden;
-}
-
-.top-background::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
-  transform: rotate(30deg);
-  animation: shine 6s infinite linear;
-}
-
-@keyframes shine {
-  0% {
-    transform: rotate(30deg) translate(-10%, -10%);
-  }
-
-  100% {
-    transform: rotate(30deg) translate(10%, 10%);
-  }
 }
 
 .top-background h1 {
@@ -590,24 +609,21 @@ export default {
 }
 
 .user-card {
-  width: 92%;
-  max-width: 500px;
-  margin: 0 auto 20px;
+  width: calc(100% - 32px);
+  max-width: 560px;
+  margin: 18px auto 0;
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  padding: 20px 0;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(31, 75, 122, 0.10);
+  padding: 20px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   position: relative;
   z-index: 2;
-  transform: translateY(-50px);
   flex-wrap: wrap;
-  /* 允许元素换行 */
-  justify-content: center;
-  top:21vw;
-  /* 居中对齐子元素 */
+  justify-content: flex-start;
 }
 
 /* 新增：卡片内的按钮区域 */
@@ -615,8 +631,8 @@ export default {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  padding: 0 20px 20px;
+  gap: 10px;
+  padding: 0;
   /* 增加内边距，保持与卡片一致 */
   box-sizing: border-box;
 }
@@ -694,10 +710,9 @@ export default {
 }
 
 .menu-section {
-  width: 92%;
-  max-width: 500px;
-  margin: 80px auto;
-  transform: translateY(-50px);
+  width: calc(100% - 32px);
+  max-width: 560px;
+  margin: 24px auto 0;
 }
 
 .section-title {
@@ -763,7 +778,6 @@ export default {
   padding: 15px;
   color: #3498db;
   font-size: 1rem;
-  transform: translateY(-50px);
 }
 
 .error-message {
@@ -774,7 +788,6 @@ export default {
   border-radius: 8px;
   margin: 10px;
   font-size: 0.9rem;
-  transform: translateY(-50px);
 }
 
 .modal-overlay {
@@ -863,72 +876,16 @@ export default {
   background: #c7c7c7;
 }
 
-.merchant-apply-modal {
-  text-align: center;
-  max-width: 350px;
-}
-
-.modal-icon {
-  font-size: 3rem;
-  color: #ff6b6b;
-  margin-bottom: 15px;
-}
-
-.modal-icon i {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.1);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-.modal-message {
-  color: #666;
-  font-size: 1rem;
-  margin: 15px 0 25px 0;
-  line-height: 1.5;
-}
-
-.apply-btn {
-  background: linear-gradient(135deg, #ff6b6b, #ff8e8e) !important;
-  color: white !important;
-  font-weight: 600;
-  padding: 12px 24px !important;
-  margin-right: 10px;
-  transition: all 0.3s ease;
-}
-
-.apply-btn:hover {
-  background: linear-gradient(135deg, #ff5252, #ff7979) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-}
-
-.cancel-btn {
-  background: #e0e0e0 !important;
-  color: #666 !important;
-  font-weight: 500;
-  padding: 12px 24px !important;
-  transition: all 0.3s ease;
-}
-
-.cancel-btn:hover {
-  background: #d0d0d0 !important;
-  transform: translateY(-2px);
-}
-
 .menu-item.message-item {
   position: relative;
+}
+
+.rider-menu-section {
+  margin-top: 80px;
+}
+
+.rider-menu-section .menu-item {
+  min-height: 56px;
 }
 
 .notification-badge {
@@ -957,13 +914,14 @@ export default {
   .menu-section,
   .card-button-section {
     max-width: 100vw;
-    width: 100vw;
-    border-radius: 0;
-    padding: 0;
+  }
+
+  .container {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
   .top-background {
-    height: 90px;
+    height: 68px;
     border-radius: 0;
   }
 
@@ -971,10 +929,10 @@ export default {
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    padding: 20px 0;
-    margin-top: 15vw;
-    transform: translateY(-50px);
-    width: 90%;
+    padding: 18px 14px;
+    margin: 14px 12px 0;
+    width: calc(100% - 24px);
+    border-radius: 14px;
   }
 
   .avatar {
@@ -984,7 +942,7 @@ export default {
   }
 
   .user-details {
-    width: 85%;
+    width: 100%;
     padding: 10px;
     gap: 6px;
     margin-right: 0;
@@ -995,9 +953,14 @@ export default {
   }
 
   .card-button-section {
-    width: 85%;
+    width: 100%;
     padding: 0;
     margin: 10px 0;
+  }
+
+  .menu-section,
+  .identity-section {
+    width: calc(100% - 24px);
   }
 }
 
@@ -1059,8 +1022,7 @@ export default {
   width: 100%;
   padding: 14px;
   text-align: center;
-  background: linear-gradient(135deg, #2782dd, #61c8f4);
-  /* 修改为蓝紫色渐变 */
+  background: #168bd1;
   color: white;
   font-weight: 600;
   border-radius: 12px;
@@ -1077,12 +1039,15 @@ export default {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
+.rider-entry-btn {
+  background: #159a78;
+}
+
 .logout-btn {
   width: 100%;
   padding: 14px;
   text-align: center;
-  background: linear-gradient(135deg, #3258cc, #71a3ff);
-  /* 修改为浅紫色渐变 */
+  background: #4f83b8;
   color: white;
   font-weight: 600;
   border-radius: 12px;
@@ -1094,8 +1059,7 @@ export default {
 }
 
 .logout-btn:hover {
-  background: linear-gradient(135deg, #8e80f0, #4c20a2);
-  /* 调整hover效果的颜色 */
+  background: #3d6f9f;
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
@@ -1107,5 +1071,72 @@ export default {
 .address-manager {
   margin-top: -120px; /* 向上移动 */
   transform: translateY(-20px); /* 进一步调整位置 */
+}
+
+/* 身份中心：让不同工作台在“我的”中可以快速切换 */
+.identity-section {
+  width: calc(100% - 32px);
+  max-width: 560px;
+  margin: 24px auto 0;
+}
+.identity-grid {
+  display: grid;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e4edf6;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(31, 75, 122, .05);
+}
+.identity-item {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 1px solid #edf2f7;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  color: #8497aa;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+.identity-item:last-child { border-bottom: 0; }
+.identity-item:hover { background: #f5faff; }
+.identity-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+.identity-icon.user,.identity-icon.merchant,.identity-icon.rider,.identity-icon.admin { background: #eaf5ff; color: #1684cb; }
+.identity-copy { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.identity-copy b { color: #38536f; font-size: 14px; font-weight: 600; }
+.identity-copy small { color: #8ca0b3; font-size: 11px; }
+.identity-item > i { color: #b4c3d0; font-size: 12px; }
+
+/* 页面层级整理：固定顶部和底部导航不应遮挡内容，身份入口与个人卡片保持独立间距。 */
+.identity-section { margin-top: 24px; }
+.menu-section { margin-top: 24px; }
+.rider-menu-section { margin-top: 24px; }
+.address-manager { margin-top: 16px; transform: none; }
+.menu-list > .address-manager {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  transform: none;
+  border-top: 1px solid #eef3f7;
+}
+.menu-list > .address-manager .section-title {
+  margin: 14px 16px 10px;
+  font-size: 15px;
+}
+.menu-list > .address-manager .menu-list {
+  border-radius: 0;
+  box-shadow: none;
 }
 </style>

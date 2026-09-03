@@ -16,6 +16,9 @@
         <result property="foodImg" column="food_img"/>
         <result property="foodPrice" column="food_price"/>
         <result property="remarks" column="remarks"/>
+        <result property="stock" column="stock"/>
+        <result property="category" column="category"/>
+        <result property="purchaseLimit" column="purchase_limit"/>
         <result property="foodPrice" column="food_price"/>
         <association property="business" resultMap="businessVOResultMap"/>
     </resultMap>
@@ -67,6 +70,9 @@
             f.food_img,
             f.food_price,
             f.remarks,
+            f.stock,
+            f.category,
+            f.purchase_limit,
             f.business_id,
 
             b.business_name as business_business_name,
@@ -109,6 +115,9 @@
         f.food_img,
         f.food_price,
         f.remarks,
+        f.stock,
+        f.category,
+        f.purchase_limit,
         f.business_id,
 
         b.business_name as business_business_name,
@@ -149,8 +158,8 @@
     </select>
 
     <insert id="insertFood" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO food (create_time, creator, is_deleted, update_time, updater, food_explain, food_img, food_name, food_price, remarks, business_id)
-        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{foodExplain}, #{foodImg}, #{foodName}, #{foodPrice}, #{remarks}, #{businessId})
+        INSERT INTO food (create_time, creator, is_deleted, update_time, updater, food_explain, food_img, food_name, food_price, remarks, business_id, stock, category, purchase_limit)
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{foodExplain}, #{foodImg}, #{foodName}, #{foodPrice}, #{remarks}, #{businessId}, COALESCE(#{stock}, 100), COALESCE(NULLIF(#{category}, ''), '招牌推荐'), #{purchaseLimit})
     </insert>
 
 
@@ -164,6 +173,7 @@
             f.is_deleted = 0 and b.id = #{businessId}
             <if test="shelveStatus != null">
                 and f.shelve_status = #{shelveStatus}
+                <if test="shelveStatus == 1">and f.stock &gt; 0</if>
             </if>
         </where>
         order by f.shelve_status desc

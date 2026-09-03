@@ -64,8 +64,8 @@ public interface BusinessMapper {
 
     Integer applyForAddBusiness(Business  business);
 
-    // 统计已完成的订单数量（ order_state=3 ）
-    @Select("SELECT COUNT(*) FROM `orders` WHERE business_id = #{businessId} AND order_state = 3 AND is_deleted = 0")
+    // 统计已完成的订单数量（订单状态 7）。首页销量标签、商家经营数据统一使用这一口径。
+    @Select("SELECT COUNT(*) FROM `orders` WHERE business_id = #{businessId} AND order_state = 7 AND is_deleted = 0")
     Integer getSalesCount(@Param("businessId") Long businessId);
 
     /**

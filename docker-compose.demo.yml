@@ -1,0 +1,56 @@
+services:
+  mysql:
+    image: mysql:8.0.40
+    environment:
+      MYSQL_DATABASE: elm_v2
+      MYSQL_USER: elm_demo
+      MYSQL_PASSWORD: elm_demo_password
+      MYSQL_ROOT_PASSWORD: elm_demo_root_password
+      TZ: Asia/Shanghai
+    ports:
+      - "13306:3306"
+    volumes:
+      - ./elm_bk/elm_v2.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./demo-seed.sql:/docker-entrypoint-initdb.d/02-demo-seed.sql:ro
+      - ./rider-demo-seed.sql:/docker-entrypoint-initdb.d/03-rider-demo-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pelm_demo_root_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build:
+      context: ./elm_bk
+      dockerfile: Dockerfile.demo
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/elm_v2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: elm_demo
+      SPRING_DATASOURCE_PASSWORD: elm_demo_password
+      # 仅供本地/答辩演示；正式环境请在 .env 中覆盖 JWT_SECRET。
+      JWT_SECRET: ${JWT_SECRET:-elm-demo-only-change-this-secret}
+      DEEPSEEK_API_KEY: ""
+      TZ: Asia/Shanghai
+    ports:
+      - "18080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./elmclient
+      dockerfile: Dockerfile.demo
+    ports:
+      - "18081:80"
+    depends_on:
+      - backend
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --protocol http2 --url http://frontend:80
+    profiles:
+      - share
+    depends_on:
+      - frontend
+    restart: unless-stopped

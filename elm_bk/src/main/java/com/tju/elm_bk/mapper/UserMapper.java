@@ -32,4 +32,7 @@ public interface UserMapper {
 
     @Update("UPDATE users SET activated = #{activated} WHERE id = #{id}")
     void updateActivated(User user);
+
+    @Select("SELECT ua.user_id FROM user_authority ua WHERE ua.authority_name = #{authorityName}")
+    List<Long> findUserIdsByAuthority(@Param("authorityName") String authorityName);
 }

@@ -30,3 +30,273 @@
   /* 过渡效果 */
   --transition-ease: all 0.3s ease;
 }
+
+/* 深色主题仍沿用平台蓝色体系，只降低背景与卡片亮度，避免出现“炫技式”配色。 */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background-light: #101b28;
+  --text-dark: #e7f0f7;
+  --text-medium: #c4d4e1;
+  --text-light: #9fb2c2;
+  --border-color: #29445a;
+  --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-medium: 0 5px 15px rgba(0, 0, 0, 0.24);
+  --shadow-large: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #app {
+  background: #101b28;
+  color: #e7f0f7;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: #17283a;
+  color: #e7f0f7;
+  border-color: #36536b;
+}
+
+/* 兼容旧页面的硬编码白色卡片；新页面优先使用 CSS 变量。 */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .container-card,
+html[data-theme="dark"] .balance-card,
+html[data-theme="dark"] .asset-grid > div,
+html[data-theme="dark"] .coupon-card,
+html[data-theme="dark"] .membership-card,
+html[data-theme="dark"] .stats-card,
+html[data-theme="dark"] .ledger-card {
+  background: #17283a !important;
+  border-color: #29445a !important;
+  color: #e7f0f7;
+}
+
+html[data-theme="dark"] .preferences-page {
+  background: #101b28 !important;
+  color: #e7f0f7 !important;
+}
+
+html[data-theme="dark"] .settings-card {
+  background: #17283a !important;
+  border-color: #29445a !important;
+  color: #e7f0f7;
+}
+
+html[data-theme="dark"] .card-heading h2,
+html[data-theme="dark"] .field-row,
+html[data-theme="dark"] .input-field {
+  color: #e7f0f7;
+}
+
+html[data-theme="dark"] .card-heading p,
+html[data-theme="dark"] .field-hint {
+  color: #9fb2c2;
+}
+
+html[data-theme="dark"] .heading-icon {
+  background: #203b52;
+  color: #76bde9;
+}
+
+html[data-theme="dark"] .field-row,
+html[data-theme="dark"] .input-field {
+  border-color: #29445a;
+}
+
+html[data-theme="dark"] .secondary-button {
+  background: #203b52;
+  color: #c4d4e1;
+}
+
+html[data-theme="dark"] .assets-page {
+  background: #101b28 !important;
+  color: #e7f0f7 !important;
+}
+
+html[data-theme="dark"] .footer,
+html[data-theme="dark"] .role-footer,
+html[data-theme="dark"] .bottom-nav {
+  background: #142437 !important;
+  border-color: #29445a !important;
+  box-shadow: 0 -3px 12px rgba(0, 0, 0, .24) !important;
+}
+
+html[data-theme="dark"] .footer > li,
+html[data-theme="dark"] .nav-item {
+  color: #9fb2c2;
+}
+
+/* 主题变体：保持信息层级和交互语义不变，只替换平台的色彩令牌。 */
+html[data-theme="mint"] {
+  color-scheme: light;
+  --primary-color: #159a78;
+  --secondary-color: #8bd1b6;
+  --tertiary-color: #1aaa82;
+  --accent-color: #159a78;
+  --background-light: #f3fbf8;
+  --text-dark: #244d45;
+  --text-medium: #4f7068;
+  --text-light: #77928b;
+  --border-color: #cfe9df;
+}
+
+html[data-theme="warm"] {
+  color-scheme: light;
+  --primary-color: #df8a2e;
+  --secondary-color: #e9bd78;
+  --tertiary-color: #e28c2f;
+  --accent-color: #d97e20;
+  --background-light: #fffaf2;
+  --text-dark: #5b432c;
+  --text-medium: #80664b;
+  --text-light: #a48a6f;
+  --border-color: #f0dfc5;
+}
+
+html[data-theme="mint"] body,
+html[data-theme="mint"] #app {
+  background: #f3fbf8;
+  color: #244d45;
+}
+
+html[data-theme="warm"] body,
+html[data-theme="warm"] #app {
+  background: #fffaf2;
+  color: #5b432c;
+}
+
+html[data-theme="mint"] .page-header,
+html[data-theme="mint"] .header,
+html[data-theme="mint"] .top-background,
+html[data-theme="mint"] .fixed-top .top-background,
+html[data-theme="mint"] header,
+html[data-theme="mint"] .search-fixed-top {
+  background: #159a78 !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+html[data-theme="warm"] .page-header,
+html[data-theme="warm"] .header,
+html[data-theme="warm"] .top-background,
+html[data-theme="warm"] .fixed-top .top-background,
+html[data-theme="warm"] header,
+html[data-theme="warm"] .search-fixed-top {
+  background: #df8a2e !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+html[data-theme="mint"] .page-header h1,
+html[data-theme="mint"] .header h1,
+html[data-theme="mint"] .header p,
+html[data-theme="mint"] .top-background h1,
+html[data-theme="mint"] .top-background p,
+html[data-theme="warm"] .page-header h1,
+html[data-theme="warm"] .header h1,
+html[data-theme="warm"] .header p,
+html[data-theme="warm"] .top-background h1,
+html[data-theme="warm"] .top-background p {
+  color: #fff !important;
+}
+
+html[data-theme="mint"] .wrapper,
+html[data-theme="mint"] .container,
+html[data-theme="mint"] .preferences-page,
+html[data-theme="mint"] .assets-page,
+html[data-theme="mint"] .login-page,
+html[data-theme="mint"] .rider-page,
+html[data-theme="mint"] .admin-container,
+html[data-theme="mint"] .shop-management-page,
+html[data-theme="mint"] .merchant-page {
+  background: #f3fbf8 !important;
+  color: #244d45;
+}
+
+html[data-theme="warm"] .wrapper,
+html[data-theme="warm"] .container,
+html[data-theme="warm"] .preferences-page,
+html[data-theme="warm"] .assets-page,
+html[data-theme="warm"] .login-page,
+html[data-theme="warm"] .rider-page,
+html[data-theme="warm"] .admin-container,
+html[data-theme="warm"] .shop-management-page,
+html[data-theme="warm"] .merchant-page {
+  background: #fffaf2 !important;
+  color: #5b432c;
+}
+
+html[data-theme="mint"] .settings-card,
+html[data-theme="mint"] .balance-card,
+html[data-theme="mint"] .coupon-card,
+html[data-theme="mint"] .membership-card,
+html[data-theme="mint"] .asset-grid > div,
+html[data-theme="mint"] .panel,
+html[data-theme="mint"] .workspace,
+html[data-theme="mint"] .stat-card,
+html[data-theme="mint"] .business-item,
+html[data-theme="mint"] .order-card {
+  border-color: #cfe9df !important;
+}
+
+html[data-theme="warm"] .settings-card,
+html[data-theme="warm"] .balance-card,
+html[data-theme="warm"] .coupon-card,
+html[data-theme="warm"] .membership-card,
+html[data-theme="warm"] .asset-grid > div,
+html[data-theme="warm"] .panel,
+html[data-theme="warm"] .workspace,
+html[data-theme="warm"] .stat-card,
+html[data-theme="warm"] .business-item,
+html[data-theme="warm"] .order-card {
+  border-color: #f0dfc5 !important;
+}
+
+html[data-theme="mint"] .primary-button,
+html[data-theme="mint"] .login-button,
+html[data-theme="mint"] .checkout-order-btn,
+html[data-theme="mint"] .checkout-btn,
+html[data-theme="mint"] .entry-button,
+html[data-theme="mint"] .apply-button,
+html[data-theme="mint"] .accept,
+html[data-theme="mint"] .primary,
+html[data-theme="mint"] .save,
+html[data-theme="mint"] .confirm-btn {
+  background: #159a78 !important;
+}
+
+html[data-theme="warm"] .primary-button,
+html[data-theme="warm"] .login-button,
+html[data-theme="warm"] .checkout-order-btn,
+html[data-theme="warm"] .checkout-btn,
+html[data-theme="warm"] .entry-button,
+html[data-theme="warm"] .apply-button,
+html[data-theme="warm"] .accept,
+html[data-theme="warm"] .primary,
+html[data-theme="warm"] .save,
+html[data-theme="warm"] .confirm-btn {
+  background: #df8a2e !important;
+}
+
+html[data-theme="mint"] .footer,
+html[data-theme="mint"] .role-footer,
+html[data-theme="mint"] .bottom-nav,
+html[data-theme="warm"] .footer,
+html[data-theme="warm"] .role-footer,
+html[data-theme="warm"] .bottom-nav {
+  background: #fff !important;
+}
+
+html[data-theme="mint"] .footer .active,
+html[data-theme="mint"] .role-footer .active,
+html[data-theme="mint"] .bottom-nav .active,
+html[data-theme="mint"] .nav-item.active,
+html[data-theme="warm"] .footer .active,
+html[data-theme="warm"] .role-footer .active,
+html[data-theme="warm"] .bottom-nav .active,
+html[data-theme="warm"] .nav-item.active {
+  color: var(--primary-color) !important;
+}

@@ -61,6 +61,7 @@ CREATE TABLE `authority`  (
 -- ----------------------------
 INSERT INTO `authority` VALUES ('ADMIN');
 INSERT INTO `authority` VALUES ('BUSINESS');
+INSERT INTO `authority` VALUES ('RIDER');
 INSERT INTO `authority` VALUES ('USER');
 
 -- ----------------------------
@@ -82,6 +83,11 @@ CREATE TABLE `business`  (
   `order_type_id` int NULL DEFAULT NULL,
   `remarks` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `start_price` decimal(10, 2) NULL DEFAULT NULL,
+  `dine_in_available` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否支持堂食',
+  `promotion_threshold` decimal(10, 2) NULL DEFAULT NULL COMMENT '满减门槛',
+  `promotion_discount` decimal(10, 2) NULL DEFAULT NULL COMMENT '满减优惠金额',
+  `demo_rating` decimal(3, 2) NULL DEFAULT NULL COMMENT '演示用评分快照，真实业务由评价聚合计算',
+  `demo_sales_count` int NULL DEFAULT NULL COMMENT '演示用近30日销量快照，真实业务由订单聚合计算',
   `user_id` bigint NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0 COMMENT '0-待审核 1-已上线 2-被拒绝',
   PRIMARY KEY (`id`) USING BTREE,
@@ -164,6 +170,9 @@ CREATE TABLE `food`  (
   `remarks` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `business_id` bigint NOT NULL,
   `shelve_status` tinyint NULL DEFAULT 1 COMMENT '0-已下架 1-已上架',
+  `stock` int NOT NULL DEFAULT 100 COMMENT '可售库存',
+  `category` varchar(32) NOT NULL DEFAULT '招牌推荐' COMMENT '商品分类',
+  `purchase_limit` int NULL DEFAULT NULL COMMENT '单笔限购数量，空表示不限购',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `business_id`(`business_id` ASC) USING BTREE,
   CONSTRAINT `food_ibfk_1` FOREIGN KEY (`business_id`) REFERENCES `business` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
@@ -266,10 +275,21 @@ CREATE TABLE `orders`  (
   `customer_id` bigint NOT NULL,
   `address_id` bigint NOT NULL,
   `delivery_price` decimal(10, 2) NOT NULL,
+  `payment_method` varchar(20) NOT NULL DEFAULT 'SIMULATED' COMMENT '支付方式',
+  `points_used` int NOT NULL DEFAULT 0 COMMENT '本单抵扣积分',
+  `wallet_paid` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否钱包支付',
+  `payment_status` varchar(20) NOT NULL DEFAULT 'PENDING' COMMENT '支付状态',
+  `idempotency_key` varchar(64) DEFAULT NULL COMMENT '顾客提交订单幂等键',
+  `service_mode` varchar(16) NOT NULL DEFAULT 'DELIVERY' COMMENT '履约方式：外送或自取',
+  `address_snapshot` varchar(255) DEFAULT NULL COMMENT '下单地址快照',
+  `contact_name_snapshot` varchar(80) DEFAULT NULL,
+  `contact_sex_snapshot` tinyint DEFAULT NULL,
+  `contact_tel_snapshot` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `business_id`(`business_id` ASC) USING BTREE,
   INDEX `customer_id`(`customer_id` ASC) USING BTREE,
   INDEX `address_id`(`address_id` ASC) USING BTREE,
+  UNIQUE KEY `uk_orders_customer_idempotency` (`customer_id`,`idempotency_key`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`business_id`) REFERENCES `business` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `orders_ibfk_3` FOREIGN KEY (`address_id`) REFERENCES `delivery_address` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
@@ -354,5 +374,147 @@ CREATE TABLE `users`  (
 -- ----------------------------
 -- Records of users
 -- ----------------------------
+
+-- ----------------------------
+-- Table structure for rider_profile
+-- ----------------------------
+DROP TABLE IF EXISTS `rider_profile`;
+CREATE TABLE `rider_profile` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `real_name` varchar(50) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `vehicle_type` varchar(20) NOT NULL,
+  `audit_status` tinyint NOT NULL DEFAULT 0 COMMENT '0-待审核 1-已通过 2-已拒绝',
+  `online` tinyint(1) NOT NULL DEFAULT 0,
+  `reject_reason` varchar(255) NULL,
+  `completed_orders` int NOT NULL DEFAULT 0,
+  `total_distance` decimal(10,2) NOT NULL DEFAULT 0,
+  `total_income` decimal(10,2) NOT NULL DEFAULT 0,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_rider_user` (`user_id`),
+  INDEX `idx_rider_audit_online` (`audit_status`, `online`),
+  CONSTRAINT `fk_rider_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB CHARACTER SET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='骑手档案与资质审核';
+
+-- ----------------------------
+-- Table structure for delivery_task
+-- ----------------------------
+DROP TABLE IF EXISTS `delivery_task`;
+CREATE TABLE `delivery_task` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `rider_user_id` bigint NULL,
+  `task_status` varchar(32) NOT NULL,
+  `version` int NOT NULL DEFAULT 0 COMMENT '抢单与状态流转的乐观锁版本',
+  `distance_km` decimal(10,2) NOT NULL DEFAULT 0,
+  `rider_fee` decimal(10,2) NOT NULL DEFAULT 0,
+  `accepted_time` datetime NULL,
+  `arrived_store_time` datetime NULL,
+  `pickup_time` datetime NULL,
+  `delivered_time` datetime NULL,
+  `completed_time` datetime NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_delivery_order` (`order_id`),
+  INDEX `idx_delivery_pool` (`task_status`, `rider_user_id`, `create_time`),
+  INDEX `idx_delivery_rider` (`rider_user_id`, `task_status`),
+  CONSTRAINT `fk_delivery_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
+  CONSTRAINT `fk_delivery_rider` FOREIGN KEY (`rider_user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB CHARACTER SET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='配送任务';
+
+-- ----------------------------
+-- Table structure for delivery_exception
+-- ----------------------------
+DROP TABLE IF EXISTS `delivery_exception`;
+CREATE TABLE `delivery_exception` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `task_id` bigint NOT NULL,
+  `rider_user_id` bigint NOT NULL,
+  `exception_type` varchar(40) NOT NULL,
+  `description` varchar(500) NOT NULL,
+  `previous_task_status` varchar(32) NOT NULL,
+  `status` tinyint NOT NULL DEFAULT 0 COMMENT '0-待处理 1-已处理',
+  `resolution_action` varchar(20) NULL,
+  `resolution_note` varchar(500) NULL,
+  `resolver_user_id` bigint NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_time` datetime NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_exception_status` (`status`, `create_time`),
+  CONSTRAINT `fk_exception_task` FOREIGN KEY (`task_id`) REFERENCES `delivery_task` (`id`),
+  CONSTRAINT `fk_exception_rider` FOREIGN KEY (`rider_user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_exception_resolver` FOREIGN KEY (`resolver_user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB CHARACTER SET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='配送异常工单';
+
+-- ----------------------------
+-- Table structure for order_status_history
+-- ----------------------------
+DROP TABLE IF EXISTS `order_status_history`;
+CREATE TABLE `order_status_history` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `from_status` int NULL,
+  `to_status` int NOT NULL,
+  `operator_user_id` bigint NULL,
+  `reason` varchar(255) NOT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_order_history` (`order_id`, `create_time`),
+  CONSTRAINT `fk_history_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
+  CONSTRAINT `fk_history_operator` FOREIGN KEY (`operator_user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB CHARACTER SET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='订单履约状态轨迹';
+
+-- SRS P1 增量表（与 srs-enhancements-migration.sql 保持一致）
+CREATE TABLE IF NOT EXISTS `review` (
+  `id` bigint NOT NULL AUTO_INCREMENT, `order_id` bigint NOT NULL, `customer_id` bigint NOT NULL,
+  `business_id` bigint NOT NULL, `rating` tinyint NOT NULL, `content` varchar(500) NOT NULL DEFAULT '',
+  `images` varchar(1000) DEFAULT NULL, `merchant_reply` varchar(500) DEFAULT NULL, `reply_time` datetime DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP, `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, `is_hidden` tinyint NOT NULL DEFAULT 0 COMMENT '管理员隐藏标记',
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_review_order` (`order_id`), KEY `idx_review_business` (`business_id`,`create_time`),
+  CONSTRAINT `fk_review_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
+  CONSTRAINT `fk_review_customer` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_review_business` FOREIGN KEY (`business_id`) REFERENCES `business` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_asset` (
+  `id` bigint NOT NULL AUTO_INCREMENT, `user_id` bigint NOT NULL,
+  `balance` decimal(10,2) NOT NULL DEFAULT 0, `points` int NOT NULL DEFAULT 0,
+  `membership_expire` datetime DEFAULT NULL,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_asset_user` (`user_id`),
+  CONSTRAINT `fk_asset_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_coupon` (
+  `id` bigint NOT NULL AUTO_INCREMENT, `user_id` bigint NOT NULL, `name` varchar(80) NOT NULL,
+  `discount_amount` decimal(10,2) NOT NULL, `min_order_amount` decimal(10,2) NOT NULL DEFAULT 0,
+  `expires_at` datetime NOT NULL, `used` tinyint NOT NULL DEFAULT 0, `order_id` bigint DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), KEY `idx_coupon_user` (`user_id`,`used`,`expires_at`),
+  CONSTRAINT `fk_coupon_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_preference` (
+  `id` bigint NOT NULL AUTO_INCREMENT, `user_id` bigint NOT NULL,
+  `theme` varchar(16) NOT NULL DEFAULT 'light', `spicy_level` tinyint NOT NULL DEFAULT 0,
+  `taste_tags` varchar(200) NOT NULL DEFAULT '', `avoid_tags` varchar(200) NOT NULL DEFAULT '',
+  `category_tags` varchar(200) NOT NULL DEFAULT '',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_preference_user` (`user_id`),
+  CONSTRAINT `fk_preference_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_asset_ledger` (
+  `id` bigint NOT NULL AUTO_INCREMENT, `user_id` bigint NOT NULL,
+  `type` varchar(32) NOT NULL, `amount` decimal(10,2) NOT NULL DEFAULT 0,
+  `points_delta` int NOT NULL DEFAULT 0, `reason` varchar(255) NOT NULL,
+  `reference_id` bigint DEFAULT NULL, `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), KEY `idx_asset_ledger_user_time` (`user_id`,`create_time`),
+  CONSTRAINT `fk_asset_ledger_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

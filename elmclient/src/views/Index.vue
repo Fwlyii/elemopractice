@@ -142,101 +142,23 @@
             </li>
         </ul>
 
-        <!-- 销量冠军轮播图部分 -->
-        <div class="top-businesses-carousel">
-            <div class="carousel-header">
-                <h3>🏆 销量冠军榜</h3>
-                <p>最受欢迎的优质商家</p>
+        <!-- 猜你喜欢：保留为轻量横向推荐，不再突出销量冠军或排名 -->
+        <section v-if="suggestedBusinesses.length" class="guess-section" aria-label="猜你喜欢">
+            <div class="section-heading">
+                <div><h2>猜你喜欢</h2><span>附近口碑好店</span></div>
+                <button type="button" @click="scrollToRecommendations">更多 <i class="fa fa-angle-right"></i></button>
             </div>
-
-            <div v-if="!topThreeBusinesses || topThreeBusinesses.length === 0" class="empty-carousel">
-                <div class="empty-state">
-                    <i class="fa fa-trophy"></i>
-                    <p>暂无销量冠军数据</p>
-                </div>
+            <div class="guess-scroll">
+                <button v-for="business in suggestedBusinesses" :key="business.id || business.businessId" type="button" class="guess-card" @click="toBusinessInfo(business.id || business.businessId)">
+                    <img :src="business.businessImg || require('@/assets/business-default.png')" :alt="business.businessName" @error="handleImageError">
+                    <strong>{{ business.businessName || '附近好店' }}</strong>
+                    <span><b>★ {{ business.score || getBusinessRating(business.id || business.businessId) }}</b> · 人均 ¥{{ formatMoney(business.averagePrice || business.avgPrice || 20) }}</span>
+                </button>
             </div>
-
-            <div class="carousel-3d-container" v-if="topThreeBusinesses && topThreeBusinesses.length > 0">
-                <!-- 左侧箭头按钮 -->
-                <div class="carousel-arrow carousel-arrow-left" @click="prevSlide">
-                    <i class="fa fa-chevron-left"></i>
-                </div>
-
-                <!-- 轮播图内容 -->
-                <div v-for="(business, index) in topThreeBusinesses" :key="business.id" :class="[
-                    'carousel-3d-item',
-                    {
-                        'active': index === currentSlide,
-                        'left': index === getPrevIndex(),
-                        'right': index === getNextIndex()
-                    }
-                ]" @click="goToSlide(index)">
-                    <div class="business-card-3d">
-                        <!-- 排名徽章 -->
-                        <div class="rank-badge" :class="getRankClass(index)">
-                            <span>{{ getRankText(index) }}</span>
-                        </div>
-
-                        <!-- 商家图片 -->
-                        <div class="business-image">
-                            <img :src="business.businessImg || require('@/assets/business-default.png')"
-                                :alt="business.businessName" @error="handleImageError" @click="toBusinessInfo(business.id)">
-                        </div>
-
-                        <!-- 商家信息 -->
-                        <div class="business-info">
-                            <h4>{{ business.businessName || '未命名商铺' }}</h4>
-                            <div class="stats">
-                                <div class="stat-item rating-stat">
-                                    <i class="fa fa-star"></i>
-                                    <span>{{ business.score || getBusinessRating(business.id) }}</span>
-                                </div>
-                                <div class="stat-item sales-stat">
-                                    <i class="fa fa-fire"></i>
-                                    <span>{{ business.salesCount || 0 }}</span>
-                                </div>
-                            </div>
-                            <div class="delivery-info">
-                                <div class="delivery-tag">
-                                    <span class="tag-label">起送</span>
-                                    <span class="tag-price">¥{{ (business.startPrice || 0).toFixed(2) }}</span>
-                                </div>
-                                <div class="delivery-tag">
-                                    <span class="tag-label">配送</span>
-                                    <span class="tag-price">¥{{ (business.deliveryPrice || 0).toFixed(2) }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 右侧箭头按钮 -->
-                <div class="carousel-arrow carousel-arrow-right" @click="nextSlide">
-                    <i class="fa fa-chevron-right"></i>
-                </div>
-
-                <!-- 指示器 -->
-                <div class="carousel-indicators">
-                    <span v-for="(business, index) in topThreeBusinesses" :key="index"
-                        :class="['indicator', { active: index === currentSlide }]" @click="goToSlide(index)"></span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 超级会员部分 -->
-        <div class="supermember">
-            <div class="left">
-                <img src="@/assets/super_member.png" alt="超级会员">
-                <h3>超级会员</h3>
-                <p>&#8226; 每月享超值权益</p>
-            </div>
-            <div class="right">
-                立即开通 &gt;
-            </div>
-        </div>
+        </section>
 
         <!-- 推荐商家部分 -->
-        <div class="recommend">
+        <div id="recommendations" class="recommend">
             <div class="recommend-line"></div>
             <p>推荐商家</p>
             <div class="recommend-line"></div>
@@ -274,6 +196,18 @@
                             <label class="filter-option">
                                 <input type="checkbox" v-model="filters.freeDelivery" @change="applyFilters">
                                 <span>免配送费</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" v-model="filters.promotionOnly" @change="applyFilters">
+                                <span>有满减活动</span>
+                            </label>
+                        </div>
+
+                        <div class="filter-section">
+                            <h4>到店方式</h4>
+                            <label class="filter-option">
+                                <input type="checkbox" v-model="filters.dineIn" @change="applyFilters">
+                                <span>支持堂食</span>
                             </label>
                         </div>
 
@@ -323,7 +257,7 @@
         </div>
 
         <ul class="business-list" v-if="businessList && businessList.length > 0">
-            <li v-for="business in businessList" :key="business.id || business.businessId"
+            <li v-for="business in visibleBusinessList" :key="business.id || business.businessId"
                 @click="toBusinessInfo(business.id || business.businessId)">
                 <div class="business-info">
                     <img :src="business.businessImg || require('@/assets/business-default.png')"
@@ -334,6 +268,7 @@
                             <span class="rating-score">{{ business.score || getBusinessRating(business.id ||
                                 business.businessId) }}分</span>
                             <span class="monthly-sales">月售 {{ business.salesCount || 0 }}</span>
+                            <span class="average-price">人均 ¥{{ formatMoney(business.averagePrice || business.startPrice || 0) }}</span>
                         </div>
                         <div class="business-info-delivery">
                             <span class="start-price">起送 ¥{{ (business.startPrice || 0).toFixed(2) }}</span>
@@ -341,14 +276,14 @@
                                 {{ (business.deliveryPrice || 0) === 0 ? '免配送费' : `配送 ¥${(business.deliveryPrice || 0).toFixed(2)}` }}
                             </span>
                         </div>
-                        <div class="business-info-promotion">
-                            <div class="business-info-promotion-left">
-                            </div>
+                        <div class="business-tags">
+                            <span v-for="tag in getBusinessTags(business)" :key="tag.label" :class="['business-tag', `tag-${tag.tone || 'neutral'}`]">{{ tag.label }}</span>
                         </div>
                     </div>
                 </div>
             </li>
         </ul>
+        <button v-if="hasMoreBusinesses" type="button" class="load-more" @click="loadMoreBusinesses">加载更多商家</button>
 <ai-chatbot class="ai-chat"/>
         <!-- 底部菜单部分 -->
 
@@ -357,21 +292,14 @@
 
 <script>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import Footer from '../components/Footer.vue';
 import AiChatbot from '../components/AiChatbot.vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import request from '../utils/request';
 import AMapLoader from '@amap/amap-jsapi-loader';
 import { toast } from '../utils/toast';
-const AMAP_KEY = process.env.VUE_APP_AMAP_KEY;
-
-const requireAmapKey = () => {
-    if (!AMAP_KEY) {
-        throw new Error('缺少 VUE_APP_AMAP_KEY 环境变量');
-    }
-    return AMAP_KEY;
-};
+// 高德地图API key（请替换为你的实际key）
+const AMAP_KEY = '24cce1eb31aec79422f44af47428fc8a';
 
 export default {
     name: 'Index',
@@ -381,12 +309,127 @@ export default {
         const userInfo = ref(null);
         const businessList = ref([]);
         const originalBusinessList = ref([]); // 保存原始数据用于筛选和排序
+        const currentPage = ref(1);
+        const pageSize = 6;
         const ratingMap = ref({});
+        const purchasedBusinessIds = ref(new Set());
+        const suggestedBusinesses = computed(() => businessList.value.slice(0, 3));
+        const visibleBusinessList = computed(() => businessList.value.slice(0, currentPage.value * pageSize));
+        const hasMoreBusinesses = computed(() => visibleBusinessList.value.length < businessList.value.length);
 
-        // 轮播图相关
-        const currentSlide = ref(0);
-        const topThreeBusinesses = ref([]);
-        let autoPlayTimer = null;
+        // 首页标签规则（所有门槛和优先级集中维护，方便后续产品讨论时调整）：
+        // 先生成候选标签，再按优先级最多展示 maxVisibleTags 个，避免标签堆叠。
+        const TAG_RULES = Object.freeze({
+            maxVisibleTags: 3,
+            recentPurchaseDays: 30,
+            newBusinessDays: 30,
+            goodReviewScore: 4.5,
+            popularSales: 10,
+            lovedSales: 30,
+            promotionMinThreshold: 1,
+            promotionMaxDiscountRatio: 1,
+            priorities: Object.freeze({
+                recentPurchase: 120,
+                promotion: 105,
+                newBusiness: 95,
+                lovedByCustomers: 88,
+                goodReview: 85,
+                popularSales: 75,
+                dineIn: 65,
+                freeDelivery: 55,
+                lowStartPrice: 35
+            })
+        });
+
+        const formatMoney = (value) => Number(value || 0).toFixed(2);
+        const formatCount = (value) => {
+            const count = Number(value || 0);
+            return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
+        };
+        const isDineInAvailable = (business) => [true, 1, '1', 'true'].includes(business.dineInAvailable);
+        const hasRecentPurchase = (business) => purchasedBusinessIds.value.has(String(business.id || business.businessId));
+        const isNewBusiness = (business) => {
+            if (!business.createTime) return false;
+            const createdAt = new Date(business.createTime).getTime();
+            const age = Date.now() - createdAt;
+            return Number.isFinite(createdAt) && age >= 0 && age <= TAG_RULES.newBusinessDays * 24 * 60 * 60 * 1000;
+        };
+        const getPromotion = (business) => {
+            const threshold = Number(business.promotionThreshold);
+            const discount = Number(business.promotionDiscount);
+            if (!Number.isFinite(threshold) || !Number.isFinite(discount) || threshold < TAG_RULES.promotionMinThreshold || discount <= 0 || discount >= threshold * TAG_RULES.promotionMaxDiscountRatio) return null;
+            return { threshold, discount };
+        };
+        const tagTone = (label) => {
+            if (!label) return 'neutral';
+            if (label.includes('满') || label.includes('购买') || label.includes('爱不释手')) return 'orange';
+            if (label.includes('好评')) return 'gold';
+            if (label.includes('新店') || label.includes('堂食')) return 'green';
+            if (label.includes('买过') || label.includes('配送')) return 'blue';
+            return 'neutral';
+        };
+        const getBusinessTags = (business) => {
+            // 标签门槛和优先级由后端规则引擎计算，前端只负责呈现颜色与文案。
+            if (Array.isArray(business.recommendationTags) && business.recommendationTags.length) {
+                return business.recommendationTags.map(label => ({ label, tone: tagTone(label) }));
+            }
+            const score = Number(business.score || getBusinessRating(business.id || business.businessId));
+            const sales = Number(business.salesCount || 0);
+            const promotion = getPromotion(business);
+            const candidates = [];
+            if (hasRecentPurchase(business)) candidates.push({ label: '上次买过', priority: TAG_RULES.priorities.recentPurchase, tone: 'blue' });
+            if (promotion) candidates.push({ label: `满${formatMoney(promotion.threshold).replace('.00', '')}减${formatMoney(promotion.discount).replace('.00', '')}`, priority: TAG_RULES.priorities.promotion, tone: 'orange' });
+            if (isNewBusiness(business)) candidates.push({ label: '新店开业', priority: TAG_RULES.priorities.newBusiness, tone: 'green' });
+            // “xx人爱不释手”是组合标签：评分和已完成订单量必须同时达到门槛。
+            if (score >= TAG_RULES.goodReviewScore && sales >= TAG_RULES.lovedSales) {
+                candidates.push({ label: `${formatCount(sales)}人爱不释手`, priority: TAG_RULES.priorities.lovedByCustomers, tone: 'orange' });
+            }
+            if (score >= TAG_RULES.goodReviewScore) candidates.push({ label: '好评如潮', priority: TAG_RULES.priorities.goodReview, tone: 'gold' });
+            if (sales >= TAG_RULES.popularSales) candidates.push({ label: `${formatCount(sales)}人购买`, priority: TAG_RULES.priorities.popularSales, tone: 'orange' });
+            if (isDineInAvailable(business)) candidates.push({ label: '堂食店', priority: TAG_RULES.priorities.dineIn, tone: 'green' });
+            if (Number(business.deliveryPrice || 0) === 0) candidates.push({ label: '免配送费', priority: TAG_RULES.priorities.freeDelivery, tone: 'blue' });
+            if (Number(business.startPrice || 0) <= 20) candidates.push({ label: '低价起送', priority: TAG_RULES.priorities.lowStartPrice, tone: 'neutral' });
+            return candidates.sort((a, b) => b.priority - a.priority).slice(0, TAG_RULES.maxVisibleTags);
+        };
+        const getRecommendationScore = (business) => {
+            if (business.recommendationScore !== undefined && business.recommendationScore !== null) {
+                return Number(business.recommendationScore) || 0;
+            }
+            const score = Number(business.score || getBusinessRating(business.id || business.businessId));
+            const sales = Math.min(Number(business.salesCount || 0), 200);
+            const promotion = getPromotion(business);
+            return (hasRecentPurchase(business) ? 120 : 0)
+                + (isNewBusiness(business) ? 28 : 0)
+                + (promotion ? Math.min(24, promotion.discount * 3) : 0)
+                + Math.max(0, score - 3) * 16
+                + sales * 0.08
+                + (isDineInAvailable(business) ? 5 : 0)
+                + (Number(business.deliveryPrice || 0) === 0 ? 3 : 0);
+        };
+
+        const loadUserOrderHistory = async () => {
+            if (!userInfo.value?.id) return;
+            try {
+                const response = await request.get('/api/orders/list/user');
+                const orders = Array.isArray(response?.data) ? response.data : [];
+                const cutoff = Date.now() - TAG_RULES.recentPurchaseDays * 24 * 60 * 60 * 1000;
+                const recentOrders = orders.filter(order => {
+                    // 兼容旧版 4 和新版 8/9 的取消、异常状态；没有时间字段时保守保留。
+                    if ([4, 8, 9].includes(Number(order.orderState))) return false;
+                    const orderTime = new Date(order.orderDate || order.createTime).getTime();
+                    return !Number.isFinite(orderTime) || orderTime >= cutoff;
+                });
+                purchasedBusinessIds.value = new Set(recentOrders.map(order => String(order.businessId)));
+                if (originalBusinessList.value.length) applyFiltersAndSort();
+            } catch (error) {
+                // 未登录或订单接口不可用时，不影响首页浏览。
+                purchasedBusinessIds.value = new Set();
+            }
+        };
+
+        const scrollToRecommendations = () => {
+            document.getElementById('recommendations')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
 
         const currentLocation = ref('定位中...');
         const searchKeyword = ref('');
@@ -395,7 +438,9 @@ export default {
         const showFilter = ref(false);
         const filters = ref({
             freeDelivery: false,
-            startPrice: '0'
+            startPrice: '0',
+            promotionOnly: false,
+            dineIn: false
         });
         const loading = ref(false);
         const locationData = ref([]);
@@ -446,7 +491,7 @@ export default {
                 // 使用高德地图IP定位API
                 console.log('🌍 开始获取位置信息...');
                 // 直接使用axios而不是request，避免拦截器干扰
-                const response = await axios.get(`https://restapi.amap.com/v3/ip?key=${requireAmapKey()}`);
+                const response = await axios.get(`https://restapi.amap.com/v3/ip?key=${AMAP_KEY}`);
                 console.log('🌍 位置API响应:', response);
 
                 // 高德地图API返回的数据在response.data中
@@ -492,7 +537,7 @@ export default {
         const loadProvinces = async () => {
             loading.value = true;
             try {
-                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${requireAmapKey()}&keywords=中国&subdistrict=1`);
+                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${AMAP_KEY}&keywords=中国&subdistrict=1`);
                 if (response.data.status === '1') {
                     locationData.value = response.data.districts[0].districts;
                     currentLevel.value = 0;
@@ -508,7 +553,7 @@ export default {
         const loadCities = async (provinceCode, provinceName) => {
             loading.value = true;
             try {
-                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${requireAmapKey()}&keywords=${provinceCode}&subdistrict=1`);
+                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${AMAP_KEY}&keywords=${provinceCode}&subdistrict=1`);
                 if (response.data.status === '1' && response.data.districts[0].districts) {
                     locationData.value = response.data.districts[0].districts;
                     currentLevel.value = 1;
@@ -528,7 +573,7 @@ export default {
         const loadDistricts = async (cityCode, cityName) => {
             loading.value = true;
             try {
-                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${requireAmapKey()}&keywords=${cityCode}&subdistrict=1`);
+                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${AMAP_KEY}&keywords=${cityCode}&subdistrict=1`);
                 if (response.data.status === '1' && response.data.districts[0].districts) {
                     locationData.value = response.data.districts[0].districts;
                     currentLevel.value = 2;
@@ -737,82 +782,6 @@ export default {
             return ratingMap.value[businessId] || '1.0';
         };
 
-        // 获取销量前三的商家
-        const updateTopThreeBusinesses = () => {
-            request.get("/api/businesses/carousel")
-                .then(response => {
-                    if (response.success) {
-                        topThreeBusinesses.value = response.data;
-                        console.log('🏆 轮播图更新:', topThreeBusinesses.value.map(b => `${b.businessName}(销量${b.salesCount || 0})`).join(', '));
-
-                        // 关键修改：数据更新后重启自动播放
-                        restartAutoPlay();
-                    }
-                })
-                .catch(error => {
-                    console.error('获取轮播图数据失败:', error);
-                    // 即使失败也要确保有自动播放
-                    restartAutoPlay();
-                });
-        };
-
-        // 轮播控制函数
-        const goToSlide = (index) => {
-            currentSlide.value = index;
-            restartAutoPlay();
-        };
-
-        const nextSlide = () => {
-            currentSlide.value = (currentSlide.value + 1) % topThreeBusinesses.value.length;
-        };
-
-        const prevSlide = () => {
-            currentSlide.value = currentSlide.value === 0
-                ? topThreeBusinesses.value.length - 1
-                : currentSlide.value - 1;
-        };
-
-        const getPrevIndex = () => {
-            return currentSlide.value === 0 ? 2 : currentSlide.value - 1;
-        };
-
-        const getNextIndex = () => {
-            return currentSlide.value === 2 ? 0 : currentSlide.value + 1;
-        };
-
-        // 自动轮播功能
-        const startAutoPlay = () => {
-            if (topThreeBusinesses.value.length > 1) {
-                autoPlayTimer = setInterval(() => {
-                    nextSlide();
-                }, 3000); // 3秒自动切换
-            }
-        };
-
-        const stopAutoPlay = () => {
-            if (autoPlayTimer) {
-                clearInterval(autoPlayTimer);
-                autoPlayTimer = null;
-            }
-        };
-
-        const restartAutoPlay = () => {
-            stopAutoPlay();
-            startAutoPlay();
-        };
-
-        // 排名相关函数
-        const getRankClass = (index) => {
-            const classes = ['champion', 'runner-up', 'third'];
-            return classes[index] || 'other';
-        };
-
-        const getRankText = (index) => {
-            const texts = ['冠军', '亚军', '季军'];
-            return texts[index] || '优秀';
-        };
-
-
         // 排序商家列表
         const sortBusinessList = (list, sortType) => {
             console.log('=== 开始排序商家列表 ===');
@@ -831,8 +800,11 @@ export default {
 
             switch (sortType) {
                 case 'default':
-                    // 综合排序：评分优先，评分相同则按ID排序（ID大的在前，表示较新的商家）
+                    // 综合排序：按“个性化标签 > 评分 > 订单量 > 新鲜度”排序。
+                    // 标签本身由 getBusinessTags 的阈值规则产生，避免首页只按销量粗暴排序。
                     sortedList.sort((a, b) => {
+                        const recommendationDiff = getRecommendationScore(b) - getRecommendationScore(a);
+                        if (Math.abs(recommendationDiff) > 0.01) return recommendationDiff;
                         const scoreA = parseFloat(a.score || getBusinessRating(a.id || a.businessId));
                         const scoreB = parseFloat(b.score || getBusinessRating(b.id || b.businessId));
 
@@ -896,7 +868,7 @@ export default {
         };
 
         const navigateToOrders = () => {
-            router.push({ path: '/orders' });
+            router.push({ path: '/orderList' });
         };
         const handleScroll = () => {
             let scroll = window.scrollY || document.documentElement.scrollTop;
@@ -998,7 +970,6 @@ export default {
             console.log('🧪 硬编码数据:', testData);
             originalBusinessList.value = testData;
             computeRatings();
-            updateTopThreeBusinesses(); // 更新轮播图数据
             applyFiltersAndSort();
         };
 
@@ -1026,7 +997,7 @@ export default {
                 getCurrentLocation();
             }
             // 加载用户信息
-            fetchUserInfo();
+            fetchUserInfo().then(loadUserOrderHistory);
 
             window.addEventListener('scroll', handleScroll);
 
@@ -1037,12 +1008,10 @@ export default {
             // testWithHardcodedData();
 
             getBusinessList(); // 恢复API调用
-            startAutoPlay();
         });
 
         onBeforeUnmount(() => {
             window.removeEventListener('scroll', handleScroll);
-            stopAutoPlay(); // 清理自动轮播定时器
         });
 
         const toBusinessList = (orderTypeId) => {
@@ -1115,13 +1084,11 @@ export default {
                         console.log('🔍 搜索到商家数据:', searchData.length, '个');
                         originalBusinessList.value = searchData;
                         computeRatings();
-                        updateTopThreeBusinesses();
                         applyFiltersAndSort();
                     } else {
                         console.log('🔍 搜索无结果');
                         originalBusinessList.value = [];
                         businessList.value = [];
-                        topThreeBusinesses.value = [];
                     }
 
                 } catch (error) {
@@ -1253,20 +1220,17 @@ export default {
 
                         originalBusinessList.value = businessData;
                         computeRatings();
-                        updateTopThreeBusinesses();
                         applyFiltersAndSort();
 
                         console.log('✅ 数据加载完成:', {
                             总商家数: originalBusinessList.value.length,
                             显示商家数: businessList.value.length,
-                            轮播图商家数: topThreeBusinesses.value.length
                         });
 
                     } else {
                         console.warn('❌ 没有获取到商家数据');
                         originalBusinessList.value = [];
                         businessList.value = [];
-                        topThreeBusinesses.value = [];
                     }
                 })
                 .catch(error => {
@@ -1278,7 +1242,6 @@ export default {
                     // 设置空数据
                     originalBusinessList.value = [];
                     businessList.value = [];
-                    topThreeBusinesses.value = [];
 
                     // 如果是网络错误，可以考虑重试
                     if (error.code === 'NETWORK_ERROR' || error.code === 'ECONNREFUSED') {
@@ -1348,6 +1311,14 @@ export default {
                 console.log(`免配送费筛选: ${beforeCount} -> ${filteredList.length}`);
             }
 
+            if (filters.value.promotionOnly) {
+                filteredList = filteredList.filter(business => getPromotion(business) !== null);
+            }
+
+            if (filters.value.dineIn) {
+                filteredList = filteredList.filter(business => isDineInAvailable(business));
+            }
+
             // 起送价筛选
             if (filters.value.startPrice !== '0') {
                 const maxPrice = parseInt(filters.value.startPrice);
@@ -1365,6 +1336,7 @@ export default {
             const sortedList = sortBusinessList(filteredList, sortBy.value);
 
             businessList.value = sortedList;
+            currentPage.value = 1;
             console.log('筛选和排序后的商家列表:', sortedList.length, '个商家');
 
             // 输出前5个商家的排序信息用于调试
@@ -1419,7 +1391,9 @@ export default {
         const resetFilters = () => {
             filters.value = {
                 freeDelivery: false,
-                startPrice: '0'
+                startPrice: '0',
+                promotionOnly: false,
+                dineIn: false
             };
             sortBy.value = 'default'; // 重置排序为默认
             applyFiltersAndSort();
@@ -1428,6 +1402,10 @@ export default {
         const confirmFilters = () => {
             applyFiltersAndSort();
             hideFilter();
+        };
+
+        const loadMoreBusinesses = () => {
+            if (hasMoreBusinesses.value) currentPage.value += 1;
         };
 
         return {
@@ -1440,6 +1418,9 @@ export default {
             isuser: computed(() => !!userInfo.value),
             navigateToSearch,
             businessList,
+            visibleBusinessList,
+            hasMoreBusinesses,
+            loadMoreBusinesses,
             toBusinessInfo,
             handleImageError,
             getBusinessRating,
@@ -1472,24 +1453,14 @@ export default {
             sortBusinessList,
             testWithHardcodedData,
             testAPIConnection,
-            // 轮播图相关
-            currentSlide,
-            topThreeBusinesses,
-            goToSlide,
-            nextSlide,
-            prevSlide,
-            getPrevIndex,
-            getNextIndex,
-            getRankClass,
-            getRankText,
-            updateTopThreeBusinesses,
-            startAutoPlay,
-            stopAutoPlay,
-            restartAutoPlay
+            suggestedBusinesses,
+            formatMoney,
+            getBusinessTags,
+            getRecommendationScore,
+            scrollToRecommendations
         };
     },
     components: {
-        Footer,
         AiChatbot
     }
 }
@@ -1878,15 +1849,15 @@ export default {
 }
 
 .wrapper .top-businesses-carousel .rank-badge.champion {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
+    background: #1d8bd1;
 }
 
 .wrapper .top-businesses-carousel .rank-badge.runner-up {
-    background: linear-gradient(135deg, #C0C0C0, #A9A9A9);
+    background: #4d9fcf;
 }
 
 .wrapper .top-businesses-carousel .rank-badge.third {
-    background: linear-gradient(135deg, #CD7F32, #B8860B);
+    background: #76b4d8;
 }
 
 .wrapper .top-businesses-carousel .business-image {
@@ -1947,19 +1918,21 @@ export default {
 }
 
 .wrapper .top-businesses-carousel .rating-stat {
-    background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+    background: #eaf5ff;
+    color: #24577e;
 }
 
 .wrapper .top-businesses-carousel .rating-stat .fa-star {
-    color: #FFD700;
+    color: #2588c9;
 }
 
 .wrapper .top-businesses-carousel .sales-stat {
-    background: linear-gradient(135deg, #4ECDC4, #44A08D);
+    background: #edf7fb;
+    color: #24577e;
 }
 
 .wrapper .top-businesses-carousel .sales-stat .fa-fire {
-    color: #FF6B35;
+    color: #2588c9;
 }
 
 .wrapper .top-businesses-carousel .delivery-info {
@@ -2054,7 +2027,7 @@ export default {
 }
 
 .wrapper .top-businesses-carousel .indicator.active {
-    background: #667eea;
+    background: #0097ff;
     transform: scale(1.2);
 }
 
@@ -2298,7 +2271,7 @@ export default {
     align-items: center;
     padding: 20px;
     border-bottom: 1px solid #f0f0f0;
-    background: linear-gradient(135deg, #0097ff, #0066cc);
+    background: #0097ff;
     color: white;
 }
 
@@ -2470,12 +2443,12 @@ export default {
 }
 
 .btn-confirm {
-    background: linear-gradient(135deg, #0097ff, #0066cc);
+    background: #0097ff;
     color: white;
 }
 
 .btn-confirm:hover {
-    background: linear-gradient(135deg, #0080e0, #0055aa);
+    background: #087dcc;
     transform: translateY(-1px);
 }
 
@@ -2585,7 +2558,7 @@ export default {
     align-items: center;
     padding: 20px;
     border-bottom: 1px solid #f0f0f0;
-    background: linear-gradient(135deg, #0097ff, #0066cc);
+    background: #0097ff;
     color: white;
 }
 
@@ -2681,12 +2654,12 @@ export default {
 }
 
 .btn-confirm {
-    background: linear-gradient(135deg, #0097ff, #0066cc);
+    background: #0097ff;
     color: white;
 }
 
 .btn-confirm:hover {
-    background: linear-gradient(135deg, #0080e0, #0055aa);
+    background: #087dcc;
     transform: translateY(-1px);
 }
 
@@ -2695,5 +2668,89 @@ export default {
   bottom: 100px; /* 距离底部40px */
   right: 20px; /* 距离右边20px */
   z-index: 9999;
+}
+
+/* 首页移动端可读性兜底：限制横向内容，避免用户问候和历史样式撑破页面 */
+.wrapper { max-width: 600px; margin: 0 auto; overflow-x: hidden; }
+.wrapper header { min-width: 0; }
+.wrapper header .location-text { min-width: 0; max-width: 48%; font-size: 16px; }
+.wrapper header .location-display { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wrapper .login-register { min-width: 0; margin-left: 8px; }
+.wrapper .login-register .user-info { width: 104px; max-width: 104px; font-size: 13px; overflow: hidden; }
+.wrapper .login-register .scroll-text { display: block; padding-left: 0; animation: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wrapper .top-businesses-carousel { width: calc(100% - 20px); max-width: 560px; overflow: hidden; box-sizing: border-box; }
+.wrapper .top-businesses-carousel .carousel-3d-container { width: 100%; margin: 0; padding: 12px 42px; overflow: hidden; }
+.wrapper .top-businesses-carousel .business-card-3d { width: min(70vw, 260px); min-width: 0; }
+@media (max-width: 480px) {
+    .wrapper header .location-text { max-width: 46%; font-size: 15px; }
+    .wrapper .login-register .user-info { width: 96px; max-width: 96px; }
+    .wrapper .top-businesses-carousel .carousel-3d-container { height: 320px; min-height: 0; padding-left: 36px; padding-right: 36px; }
+}
+
+/* 首页新版信息层级：搜索 → 分类 → 猜你喜欢 → 推荐商家 */
+.wrapper { min-height: 100vh; background: #f5f8fb; color: #314f64; }
+.wrapper header { height: 56px; padding: 0 16px; background: #168bd1; }
+.wrapper header .icon-location-box { width: 20px; height: 20px; margin-right: 7px; }
+.wrapper header .icon-location-box i { font-size: 18px; }
+.wrapper header .location-text { min-width: 0; max-width: 62%; font-size: 15px; font-weight: 500; }
+.wrapper header .login-register { margin-left: auto; gap: 7px; }
+.wrapper header .login-register button { padding: 6px 10px; border-radius: 14px; font-size: 12px; }
+.wrapper .search { height: 68px; }
+.wrapper .search .search-fixed-top { height: 68px; padding: 10px 14px; box-sizing: border-box; background: #168bd1; }
+.wrapper .search .search-fixed-top .search-box { width: 100%; height: 46px; padding: 0 6px 0 15px; box-sizing: border-box; border: 1px solid #cce9f7; border-radius: 24px; background: #fff; color: #91a7b5; font-size: 14px; }
+.wrapper .search .search-fixed-top .search-box input { margin: 0 8px; font-size: 14px; }
+.wrapper .search .search-fixed-top .search-box .search-btn { min-width: 58px; padding: 9px 13px; border-radius: 19px; background: #168bd1; font-size: 13px; }
+.wrapper .foodtype { height: auto; padding: 12px 10px 9px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px 4px; align-content: initial; box-sizing: border-box; border-bottom: 1px solid #e5edf2; }
+.wrapper .foodtype li { width: auto; height: 66px; gap: 4px; }
+.wrapper .foodtype li img { width: 38px; height: 34px; object-fit: contain; }
+.wrapper .foodtype li p { color: #5d7484; font-size: 12px; }
+.guess-section { padding: 13px 14px 12px; background: #fff; border-bottom: 1px solid #e5edf2; }
+.guess-section .section-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 1px 10px; }
+.guess-section .section-heading > div { display: flex; align-items: baseline; gap: 8px; }
+.guess-section .section-heading h2 { color: #31556d; font-size: 17px; }
+.guess-section .section-heading span { color: #9aadb9; font-size: 11px; }
+.guess-section .section-heading button { border: 0; background: transparent; color: #8aa0af; font-size: 12px; cursor: pointer; }
+.guess-scroll { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; }
+.guess-scroll::-webkit-scrollbar { display: none; }
+.guess-card { flex: 0 0 145px; min-width: 0; padding: 8px; border: 1px solid #e1edf4; border-radius: 8px; background: #fff; text-align: left; cursor: pointer; }
+.guess-card img { width: 100%; height: 72px; object-fit: cover; border-radius: 6px; background: #f1f6f8; }
+.guess-card strong { display: block; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #3c5f74; font-size: 13px; }
+.guess-card span { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #94a7b3; font-size: 10px; }
+.guess-card b { color: #e58a4e; font-weight: 500; }
+.wrapper .recommend { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; height: auto; min-height: 52px; box-sizing: border-box; margin: 0; padding: 17px 14px 9px; background: #f5f8fb; }
+.wrapper .recommend p { color: #31556d; font-size: 18px; font-weight: 600; }
+.wrapper .recommend .recommend-line { display: none; }
+.wrapper .recommendtype { position: sticky; top: 0; z-index: 8; width: 100%; height: 44px; margin-bottom: 0; padding: 0 14px; box-sizing: border-box; justify-content: flex-start; gap: 23px; background: #f5f8fb; border-bottom: 1px solid #e2ebf1; }
+.wrapper .recommendtype li { width: auto; height: 44px; padding: 13px 0 10px; color: #6e8798; font-size: 13px; }
+.wrapper .recommendtype li.active { color: #168bd1; font-weight: 600; border-bottom: 2px solid #168bd1; }
+.wrapper .business-list { width: 100%; margin: 0; padding: 0 12px 80px; box-sizing: border-box; }
+.wrapper .business-list li { width: 100%; margin: 0 0 10px; padding: 12px; box-sizing: border-box; border: 1px solid #e1edf4; border-radius: 9px; background: #fff; box-shadow: 0 2px 7px rgba(39,86,114,.05); cursor: pointer; }
+.wrapper .business-list li:hover { transform: none; box-shadow: 0 2px 7px rgba(39,86,114,.05); }
+.wrapper .business-list li .business-info { display: flex; align-items: flex-start; gap: 11px; }
+.wrapper .business-list li .business-info img { width: 98px; height: 98px; flex: 0 0 98px; margin: 0; border-radius: 7px; object-fit: cover; background: #f0f5f8; }
+.wrapper .business-list li .business-info .business-info-detail { min-width: 0; flex: 1; padding-top: 1px; }
+.wrapper .business-list li .business-info .business-info-detail h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #2f526a; font-size: 16px; line-height: 1.35; }
+.wrapper .business-list li .business-info .business-info-rating { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+.wrapper .business-list li .business-info .business-info-rating .rating-score { color: #e07b45; font-size: 15px; font-weight: 600; }
+.wrapper .business-list li .business-info .business-info-rating .monthly-sales,
+.wrapper .business-list li .business-info .business-info-rating .average-price { color: #8399a8; font-size: 11px; }
+.wrapper .business-list li .business-info .business-info-delivery { display: flex; gap: 10px; margin-top: 7px; color: #708797; font-size: 11px; }
+.wrapper .business-list li .business-info .business-info-delivery .start-price,
+.wrapper .business-list li .business-info .business-info-delivery .delivery-fee { color: #708797; font-size: 11px; line-height: 1.4; }
+.wrapper .business-list li .business-info .business-info-delivery .free-delivery { color: #168bd1; }
+.business-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.business-tag { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 6px; border: 1px solid #d9e7ee; border-radius: 3px; font-size: 10px; line-height: 1.1; }
+.business-tag.tag-blue { border-color: #b9def1; background: #f1faff; color: #168bd1; }
+.business-tag.tag-orange { border-color: #f1d0b7; background: #fff8f2; color: #d97b43; }
+.business-tag.tag-gold { border-color: #f0dfb0; background: #fffbef; color: #b48731; }
+.business-tag.tag-green { border-color: #c5e5d2; background: #f2fbf5; color: #3d9b69; }
+.business-tag.tag-neutral { border-color: #dce7ed; background: #f8fbfc; color: #7591a0; }
+.wrapper .empty-business-list { padding: 50px 16px; }
+.load-more { display: block; width: calc(100% - 28px); margin: 2px auto 82px; padding: 11px 0; border: 1px solid #c8e4f4; border-radius: 6px; background: #fff; color: #168bd1; font-size: 13px; cursor: pointer; }
+.load-more:active { background: #f1faff; }
+@media (min-width: 700px) {
+    .wrapper { max-width: 600px; }
+    .wrapper .search .search-fixed-top { max-width: 600px; margin: 0 auto; }
+    .wrapper .business-list { padding-left: 0; padding-right: 0; }
 }
 </style>

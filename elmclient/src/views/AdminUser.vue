@@ -100,7 +100,6 @@
           </div>
         </div>
       </div>
-      <AdminFooter />
     </div>
   </div>
 </template>
@@ -110,7 +109,6 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
-import AdminFooter from '@/components/AdminFooter.vue';
 
 // 路由实例
 const router = useRouter();
@@ -714,5 +712,25 @@ onMounted(() => {
   .user-details {
     flex-direction: column;
   }
+}
+
+/* 管理端保持与主站一致的纯色蓝白界面 */
+.manage-user-container { background: #f5f9fd; color: #24405c; }
+.manage-user-container .container { max-width: 600px; padding-top: 96px; padding-bottom: 72px; border-radius: 0; box-shadow: none; background: #f5f9fd; }
+.manage-user-container .top-background { height: 64px; background: #0097ff; background-image: none; border-radius: 0; box-shadow: 0 1px 0 rgba(0,83,145,.15); }
+.manage-user-container .top-background::before { display: none; }
+.manage-user-container .top-background h1 { font-size: 20px; letter-spacing: 0; text-shadow: none; }
+.manage-user-container .search-section { position: static; transform: none; width: calc(100% - 32px); max-width: 568px; margin: 0 auto 10px; }
+.manage-user-container .filter-section { position: static; transform: none; width: calc(100% - 32px); max-width: 568px; margin: 0 auto 12px; }
+.manage-user-container .user-list { width: calc(100% - 32px); max-width: 568px; margin: 0 auto; transform: none; }
+.manage-user-container .user-item { border: 1px solid #e1edf7; border-radius: 10px; box-shadow: 0 2px 8px rgba(36,91,132,.06); margin-bottom: 10px; }
+.manage-user-container .user-name { color: #24405c; }
+.manage-user-container .user-details { gap: 8px; flex-wrap: wrap; }
+.manage-user-container .user-actions .action-btn { box-shadow: none; }
+@media (max-width: 480px) {
+  .manage-user-container .container { width: 100vw; max-width: 100vw; padding-top: 88px; }
+  .manage-user-container .top-background { height: 64px; }
+  .manage-user-container .search-section { width: calc(100% - 24px); }
+  .manage-user-container .filter-section, .manage-user-container .user-list { width: calc(100% - 24px); }
 }
 </style>

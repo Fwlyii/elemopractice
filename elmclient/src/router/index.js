@@ -3,7 +3,6 @@ import Index from '../views/Index.vue'
 import BusinessList from '../views/BusinessList.vue'
 import BusinessInfo from '../views/BusinessInfo.vue'
 import Login from '../views/Login.vue'
-import Orders from '../views/Orders.vue'
 import UserAddress from '../views/UserAddress.vue'
 import Payment from '../views/Payment.vue'
 import OrderList from '../views/OrderList.vue'
@@ -15,6 +14,8 @@ import SuccessfulPayment from '../views/SuccessfulPayment.vue'
 import MyInformation from '@/views/MyInformation.vue'
 import Favorites from '@/views/Favorites.vue'
 import Notifications from '@/views/Notifications.vue'
+import Assets from '@/views/Assets.vue'
+import Preferences from '@/views/Preferences.vue'
 import AdminUser from '@/views/AdminUser.vue'
 import Search from '@/views/Search.vue'
 import SearchTest from '@/views/SearchTest.vue'
@@ -23,12 +24,16 @@ import BusinessInformation from '@/views/BusinessInformation.vue'
 import BusinessView from '@/views/BusinessView.vue'
 import SubmitItems from '@/views/SubmitItems.vue'
 import AiChat from '@/views/AiChat.vue'
+import RiderApply from '@/views/RiderApply.vue'
+import RiderDashboard from '@/views/RiderDashboard.vue'
+import AdminRiders from '@/views/AdminRiders.vue'
 
 //商家端路由配置
 import MerchantProfile from '../views/MerchantProfile.vue';
 import MerchantBusiness from '../views/MerchantBusiness.vue'
 import MerchantBusinessInfo from '@/views/MerchantBusinessInfo.vue' 
 import MerchantOrders from '../views/MerchantOrders.vue'
+import MerchantReviews from '../views/MerchantReviews.vue'
 
 //管理端路由配置
 import AdminHome from '../views/AdminHome.vue';
@@ -65,8 +70,7 @@ const routes = [
   },
   {
     path: '/orders',
-    name: 'Orders',
-    component: Orders
+    redirect: '/orderList'
   },
   {
     path: '/userAddress',
@@ -123,6 +127,16 @@ const routes = [
     name: 'Notifications',
     component: Notifications,
   },
+  {
+    path: '/assets',
+    name: 'Assets',
+    component: Assets,
+  },
+  {
+    path: '/preferences',
+    name: 'Preferences',
+    component: Preferences,
+  },
  //
   {
     path: '/search',
@@ -139,35 +153,15 @@ const routes = [
     name: 'Cart',
     component: Cart
   },
-  {
-    path:'/merchantOrders',
-    name:'MerchantOrders',
-    component:MerchantOrders
-  },
-  {
-    path:'/merchantProfile',
-    name:'MerchantProfile',
-    component:MerchantProfile
-  },
-  {
-    path:'/merchantBusiness',
-    name:'MerchantBusiness',
-    component:MerchantBusiness
-  },
-  {
-    path:'/merchantBusinessInfo',
-    name:'MerchantBusinessInfo',
-    component:MerchantBusinessInfo
-  },
+  // 兼容上一版演示链接，统一跳转到新的商家工作台路径。
+  { path:'/merchantOrders', redirect:'/merchant/orders' },
+  { path:'/merchantProfile', redirect:'/merchant/profile' },
+  { path:'/merchantBusiness', redirect:'/merchant/business' },
+  { path:'/merchantBusinessInfo', redirect:'/merchant/businessInfo' },
   {
     path:'/businessInformation',
     name:'BusinessInformation',
     component:BusinessInformation
-  },
-  {
-    path:'/merchantProfile',
-    name:'MerchantProfile',
-    component:MerchantProfile
   },
   {
     path:'/businessView',
@@ -179,16 +173,6 @@ const routes = [
   //   name:'BusinessOrderManage',
   //   component:BusinessOrderManage
   // },
-  {
-    path:'/admin/business',
-    name:'AdminBusiness',
-    component:AdminBusiness
-  },
-  {
-    component:AdminShop,
-    path:'/admin/shop',
-    name:'AdminShop'
-  },
   {
     path: '/merchant/profile',
     name: 'MerchantProfile',
@@ -210,6 +194,7 @@ const routes = [
     name: 'MerchantOrders',
     component: MerchantOrders
   },
+  { path: '/merchant/reviews', name: 'MerchantReviews', component: MerchantReviews },
   {
     path:'/submitItems',
     name:'SubmitItems',
@@ -220,6 +205,18 @@ const routes = [
     name: 'AiChat',
     component: AiChat,
     meta: { title: 'AI智能客服' }
+  },
+  {
+    path: '/rider/apply',
+    name: 'RiderApply',
+    component: RiderApply,
+    meta: { title: '申请成为骑手' }
+  },
+  {
+    path: '/rider/dashboard',
+    name: 'RiderDashboard',
+    component: RiderDashboard,
+    meta: { title: '骑手工作台' }
   },
  //
 //管理端
@@ -242,6 +239,11 @@ const routes = [
     path:'/admin/shop',
     name:'AdminShop',
     component:AdminShop
+  },
+  {
+    path:'/admin/riders',
+    name:'AdminRiders',
+    component:AdminRiders
   }
   //
 

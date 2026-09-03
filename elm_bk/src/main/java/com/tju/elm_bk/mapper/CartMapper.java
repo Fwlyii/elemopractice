@@ -19,7 +19,7 @@ public interface CartMapper {
 
     @Select("""
         select c.id,c.business_id,c.quantity,c.food_id,
-           f.food_name,f.food_price,f.food_img,b.business_name
+           f.food_name,f.food_price,f.food_img,f.stock,f.category,f.purchase_limit,b.business_name
         from cart c
         left join food f on f.id = c.food_id and f.is_deleted = 0
         left join business b on c.business_id = b.id and b.is_deleted = 0
@@ -35,6 +35,13 @@ public interface CartMapper {
 
     @Update("update cart set is_deleted = 1 where customer_id = #{userId} and business_id = #{businessId}")
     void clearCart(Long userId,Long businessId);
+
+    @Update({"<script>",
+            "update cart set is_deleted = 1 where customer_id = #{userId} and business_id = #{businessId} and food_id in",
+            "<foreach collection='foodIds' item='foodId' open='(' separator=',' close=')'>#{foodId}</foreach>",
+            "</script>"})
+    void clearCartItems(@Param("userId") Long userId, @Param("businessId") Long businessId,
+                        @Param("foodIds") List<Long> foodIds);
 
     @Update("update cart set is_deleted = 1 where id = #{cartId}")
     void removeCartItem(Long cartId);

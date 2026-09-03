@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { apiBaseUrl } from './endpoints';
 
 // 1. 创建 Axios 实例
 const request = axios.create({
-  baseURL: 'http://110.42.60.144:8080', // 这里填你的后端基础路径（如 http://localhost:8080），如果和前端同域可留空
+  baseURL: apiBaseUrl,
   timeout: 15000, // 请求超时时间增加到15秒
   headers: {
     'Content-Type': 'application/json' // 默认请求格式

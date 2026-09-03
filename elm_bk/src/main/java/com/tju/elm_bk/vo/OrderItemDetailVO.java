@@ -23,6 +23,9 @@ public class OrderItemDetailVO {
     @Schema(description = "订单配送费")
     private BigDecimal deliveryPrice;
 
+    @Schema(description = "履约方式：DELIVERY 外送、PICKUP 自取")
+    private String serviceMode;
+
     @Schema(description = "订单状态(0-待支付,1-待接单,2-已结单,3-已完成,4-已取消")
     private Integer orderState;
 
