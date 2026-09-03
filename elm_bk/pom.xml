@@ -27,7 +27,6 @@
         <url/>
     </scm>
     <properties>
-        <skipTests>true</skipTests>
         <java.version>17</java.version>
         <org.mapstruct.version>1.5.5.Final</org.mapstruct.version>
     </properties>

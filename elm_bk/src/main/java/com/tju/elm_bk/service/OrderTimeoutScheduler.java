@@ -14,6 +14,7 @@ import com.tju.elm_bk.entity.Notification;
 import com.tju.elm_bk.entity.OrderStatusHistory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.math.RoundingMode;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class OrderTimeoutScheduler {
     private final OrdersMapper ordersMapper;

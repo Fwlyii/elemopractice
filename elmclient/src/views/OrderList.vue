@@ -1,16 +1,15 @@
 <template>
   <div class="wrapper">
-    <!-- 顶部蓝色栏 -->
-    <div class="top-background">
+    <header class="order-page-header">
       <h1>订单</h1>
-    </div>
+      <label class="order-search">
+        <i class="fa fa-search"></i>
+        <input v-model.trim="searchKeyword" type="search" placeholder="搜索商家或订单号">
+        <button v-if="searchKeyword" type="button" aria-label="清空搜索" @click="searchKeyword = ''">×</button>
+      </label>
+    </header>
 
-    <!-- 固定标题和筛选栏 -->
     <div class="fixed-header">
-      <!-- 页面标题 -->
-      <div class="page-title">订单中心</div>
-
-      <!-- 筛选标签栏 -->
       <ul class="tabs">
         <li v-for="(t, idx) in tabs" :key="t" :class="{ active: activeTab === idx }" @click="changeTab(idx)">
           {{ t }} <span v-if="orderCounts[idx] > 0">({{ orderCounts[idx] }})</span>
@@ -31,48 +30,44 @@
         <p>暂无订单</p>
       </div>
 
-      <!-- 订单列表 -->
-      <ul v-else class="order-list">
-        <li v-for="item in displayedOrders" :key="item.id" class="order-item" @click="goDetail(item.id)" title="查看详情">
-          <div class="order-header">
-            <span class="order-id">订单号: {{ item.id }}</span>
-            <span class="status-badge" :class="getStatusClass(item.orderState)">{{ getStatusText(item.orderState, item)
-            }}</span>
-          </div>
-
-          <div class="order-content">
-            <img class="thumb" :src="item.businessImg || require('@/assets/default-business.png')" alt="商家图片" @error="handleImageError">
-            <div class="meta">
-              <p class="name">{{ item.businessName || '未知商家' }}</p>
-              <p class="price">¥ {{ Number(item.orderTotal || 0).toFixed(2) }}</p><br>
-              <p class="time">下单时间: {{ item.orderDate || ''}}</p>
+      <section v-for="group in groupedOrders" :key="group.key" class="month-group">
+        <div class="month-summary"><strong>{{ group.label }}</strong><span>支出 ¥{{ group.total }}</span></div>
+        <ul class="order-list">
+          <li v-for="item in group.orders" :key="item.id" class="order-item" @click="goDetail(item.id)" title="查看详情">
+            <div class="order-header">
+              <span class="order-id">订单号 {{ item.id }}</span>
+              <span class="status-badge" :class="getStatusClass(item.orderState)">{{ getStatusText(item.orderState, item) }}</span>
             </div>
-          </div>
 
-          <div class="actions">
-            <!-- 待支付：取消 + 付款 -->
-            <template v-if="item.orderState === 0">
-              <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
-              <button class="pay-btn" @click.stop="payOrder(item.id)">立即支付</button>
-            </template>
+            <div class="order-content">
+              <img class="thumb" :src="item.businessImg || require('@/assets/default-business.png')" alt="商家图片" @error="handleImageError">
+              <div class="meta">
+                <p class="name">{{ item.businessName || '未知商家' }} <i class="fa fa-angle-right"></i></p>
+                <p class="time">{{ formatTime(item.orderDate || item.createTime) }}</p>
+                <span v-if="item.serviceMode === 'PICKUP'" class="service-chip">到店自取</span>
+                <span v-else class="service-chip">外送</span>
+              </div>
+              <div class="order-price"><strong>¥{{ Number(item.orderTotal || 0).toFixed(2) }}</strong></div>
+            </div>
 
-            <!-- 待接单：取消订单 -->
-            <template v-else-if="item.orderState === 1">
-              <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
-            </template>
-
-            <!-- 骑手确认送达后，顾客才可确认收货 -->
-            <template v-else-if="item.orderState === 6 || (item.orderState === 4 && item.serviceMode === 'PICKUP')">
-              <button class="confirm-btn" @click.stop="confirmOrder(item.id)">确认收货</button>
-            </template>
-
-            <!-- 已完成/已取消：查看详情 -->
-            <template v-else>
-              <button class="detail-btn" @click.stop="goDetail(item.id)">查看详情</button>
-            </template>
-          </div>
-        </li>
-      </ul>
+            <div class="actions">
+              <template v-if="item.orderState === 0">
+                <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
+                <button class="pay-btn" @click.stop="payOrder(item.id)">立即支付</button>
+              </template>
+              <template v-else-if="item.orderState === 1">
+                <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
+              </template>
+              <template v-else-if="item.orderState === 6 || (item.orderState === 4 && item.serviceMode === 'PICKUP')">
+                <button class="confirm-btn" @click.stop="confirmOrder(item.id)">确认收货</button>
+              </template>
+              <template v-else>
+                <button class="detail-btn" @click.stop="goDetail(item.id)">查看详情</button>
+              </template>
+            </div>
+          </li>
+        </ul>
+      </section>
     </div>
 
   </div>
@@ -126,6 +121,7 @@ export default {
     const userInfo = ref({});
     const router = useRouter();
     const loading = ref(false);
+    const searchKeyword = ref('');
     // --- WebSocket 相关 ---
     const socket = ref(null);
     const userId = ref(null); // 存储当前用户ID
@@ -162,7 +158,6 @@ export default {
 
         if (response.success) {
           orderArr.value = response.data || [];
-          console.log("获取订单列表成功:", orderArr.value);
         } else {
           console.error('获取订单列表失败:', response.data.message);
           toast.error('获取订单列表失败: ' + response.data.message);
@@ -203,12 +198,40 @@ export default {
 
     // 计算显示的订单 - 基于当前选中的标签
     const displayedOrders = computed(() => {
-      if (activeTab.value === 0) return orderArr.value; // 全部
-
       const targetStatus = tabStatusMap[activeTab.value];
-      return orderArr.value.filter(order => Array.isArray(targetStatus)
+      const byStatus = activeTab.value === 0 ? orderArr.value : orderArr.value.filter(order => Array.isArray(targetStatus)
         ? targetStatus.includes(order.orderState)
         : order.orderState === targetStatus);
+      const keyword = searchKeyword.value.toLowerCase();
+      if (!keyword) return byStatus;
+      return byStatus.filter(order => String(order.id).includes(keyword)
+        || String(order.businessName || '').toLowerCase().includes(keyword)
+        || getStatusText(order.orderState, order).includes(searchKeyword.value));
+    });
+
+    const groupedOrders = computed(() => {
+      const groups = new Map();
+      displayedOrders.value.forEach(order => {
+        const date = new Date(order.orderDate || order.createTime);
+        const valid = Number.isFinite(date.getTime());
+        const key = valid ? `${date.getFullYear()}-${date.getMonth() + 1}` : 'unknown';
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key,
+            label: valid ? `${date.getFullYear()}年${date.getMonth() + 1}月` : '日期未知',
+            timestamp: valid ? new Date(date.getFullYear(), date.getMonth(), 1).getTime() : 0,
+            orders: [],
+            amount: 0
+          });
+        }
+        const group = groups.get(key);
+        group.orders.push(order);
+        if (![0, 8].includes(Number(order.orderState))) group.amount += Number(order.orderTotal || 0);
+      });
+      return [...groups.values()].sort((a, b) => b.timestamp - a.timestamp).map(group => ({
+        ...group,
+        total: group.amount.toFixed(2)
+      }));
     });
 
     // 切换标签 - 只需要改变activeTab，displayedOrders会自动更新
@@ -328,19 +351,11 @@ export default {
 
       socket.value = new WebSocket(getWebSocketUrl(`/ws/${userId.value}`));
 
-      socket.value.onopen = () => {
-        console.log("WebSocket 连接成功");
-      };
-
-      socket.value.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        console.log("收到WebSocket消息:", message);
-        // 收到消息后，刷新订单列表
+      socket.value.onmessage = () => {
         fetchOrders();
       };
 
       socket.value.onclose = () => {
-        console.log("WebSocket 连接关闭");
         // 断线重连（可选，视需求添加）
         if (!socketStopped) setTimeout(initWebSocket, 2000);
       };
@@ -389,6 +404,8 @@ export default {
       tabs,
       activeTab,
       displayedOrders,
+      groupedOrders,
+      searchKeyword,
       loading,
       changeTab,
       getStatusText,
@@ -825,27 +842,47 @@ export default {
   }
 }
 
-.wrapper { width:100%; max-width:600px; margin:0 auto; background: #f5f9fd; color: #24405c; overflow-x:hidden; }
-.top-background { height: 64px; background: #0097ff; background-image: none; border-radius: 0; box-shadow: 0 1px 0 rgba(0,83,145,.15); }
-.top-background::before { display: none; }
-.top-background h1 { font-size: 20px; letter-spacing: 0; text-shadow: none; }
-.fixed-header { top: 64px; }
-.page-title { padding: 12px 16px; font-size: 17px; color: #24405c; }
-.tabs { padding: 0 16px; }
-.tabs li { margin-right: 22px; padding: 11px 0; font-size: 13px; }
-.content-area { margin-top: 160px; padding: 0 16px 88px; box-sizing:border-box; }
-.order-list{padding:12px 0 0;}
-.order-item { border: 1px solid #e1edf7; border-radius: 10px; box-shadow: 0 2px 8px rgba(36,91,132,.06); padding:16px; margin-bottom:12px; }
-.order-content{gap:12px; min-width:0;}
-.order-content .meta{min-width:0;}
-.order-content .name,.order-content .time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.order-content .price{margin-top:8px;}
-.actions{padding-top:12px;border-top:1px solid #edf3f7;}
-.actions button{padding:8px 14px;border-radius:6px;font-size:13px;}
-.order-item p, .order-item span { overflow-wrap: anywhere; }
-@media (max-width: 480px) {
-  .top-background { height: 64px; }
-  .fixed-header { top: 64px; left: 0; transform: none; max-width: 100vw; }
-  .content-area { margin-top: 160px; width: 100%; max-width: none; padding: 0 12px 88px; }
+.wrapper { width:100%; max-width:600px; margin:0 auto; background:#f4f7fa; color:#24405c; overflow-x:hidden; }
+.order-page-header { position:fixed; z-index:1000; top:0; left:50%; transform:translateX(-50%); width:100%; max-width:600px; height:108px; box-sizing:border-box; padding:12px 16px; background:#fff; border-bottom:1px solid #e7eef4; }
+.order-page-header h1 { margin:0 0 10px; color:#22384c; font-size:20px; line-height:28px; text-align:center; font-weight:650; }
+.order-search { height:38px; display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:8px; background:#f1f5f8; color:#8a9baa; }
+.order-search input { flex:1; min-width:0; border:0; outline:0; background:transparent; color:#263c4e; font-size:14px; }
+.order-search button { width:24px; height:24px; border:0; border-radius:50%; background:#d9e3ea; color:#667b8b; font-size:17px; line-height:20px; cursor:pointer; }
+.fixed-header { top:108px; height:45px; left:50%; transform:translateX(-50%); max-width:600px; border-bottom:1px solid #edf2f6; }
+.tabs { height:45px; padding:0 16px; justify-content:space-between; scrollbar-width:none; }
+.tabs::-webkit-scrollbar{display:none}
+.tabs li { flex:0 0 auto; margin:0; padding:13px 4px 10px; font-size:13px; }
+.tabs li.active::after{height:3px;background:#0097ff;border-radius:3px}
+.content-area { margin-top:153px; padding:0 0 88px; box-sizing:border-box; }
+.month-group{margin-bottom:10px;background:#fff;border-top:1px solid #e7eef3;border-bottom:1px solid #e7eef3}
+.month-summary{height:46px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;background:#f7f9fb;color:#667b8b;font-size:13px}
+.month-summary strong{color:#2c4255;font-size:15px;font-weight:600}
+.order-list{padding:0;}
+.order-item { border:0; border-radius:0; box-shadow:none; padding:14px 16px; margin:0; border-bottom:1px solid #edf2f5; }
+.order-item:last-child{border-bottom:0}
+.order-header{margin:0 0 12px;padding:0;border:0}
+.order-id{font-size:12px;color:#93a2ae}
+.status-badge{padding:0;background:transparent!important;font-size:13px}
+.order-content{gap:12px;min-width:0;align-items:flex-start}
+.order-content .thumb{width:62px;height:62px;flex:0 0 62px;margin:0;border-radius:7px;object-fit:cover}
+.order-content .meta{min-width:0;flex:1}
+.order-content .name,.order-content .time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order-content .name{margin:1px 0 7px;font-size:15px;color:#22384c;font-weight:600}
+.order-content .name i{font-size:12px;color:#a3b0ba}
+.order-content .time{margin:0 0 7px;font-size:12px;color:#8a9aa7}
+.service-chip{display:inline-block;padding:2px 6px;border:1px solid #b9dff5;border-radius:3px;color:#2587bf;font-size:11px;line-height:16px}
+.order-price{align-self:center;white-space:nowrap;color:#202d3d;font-size:15px}
+.actions{margin-top:12px;padding-top:12px;border-top:1px solid #edf3f7;gap:8px}
+.actions button{min-width:78px;padding:7px 13px;border-radius:6px;font-size:13px;background:#fff}
+.pay-btn,.confirm-btn{background:#0097ff!important;color:#fff;border:1px solid #0097ff!important}
+.detail-btn,.cancel-btn{background:#fff!important;color:#4d6171;border:1px solid #d8e2e9!important}
+.order-item p,.order-item span{overflow-wrap:anywhere}
+.loading,.empty-state{min-height:220px;font-size:14px}
+@media (max-width:480px) {
+  .order-page-header{left:0;transform:none;max-width:100vw}
+  .fixed-header{top:108px;left:0;transform:none;max-width:100vw}
+  .content-area{margin-top:153px;width:100%;max-width:none;padding-bottom:88px}
+  .tabs{padding:0 10px}
+  .tabs li{font-size:12px;padding-left:2px;padding-right:2px}
 }
 </style>

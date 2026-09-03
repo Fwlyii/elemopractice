@@ -361,7 +361,10 @@ public class BusinessServiceImpl implements BusinessService {
 
     private static final int MAX_RECOMMENDATION_TAGS = 3;
     private static final int RECENT_PURCHASE_DAYS = 30;
-    private static final BigDecimal GOOD_REVIEW_SCORE = new BigDecimal("4.5");
+    private static final BigDecimal GOOD_REVIEW_SCORE = new BigDecimal("4.7");
+    private static final int GOOD_REVIEW_MIN_SALES = 200;
+    private static final int LOVED_MIN_SALES = 500;
+    private static final int POPULAR_MIN_SALES = 800;
 
     /**
      * 首页标签与综合排序统一在后端计算。这样规则只维护一份，
@@ -389,13 +392,15 @@ public class BusinessServiceImpl implements BusinessService {
             newBusiness = age >= 0 && age <= RECENT_PURCHASE_DAYS;
             if (newBusiness) candidates.add(new RecommendationTag("新店开业", 95));
         }
-        if (score.compareTo(GOOD_REVIEW_SCORE) >= 0 && sales >= 30) {
+        // 口碑标签必须同时满足评分与样本量门槛，避免十几、几十单的小店被称为“好评如潮”。
+        // “爱不释手”和“好评如潮”语义相近，只展示资格更高的一项，减少标签堆叠。
+        boolean lovedByCustomers = score.compareTo(GOOD_REVIEW_SCORE) >= 0 && sales >= LOVED_MIN_SALES;
+        if (lovedByCustomers) {
             candidates.add(new RecommendationTag(formatCount(sales) + "人爱不释手", 88));
-        }
-        if (score.compareTo(GOOD_REVIEW_SCORE) >= 0) {
+        } else if (score.compareTo(GOOD_REVIEW_SCORE) >= 0 && sales >= GOOD_REVIEW_MIN_SALES) {
             candidates.add(new RecommendationTag("好评如潮", 85));
         }
-        if (sales >= 10) {
+        if (!lovedByCustomers && sales >= POPULAR_MIN_SALES) {
             candidates.add(new RecommendationTag(formatCount(sales) + "人购买", 75));
         }
         if (Boolean.TRUE.equals(business.getDineInAvailable())) {

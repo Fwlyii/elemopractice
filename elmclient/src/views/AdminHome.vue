@@ -1168,4 +1168,5 @@ const getShopTypeName = (typeId) => {
 
 <style scoped>
 .stats-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:calc(100% - 32px);max-width:568px;margin:16px auto 0;color:#668095;font-size:13px}.stats-toolbar input{border:1px solid #d7e5ef;border-radius:6px;padding:7px;color:#49677f;min-width:0;flex:1 1 120px}.stats-toolbar button{border:0;border-radius:6px;padding:7px 12px;background:#168bd1;color:#fff;cursor:pointer;flex:0 0 auto}.stats-toolbar .export-btn{background:#fff;color:#168bd1;border:1px solid #168bd1}.stats-summary{width:100%;margin-left:0;color:#3d6d8c}.stats-container{transform:none;margin-top:16px}
+.stat-card.users svg,.stat-card.shops svg,.stat-card.revenue svg{color:#2b8bc8}
 </style>

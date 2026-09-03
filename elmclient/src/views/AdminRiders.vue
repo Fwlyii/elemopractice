@@ -1,7 +1,7 @@
 <template>
   <main class="admin-page">
     <header class="page-head">
-      <div><p>OPERATIONS CENTER</p><h1>骑手与配送调度</h1><span>资质准入、异常响应与履约安全的统一工作台</span></div>
+      <div><p>平台管理</p><h1>骑手与配送调度</h1><span>审核骑手资质，处理配送异常</span></div>
       <button @click="loadAll"><i class="fas fa-sync-alt" :class="{spin:loading}"></i> 刷新数据</button>
     </header>
     <section class="kpis">

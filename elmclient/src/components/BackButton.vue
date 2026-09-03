@@ -1,22 +1,18 @@
 <template>
-  <div v-if="showBackButton" class="back-button" aria-label="返回" @click="goBack">
+  <div class="back-button" aria-label="返回" @click="goBack">
     <span class="back-arrow" aria-hidden="true">‹</span>
   </div>
 </template>
 
 <script>
-import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'BackButton',
   setup() {
-    const route = useRoute();
     const router = useRouter();
-    const excludedPaths = ['/index', '/', '/successfulPayment', '/myInformation', '/admin/home', '/admin/user'];
-    const showBackButton = computed(() => !excludedPaths.includes(route.path));
     const goBack = () => router.back();
-    return { showBackButton, goBack };
+    return { goBack };
   }
 };
 </script>

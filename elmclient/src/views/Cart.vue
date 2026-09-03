@@ -31,13 +31,17 @@
 					<div class="cart-info">
 						<h3>{{ item.foodName }}</h3>
 						<small class="food-meta">{{ item.category || '招牌推荐' }}<span v-if="item.purchaseLimit"> · 每单限{{ item.purchaseLimit }}份</span></small>
-						<p>&#165;{{ item.foodPrice }} / 份
-							<span class="quantity-mark"> * {{ item.quantity }}</span>
-						</p>
+						<p>&#165;{{ Number(item.foodPrice || 0).toFixed(2) }} / 份</p>
 						<small class="stock-hint">剩余库存 {{ item.stock ?? 0 }}</small>
 					</div>
-					<div class="cart-item-price">
-						<h3>￥ {{ item.foodPrice * item.quantity }}</h3>
+					<div class="cart-item-side">
+						<button type="button" class="delete-item" :disabled="updatingCartIds.has(item.id)" :aria-label="`删除${item.foodName}`" @click="removeItem(item)"><i class="fa fa-trash-o"></i></button>
+						<strong>￥{{ (Number(item.foodPrice || 0) * Number(item.quantity || 0)).toFixed(2) }}</strong>
+						<div class="quantity-stepper" :aria-label="`${item.foodName}数量`">
+							<button type="button" :disabled="updatingCartIds.has(item.id)" @click="changeQuantity(item, -1)">−</button>
+							<span>{{ item.quantity }}</span>
+							<button type="button" :disabled="updatingCartIds.has(item.id) || item.quantity >= maxQuantity(item)" @click="changeQuantity(item, 1)">+</button>
+						</div>
 					</div>
 				</li>
 			</ul>
@@ -71,6 +75,7 @@ export default {
 		const router = useRouter();
 		const businessId = ref(null);
 		const selectedFoodIds = ref([]);
+		const updatingCartIds = ref(new Set());
 		// const businessId = ref(null);
 		const businessName = ref('');
 
@@ -104,11 +109,64 @@ export default {
 		const totalPrice = computed(() => {
 			return selectedItems.value.reduce((total, item) => {
 				return total + (item.foodPrice * item.quantity);
-			}, 0);
+			}, 0).toFixed(2);
 		});
 
 		const toggleSelectAll = () => {
 			selectedFoodIds.value = allSelected.value ? [] : [...new Set(cartItems.value.map(item => item.foodId).filter(Boolean))];
+		};
+
+		const markUpdating = (id, updating) => {
+			const next = new Set(updatingCartIds.value);
+			if (updating) next.add(id); else next.delete(id);
+			updatingCartIds.value = next;
+		};
+		const maxQuantity = (item) => Math.max(1, Math.min(
+			Number.isFinite(Number(item.stock)) ? Number(item.stock) : Number.MAX_SAFE_INTEGER,
+			Number.isFinite(Number(item.purchaseLimit)) && Number(item.purchaseLimit) > 0
+				? Number(item.purchaseLimit)
+				: Number.MAX_SAFE_INTEGER
+		));
+		const updateItemQuantity = async (item, quantity) => {
+			if (updatingCartIds.value.has(item.id)) return;
+			markUpdating(item.id, true);
+			try {
+				const response = await request.put(`/api/carts/${item.id}`, null, { params: { quantity } });
+				if (!response?.success) throw new Error(response?.message || '更新失败');
+				if (quantity === 0) {
+					cartItems.value = cartItems.value.filter(candidate => candidate.id !== item.id);
+					selectedFoodIds.value = selectedFoodIds.value.filter(foodId => foodId !== item.foodId);
+				} else {
+					item.quantity = quantity;
+				}
+			} catch (error) {
+				toast.error(error?.response?.data?.message || error?.message || '购物车更新失败');
+			} finally {
+				markUpdating(item.id, false);
+			}
+		};
+		const removeItem = async (item) => {
+			if (updatingCartIds.value.has(item.id)) return;
+			markUpdating(item.id, true);
+			try {
+				const response = await request.delete(`/api/carts/${item.id}`);
+				if (!response?.success) throw new Error(response?.message || '删除失败');
+				cartItems.value = cartItems.value.filter(candidate => candidate.id !== item.id);
+				selectedFoodIds.value = selectedFoodIds.value.filter(foodId => foodId !== item.foodId);
+			} catch (error) {
+				toast.error(error?.response?.data?.message || error?.message || '删除失败，请重试');
+			} finally {
+				markUpdating(item.id, false);
+			}
+		};
+		const changeQuantity = (item, delta) => {
+			const next = Number(item.quantity || 0) + delta;
+			if (next <= 0) return removeItem(item);
+			if (next > maxQuantity(item)) {
+				toast.warning(item.purchaseLimit ? `该商品每单限购 ${item.purchaseLimit} 份` : '已达到库存上限');
+				return;
+			}
+			return updateItemQuantity(item, next);
 		};
 
 		// 结算
@@ -147,6 +205,10 @@ export default {
 			selectedItems,
 			allSelected,
 			toggleSelectAll,
+			updatingCartIds,
+			maxQuantity,
+			changeQuantity,
+			removeItem,
 			totalPrice,
 			checkout,
 			goBack,
@@ -231,7 +293,28 @@ export default {
 .wrapper .cart li .cart-img img {
 	width: 20vw;
 	height: 20vw;
+	object-fit: cover;
+	border-radius: 2vw;
 }
+
+.cart-item-side {
+	width: 25vw;
+	max-width: 116px;
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.cart-item-side strong { font-size: 3.5vw; color: #202d3d; white-space: nowrap; }
+.delete-item { border: 0; background: transparent; color: #9aabb8; font-size: 18px; padding: 2px 4px; cursor: pointer; }
+.quantity-stepper { height: 28px; display: flex; align-items: center; border: 1px solid #dce8f0; border-radius: 15px; overflow: hidden; background: #fff; }
+.quantity-stepper button { width: 28px; height: 28px; border: 0; background: #f2f8fc; color: #168bd1; font-size: 18px; line-height: 1; cursor: pointer; }
+.quantity-stepper button:disabled,
+.delete-item:disabled { opacity: .4; cursor: not-allowed; }
+.quantity-stepper span { min-width: 28px; text-align: center; color: #24384a; font-size: 13px; font-weight: 600; }
 
 .wrapper .cart li .cart-img .cart-img-quantity {
 	width: 5vw;
@@ -313,6 +396,7 @@ export default {
 	align-items: center;
 	padding: 0 4vw;
 	box-sizing: border-box;
+	z-index: 1100;
 }
 
 .checkout-bar .total-price {
@@ -385,8 +469,8 @@ export default {
 .wrapper .cart li .cart-info p{font-size:13px;color:#708797;margin-top:7px}
 .wrapper .cart li .cart-info .quantity-mark{font-size:13px;color:#b33e48}
 .wrapper .cart li .cart-info .stock-hint{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wrapper .cart li .cart-item-price{margin-left:auto;white-space:nowrap}
-.wrapper .cart li .cart-item-price h3{font-size:14px;color:#31556d}
+.cart-item-side{width:108px;flex:0 0 108px}
+.cart-item-side strong{font-size:14px}
 .checkout-bar{left:50%;transform:translateX(-50%);max-width:600px;width:100%;height:64px;padding:0 14px;background:#fff;border-top:1px solid #dfeaf1;box-shadow:0 -2px 8px rgba(40,84,110,.08)}
 .checkout-bar .total-price{font-size:15px;color:#31556d}
 .checkout-bar .total-price p{font-size:15px!important}

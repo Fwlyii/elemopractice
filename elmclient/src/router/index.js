@@ -18,11 +18,7 @@ import Assets from '@/views/Assets.vue'
 import Preferences from '@/views/Preferences.vue'
 import AdminUser from '@/views/AdminUser.vue'
 import Search from '@/views/Search.vue'
-import SearchTest from '@/views/SearchTest.vue'
 import Cart from '@/views/Cart.vue'
-import BusinessInformation from '@/views/BusinessInformation.vue'
-import BusinessView from '@/views/BusinessView.vue'
-import SubmitItems from '@/views/SubmitItems.vue'
 import AiChat from '@/views/AiChat.vue'
 import RiderApply from '@/views/RiderApply.vue'
 import RiderDashboard from '@/views/RiderDashboard.vue'
@@ -145,8 +141,7 @@ const routes = [
   },
   {
     path: '/search-test',
-    name: 'SearchTest',
-    component: SearchTest
+    redirect: '/search'
   },
   {
     path: '/cart',
@@ -158,16 +153,8 @@ const routes = [
   { path:'/merchantProfile', redirect:'/merchant/profile' },
   { path:'/merchantBusiness', redirect:'/merchant/business' },
   { path:'/merchantBusinessInfo', redirect:'/merchant/businessInfo' },
-  {
-    path:'/businessInformation',
-    name:'BusinessInformation',
-    component:BusinessInformation
-  },
-  {
-    path:'/businessView',
-    name:'BusinessView',
-    component:BusinessView
-  },
+  { path:'/businessInformation', redirect:'/merchant/profile' },
+  { path:'/businessView', redirect:'/merchant/business' },
   // {
   //   path:'/businessOrderManage',
   //   name:'BusinessOrderManage',
@@ -195,11 +182,7 @@ const routes = [
     component: MerchantOrders
   },
   { path: '/merchant/reviews', name: 'MerchantReviews', component: MerchantReviews },
-  {
-    path:'/submitItems',
-    name:'SubmitItems',
-    component:SubmitItems
-  },
+  { path:'/submitItems', redirect:'/merchant/business' },
   {
     path: '/ai-chat',
     name: 'AiChat',
@@ -244,7 +227,8 @@ const routes = [
     path:'/admin/riders',
     name:'AdminRiders',
     component:AdminRiders
-  }
+  },
+  { path: '/:pathMatch(.*)*', redirect: '/index' }
   //
 
 ]
@@ -253,12 +237,6 @@ const routes = [
  //
 
 
-
-// 解决重复路由报异常问题
-const originalPush = createRouter.prototype.push;
-createRouter.prototype.push = function push(location) {
-  return originalPush.call(this, location).catch(err => err)
-}
 
 // 创建路由实例
 const router = createRouter({

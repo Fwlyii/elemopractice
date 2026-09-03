@@ -46,6 +46,12 @@ public class CartController {
         return HttpResult.success(cartService.updateItem(cartId,quantity));
     }
 
+    @PutMapping("/{cartId}")
+    @Operation(summary = "修改购物车商品数量", description = "quantity传0时移除该条记录")
+    public HttpResult<Long> updateItemQuantityRestful(@PathVariable Long cartId, @RequestParam Integer quantity) {
+        return HttpResult.success(cartService.updateItem(cartId, quantity));
+    }
+
     @GetMapping("/clear")
     @Operation(summary = "清空用户在指定商家的购物车")
     public HttpResult<Long> updateItemQuantity(@RequestParam Long businessId) {
@@ -55,6 +61,12 @@ public class CartController {
     @GetMapping("/remove")
     @Operation(summary = "移除指定购物车商品")
     public HttpResult<Long> removeItem(@RequestParam Long cartId) {
+        return HttpResult.success(cartService.removeItem(cartId));
+    }
+
+    @DeleteMapping("/{cartId}")
+    @Operation(summary = "移除指定购物车商品")
+    public HttpResult<Long> removeItemRestful(@PathVariable Long cartId) {
         return HttpResult.success(cartService.removeItem(cartId));
     }
 

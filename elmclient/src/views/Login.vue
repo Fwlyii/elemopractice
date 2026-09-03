@@ -117,8 +117,13 @@ const login = async () => {
       else if (selectedRole.value === 'merchant') router.push('/myInformation');
       return;
     }
-    toast.success(`已进入${activeRole.value.label}端`);
-    router.push(activeRole.value.target);
+	    toast.success(`已进入${activeRole.value.label}端`);
+	    const redirect = typeof route.query.redirect === 'string'
+	      && route.query.redirect.startsWith('/')
+	      && !route.query.redirect.startsWith('//')
+	      ? route.query.redirect
+	      : null;
+	    router.push(selectedRole.value === 'user' && redirect ? redirect : activeRole.value.target);
   } catch (error) {
     clearAuth();
     toast.error(error.response?.data?.message || '用户名或密码错误');

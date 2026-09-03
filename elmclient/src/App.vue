@@ -59,7 +59,8 @@ export default {
       if (route.path.startsWith('/merchant') || route.path.startsWith('/admin') || route.path.startsWith('/rider')) {
         return false;
       }
-      return true;
+      // 这些页面已有自己的返回按钮，或本身就是一级页面；不要再叠一层全局按钮。
+      return !['Home', 'Index', 'MyInformation', 'SuccessfulPayment', 'BusinessInfo', 'UserAddress', 'Assets', 'AiChat'].includes(route.name);
          });
 
 

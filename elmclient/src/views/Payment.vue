@@ -11,7 +11,13 @@
 		</div>
 
 		<template v-else>
-			<div class="content">
+			<div v-if="!canPay" class="payment-unavailable">
+				<i class="fa fa-check-circle"></i>
+				<h2>{{ orderDetail.orderState === 8 ? '订单已取消' : '该订单无需再次支付' }}</h2>
+				<p>订单状态已经发生变化，请前往订单详情查看最新进度。</p>
+				<button type="button" @click="router.push({ path: '/listDetail', query: { orderId } })">查看订单详情</button>
+			</div>
+			<div v-else class="content">
 				<!-- 订单信息部分 -->
 				<div class="section order-section">
 					<div class="section-header">
@@ -57,6 +63,10 @@
 									<span class="item-price">&#165;{{ (Number(item.foodPrice || 0) * Number(item.quantity || 0)).toFixed(2) }}</span>
 								</div>
 							</template>
+							<div v-if="merchantDiscount > 0" class="detail-item coupon-discount">
+								<span>商家及会员优惠</span>
+								<span>-&#165;{{ merchantDiscount.toFixed(2) }}</span>
+							</div>
 							<div v-if="orderDetail.serviceMode !== 'PICKUP'" class="detail-item delivery-fee">
 								<span>配送费</span>
 								<span>&#165;{{ Number(orderDetail.deliveryPrice || 0).toFixed(2) }}</span>
@@ -106,7 +116,7 @@
 					</div>
 					<div v-if="assetInfo" class="asset-pay-hint">
 						<span>钱包余额 ¥{{ Number(assetInfo.balance || 0).toFixed(2) }} · 可用积分 {{ assetInfo.points || 0 }}</span>
-						<label v-if="assetInfo.points > 0">积分抵扣
+						<label v-if="maxPoints > 0">积分抵扣
 							<input v-model.number="pointsToUse" type="number" min="0" step="100" :max="maxPoints" @input="normalizePoints">
 						</label>
 						<small v-if="maxPoints > 0">本单最多可抵 {{ maxPoints }} 积分（应付金额的20%）</small>
@@ -149,8 +159,15 @@ export default {
 		const availableCoupons = ref([]);
 		const selectedCouponId = ref(null);
 		const couponLoading = ref(false);
+		const canPay = computed(() => Number(orderDetail.value?.orderState) === 0);
+		const foodSubtotal = computed(() => (orderDetail.value?.foodList || []).reduce((sum, item) => sum
+			+ Number(item.foodPrice || 0) * Number(item.quantity || 0), 0));
+		const merchantDiscount = computed(() => Math.max(0, foodSubtotal.value
+			+ Number(orderDetail.value?.deliveryPrice || 0) - Number(orderDetail.value?.orderTotal || 0)));
 		const couponBaseAmount = computed(() => Math.max(0, Number(orderDetail.value?.orderTotal || 0) - Number(orderDetail.value?.deliveryPrice || 0)));
-		const usableCoupons = computed(() => availableCoupons.value.filter(coupon => Number(coupon.minOrderAmount || 0) <= couponBaseAmount.value));
+		const usableCoupons = computed(() => availableCoupons.value
+			.filter(coupon => Number(coupon.minOrderAmount || 0) <= couponBaseAmount.value)
+			.sort((a, b) => Number(b.discountAmount || 0) - Number(a.discountAmount || 0)));
 		const selectedCoupon = computed(() => usableCoupons.value.find(coupon => coupon.id === selectedCouponId.value) || {});
 		const couponDiscount = computed(() => {
 			const discount = Number(selectedCoupon.value.discountAmount || 0);
@@ -158,7 +175,9 @@ export default {
 		});
 		const maxPoints = computed(() => {
 			const total = Math.max(0, Number(orderDetail.value?.orderTotal || 0) - couponDiscount.value);
-			return Math.floor(total * 0.2 * 100);
+			const orderCap = Math.floor(total * 0.2 * 100);
+			const available = Math.max(0, Number(assetInfo.value?.points || 0));
+			return Math.floor(Math.min(orderCap, available) / 100) * 100;
 		});
 		const payableAmount = computed(() => (Math.max(0, Number(orderDetail.value?.orderTotal || 0) - couponDiscount.value - Number(pointsToUse.value || 0) / 100)).toFixed(2));
 
@@ -170,9 +189,7 @@ export default {
 					params: { orderId: orderId.value }
 				});
 				
-				console.log("订单详情响应:", response);
-				
-				if (response.success) {
+					if (response.success) {
 					// 正确的数据访问方式
 					orderDetail.value = response.data;
 				} else {
@@ -210,6 +227,10 @@ export default {
 
 		// 支付处理
 		const handlePayment = async () => {
+			if (!canPay.value) {
+				toast.warning('订单状态已变化，无需再次支付');
+				return;
+			}
 			if (paying.value) return;
 			paying.value = true;
 			try {
@@ -257,8 +278,7 @@ export default {
 
 			onMounted(() => {
 			orderId.value = route.query.orderId;
-			console.log("获取到的orderId:", orderId.value);
-			fetchOrderDetails().then(fetchCoupons);
+				fetchOrderDetails().then(() => { if (canPay.value) fetchCoupons(); });
 			request.get('/api/v1/assets/me').then(response => {
 				if (response?.success) assetInfo.value = response.data;
 			}).catch(() => { /* 未登录或资产接口不可用时仍可使用模拟支付 */ });
@@ -274,6 +294,8 @@ export default {
 			selectedPayment,
 			selectPayment,
 			paying,
+			canPay,
+			router,
 			assetInfo,
 			pointsToUse,
 			maxPoints,
@@ -284,6 +306,7 @@ export default {
 			selectedCouponId,
 			selectedCoupon,
 			couponDiscount,
+			merchantDiscount,
 			couponLoading,
 			selectCoupon,
 			formatCouponExpiry,
@@ -299,6 +322,8 @@ export default {
 	min-height: 100vh;
 	background-color: #f5f7fa;
 }
+.payment-unavailable{max-width:520px;margin:100px auto 0;padding:48px 24px;text-align:center;color:#5d7284}
+.payment-unavailable>i{font-size:46px;color:#71add4}.payment-unavailable h2{margin:16px 0 8px;color:#29455f;font-size:20px}.payment-unavailable p{font-size:13px;line-height:1.7}.payment-unavailable button{margin-top:22px;border:0;border-radius:7px;background:#168bd1;color:#fff;padding:10px 22px;font-size:14px;cursor:pointer}
 
 /****************** header部分 ******************/
 .wrapper header {

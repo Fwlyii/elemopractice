@@ -649,14 +649,13 @@ export default {
 
         // 跳转到订单页面
         const toOrder = () => {
-            console.log("跳转到购物车页面，当前购物车商品数量:", totalQuantity.value);
             if (totalQuantity.value === 0) {
                 toast.error("购物车为空");
                 return;
             }
-            // 跳转到结算页面
+            // 先进入购物车确认数量与勾选商品，再进入地址/自取确认页。
 				router.push({
-					path: '/userAddress',
+					path: '/cart',
 				query: {
                     businessId: businessId.value,
                     serviceMode: deliveryMode.value,
@@ -669,19 +668,16 @@ export default {
             const total = cartItems.value.reduce((total, item) => {
                 return total + (item.foodPrice || 0) * (item.quantity || 0);
             }, 0);
-            console.log(`计算总价: ${total}`);
             return total;
         });
 
         const totalQuantity = computed(() => {
             const quantity = cartItems.value.reduce((sum, item) => sum + (item.quantity || 0), 0);
-            console.log(`计算总数量: ${quantity}`);
             return quantity;
         });
 
         const totalSettle = computed(() => {
             const settle = totalPrice.value + (deliveryMode.value === 'pickup' ? 0 : (business.value.deliveryPrice || 0));
-            console.log(`计算结算总额: ${settle}`);
             return settle;
         });
 
@@ -690,13 +686,11 @@ export default {
             const canOrder = (business.value.status === undefined || business.value.status === 1)
                 && (deliveryMode.value !== 'pickup' || business.value.dineInAvailable !== false)
                 && totalPrice.value >= Number(business.value.startPrice || 0);
-            console.log(`检查是否可下单: ${canOrder}`);
             return canOrder;
         });
 
         // 初始化
         onMounted(async () => {
-            console.log("组件挂载完成");
             businessId.value = parseInt(route.query.businessId);
 
             if (!businessId.value) {
@@ -714,10 +708,8 @@ export default {
 
         // 监听businessId变化
         watch(() => route.query.businessId, (newId) => {
-            console.log("路由businessId变化:", newId);
             if (newId && parseInt(newId) !== businessId.value) {
                 businessId.value = parseInt(newId);
-                console.log("新的businessId:", businessId.value);
                 fetchUserInfo();
                 fetchBusinessInfo();
                 fetchFoodList();

@@ -76,6 +76,19 @@ VALUES
   (3, 1, 1, 1, NOW(), NOW()),
   (3, 2, 1, 0, NOW(), NOW());
 
+-- 顾客资产展示样本：答辩时可直接演示钱包、积分抵扣、会员和多张红包选择。
+INSERT INTO user_asset (user_id, balance, points, membership_expire, update_time)
+VALUES (3, 100.00, 1200, DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())
+ON DUPLICATE KEY UPDATE balance = VALUES(balance), points = VALUES(points),
+  membership_expire = VALUES(membership_expire), update_time = NOW();
+
+INSERT INTO user_coupon (user_id, name, discount_amount, min_order_amount, expires_at, used, create_time)
+SELECT 3, '校园午餐红包', 3.00, 20.00, DATE_ADD(NOW(), INTERVAL 30 DAY), 0, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM user_coupon WHERE user_id = 3 AND name = '校园午餐红包');
+INSERT INTO user_coupon (user_id, name, discount_amount, min_order_amount, expires_at, used, create_time)
+SELECT 3, '满40减6红包', 6.00, 40.00, DATE_ADD(NOW(), INTERVAL 30 DAY), 0, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM user_coupon WHERE user_id = 3 AND name = '满40减6红包');
+
 -- 首页展示样本：让演示数据同时覆盖高评分、高销量、堂食、满减和新店等场景。
 -- demo_* 字段是运营统计快照；没有快照的真实商家仍由订单/互动数据计算。
 UPDATE business

@@ -40,8 +40,8 @@ class BusinessOwnerDTOValidationTest {
         Set<ConstraintViolation<BusinessOwnerDTO>> violations = validator.validate(dto);
         assertFalse(violations.isEmpty(), "空用户名应该验证失败");
         
-        ConstraintViolation<BusinessOwnerDTO> violation = violations.iterator().next();
-        assertTrue(violation.getMessage().contains("不能为空"));
+        assertTrue(violations.stream()
+                .anyMatch(violation -> violation.getMessage().contains("不能为空")));
     }
 
     @Test
