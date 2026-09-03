@@ -14,25 +14,25 @@ import org.apache.ibatis.annotations.Update;
 public interface FoodMapper {
 
 
-    List<FoodVO> selectFoodVOList(Integer businessId,Integer orderId);
+    List<FoodVO> selectFoodVOList(@Param("businessId") Integer businessId, @Param("orderId") Integer orderId);
 
-    FoodVO selectFoodVOById(Long id);
+    FoodVO selectFoodVOById(@Param("id") Long id);
 
 
     void insertFood(Food food);
 
     @Select("SELECT * FROM food WHERE is_deleted = 0 AND id = #{id}")
-    Food selectFoodById(Long id);
+    Food selectFoodById(@Param("id") Long id);
 
-    @Update("update food set update_time = #{updateTime}, updater = #{updater}, food_explain = #{foodExplain}, food_img =#{foodImg}, food_name = #{foodName}, food_price = #{foodPrice}, remarks = #{remarks}, category = #{category}, purchase_limit = #{purchaseLimit} where id = #{foodId}")
-    void updateFood(Food food,Long foodId);
+    @Update("update food set update_time = #{food.updateTime}, updater = #{food.updater}, food_explain = #{food.foodExplain}, food_img =#{food.foodImg}, food_name = #{food.foodName}, food_price = #{food.foodPrice}, remarks = #{food.remarks}, category = #{food.category}, purchase_limit = #{food.purchaseLimit} where id = #{foodId}")
+    void updateFood(@Param("food") Food food, @Param("foodId") Long foodId);
 
 
 
-    List<FoodItemVO> selectFoodItemVOList(Long businessId,Integer shelveStatus);
+    List<FoodItemVO> selectFoodItemVOList(@Param("businessId") Long businessId, @Param("shelveStatus") Integer shelveStatus);
 
     @Update("update food set shelve_status = #{shelveStatus} where id = #{foodId}")
-    void updateFoodStatus(Long foodId,Integer shelveStatus);
+    void updateFoodStatus(@Param("foodId") Long foodId, @Param("shelveStatus") Integer shelveStatus);
 
     /** 原子扣减库存，只有上架且库存足够时才会成功。 */
     @Update("UPDATE food SET stock = stock - #{quantity}, update_time = NOW() WHERE id = #{foodId} AND is_deleted = 0 AND shelve_status = 1 AND stock >= #{quantity}")
@@ -46,7 +46,7 @@ public interface FoodMapper {
     void updateFoodMessage(Food food);
 
     @Update("update food set is_deleted = 1 where id = #{foodId}")
-    void deleteFood(Long foodId);
+    void deleteFood(@Param("foodId") Long foodId);
 
     // AI服务相关查询方法
     @Select("<script>" +

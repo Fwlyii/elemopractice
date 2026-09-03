@@ -63,6 +63,9 @@ public class BusinessVO {
     @Schema(description = "是否支持堂食")
     private Boolean dineInAvailable;
 
+    @Schema(description = "店铺状态：0待审核，1营业中，2已拒绝")
+    private Integer status;
+
     @Schema(description = "满减门槛")
     private BigDecimal promotionThreshold;
 

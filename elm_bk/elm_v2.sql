@@ -273,7 +273,7 @@ CREATE TABLE `orders`  (
   `order_total` decimal(10, 2) NOT NULL,
   `business_id` bigint NOT NULL,
   `customer_id` bigint NOT NULL,
-  `address_id` bigint NOT NULL,
+  `address_id` bigint NULL COMMENT '外送地址；自取订单为空',
   `delivery_price` decimal(10, 2) NOT NULL,
   `payment_method` varchar(20) NOT NULL DEFAULT 'SIMULATED' COMMENT '支付方式',
   `points_used` int NOT NULL DEFAULT 0 COMMENT '本单抵扣积分',

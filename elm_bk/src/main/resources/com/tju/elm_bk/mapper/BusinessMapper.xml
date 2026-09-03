@@ -14,6 +14,7 @@
         <result property="deliveryPrice" column="delivery_price"/>
         <result property="remarks" column="remarks"/>
         <result property="dineInAvailable" column="dine_in_available"/>
+        <result property="status" column="business_status"/>
         <result property="promotionThreshold" column="promotion_threshold"/>
         <result property="promotionDiscount" column="promotion_discount"/>
         <result property="creator" column="business_creator"/>
@@ -54,6 +55,7 @@
         b.delivery_price,
         b.remarks,
         b.dine_in_available,
+        b.status as business_status,
         b.promotion_threshold,
         b.promotion_discount,
         b.creator as business_creator,
@@ -111,9 +113,6 @@
             </if>
             <if test="updateDto.orderTypeId != null">
                 order_type_id = #{updateDto.orderTypeId},
-            </if>
-            <if test="updateDto.orderTypeId == null">
-                order_type_id = 1,
             </if>
             <if test="updateDto.startPrice != null">
                 start_price = #{updateDto.startPrice},
@@ -180,6 +179,7 @@
             b.delivery_price,
             b.remarks,
             b.dine_in_available,
+            b.status as business_status,
             b.promotion_threshold,
             b.promotion_discount,
             b.creator as business_creator,

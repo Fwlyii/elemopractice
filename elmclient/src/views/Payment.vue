@@ -20,7 +20,7 @@
 					</div>
 					
 					<!-- 配送信息 -->
-					<div class="delivery-info">
+					<div v-if="orderDetail.serviceMode !== 'PICKUP'" class="delivery-info">
 						<div class="info-item">
 							<i class="fa fa-map-marker"></i>
 							<span>{{ orderDetail.address || '未选择地址' }}</span>
@@ -34,6 +34,7 @@
 							<span>{{ orderDetail.contactTel }}</span>
 						</div>
 					</div>
+					<div v-else class="pickup-payment-note"><i class="fa fa-shopping-bag"></i><span><strong>到店自取</strong><small>商家备餐完成后到店取餐，无需配送地址</small></span></div>
 
 					<div class="section-header">
 						<h3>订单详情</h3>
@@ -53,10 +54,10 @@
 							<template v-if="orderDetail.foodList && orderDetail.foodList.length > 0">
 								<div class="detail-item" v-for="item in orderDetail.foodList" :key="item.id">
 									<span class="item-name">{{ item.foodName || '未知商品' }} &#165;{{ item.foodPrice }} &nbsp; × {{ item.quantity || 0 }}</span>
-									<span class="item-price">&#165;{{ (item.foodPrice * item.quantity).toFixed(2) }}</span>
+									<span class="item-price">&#165;{{ (Number(item.foodPrice || 0) * Number(item.quantity || 0)).toFixed(2) }}</span>
 								</div>
 							</template>
-							<div class="detail-item delivery-fee">
+							<div v-if="orderDetail.serviceMode !== 'PICKUP'" class="detail-item delivery-fee">
 								<span>配送费</span>
 								<span>&#165;{{ Number(orderDetail.deliveryPrice || 0).toFixed(2) }}</span>
 							</div>
@@ -135,7 +136,7 @@ import { toast } from '../utils/toast';
 export default {
 	name: 'Payment',
 	setup() {
-		const orderDetail = ref(null);
+		const orderDetail = ref({});
 		const isShowDetailet = ref(true);
 		const route = useRoute();
 		const router = useRouter();
@@ -148,7 +149,6 @@ export default {
 		const availableCoupons = ref([]);
 		const selectedCouponId = ref(null);
 		const couponLoading = ref(false);
-		const deliveryPrice = ref(5); // 默认配送费，可根据实际情况调整
 		const couponBaseAmount = computed(() => Math.max(0, Number(orderDetail.value?.orderTotal || 0) - Number(orderDetail.value?.deliveryPrice || 0)));
 		const usableCoupons = computed(() => availableCoupons.value.filter(coupon => Number(coupon.minOrderAmount || 0) <= couponBaseAmount.value));
 		const selectedCoupon = computed(() => usableCoupons.value.find(coupon => coupon.id === selectedCouponId.value) || {});
@@ -274,7 +274,6 @@ export default {
 			selectedPayment,
 			selectPayment,
 			paying,
-			deliveryPrice,
 			assetInfo,
 			pointsToUse,
 			maxPoints,
@@ -356,6 +355,8 @@ export default {
 	padding-bottom: 3vw;
 	border-bottom: 1px solid #f0f0f0;
 }
+.pickup-payment-note { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid #d9ecf8; border-radius:10px; background:#f5fbff; color:#168bd1; }
+.pickup-payment-note i { font-size:22px; }.pickup-payment-note strong,.pickup-payment-note small { display:block; }.pickup-payment-note small { margin-top:4px; color:#6f879b; font-size:12px; }
 
 .info-item {
 	display: flex;

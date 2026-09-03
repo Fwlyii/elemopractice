@@ -76,7 +76,8 @@ export default {
 
 		onMounted(() => {
 			businessId.value = parseInt(route.query.businessId);
-			userInfo.value = sessionStorage.getItem('userInfo') ? JSON.parse(sessionStorage.getItem('userInfo')) : null;
+			const cachedUser = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+			try { userInfo.value = cachedUser ? JSON.parse(cachedUser) : null; } catch (_) { userInfo.value = null; }
 
 			if (userInfo.value) {
 				listCart();
@@ -122,7 +123,7 @@ export default {
 					query: {
 						businessId: businessId.value,
 						foodIds: selectedFoodIds.value.join(','),
-						serviceMode: route.query.serviceMode || localStorage.getItem('businessServiceMode') || 'delivery',
+						serviceMode: route.query.serviceMode || localStorage.getItem(`businessServiceMode:${businessId.value}`) || 'delivery',
 					}
 			});
 		};

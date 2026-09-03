@@ -13,7 +13,7 @@ public interface CartMapper {
     void insertCart(Cart cart);
 
     @Select("SELECT * FROM cart C WHERE C.id = #{cartId} AND C.is_deleted = 0")
-    CartVO selectCart(Long cartId);
+    CartVO selectCart(@Param("cartId") Long cartId);
 
 
 
@@ -21,20 +21,24 @@ public interface CartMapper {
         select c.id,c.business_id,c.quantity,c.food_id,
            f.food_name,f.food_price,f.food_img,f.stock,f.category,f.purchase_limit,b.business_name
         from cart c
-        left join food f on f.id = c.food_id and f.is_deleted = 0
-        left join business b on c.business_id = b.id and b.is_deleted = 0
+        join food f on f.id = c.food_id and f.is_deleted = 0
+        join business b on c.business_id = b.id and b.is_deleted = 0
         where c.customer_id = #{userId} and c.is_deleted = 0 and c.business_id = #{businessId};
     """)
-    List<CartItemVO> selectCartItems(Long userId,Long businessId);
+    List<CartItemVO> selectCartItems(@Param("userId") Long userId, @Param("businessId") Long businessId);
 
     @Select("select * from cart where id = #{cartId} and is_deleted = 0")
-    Cart selectCartById(Long cartId);
+    Cart selectCartById(@Param("cartId") Long cartId);
+
+    @Select("SELECT * FROM cart WHERE customer_id = #{userId} AND business_id = #{businessId} AND food_id = #{foodId} AND is_deleted = 0 LIMIT 1")
+    Cart selectActiveCartItem(@Param("userId") Long userId, @Param("businessId") Long businessId,
+                              @Param("foodId") Long foodId);
 
     @Update("update cart set quantity = #{quantity} where id = #{cartId}")
-    void updateCartItem(Long cartId,Integer quantity);
+    void updateCartItem(@Param("cartId") Long cartId, @Param("quantity") Integer quantity);
 
     @Update("update cart set is_deleted = 1 where customer_id = #{userId} and business_id = #{businessId}")
-    void clearCart(Long userId,Long businessId);
+    void clearCart(@Param("userId") Long userId, @Param("businessId") Long businessId);
 
     @Update({"<script>",
             "update cart set is_deleted = 1 where customer_id = #{userId} and business_id = #{businessId} and food_id in",
@@ -44,7 +48,7 @@ public interface CartMapper {
                         @Param("foodIds") List<Long> foodIds);
 
     @Update("update cart set is_deleted = 1 where id = #{cartId}")
-    void removeCartItem(Long cartId);
+    void removeCartItem(@Param("cartId") Long cartId);
 
 
 }

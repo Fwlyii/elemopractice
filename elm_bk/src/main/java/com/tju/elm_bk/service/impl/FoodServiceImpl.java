@@ -83,14 +83,23 @@ public class FoodServiceImpl implements FoodService {
         if (foodDTO == null) {
             return null;
         }
+        validateFoodUpdate(foodDTO);
         Food food = foodMapper.selectFoodById(id);
         if (food == null) {
             throw new APIException(ResultCodeEnum.FOOD_MISSED);
         }
 
+        if (foodDTO.getBusiness() == null || foodDTO.getBusiness().getId() == null
+                || !Objects.equals(food.getBusinessId(), foodDTO.getBusiness().getId())) {
+            throw new APIException("商品所属商家与请求参数不一致");
+        }
+
         User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         List<Authority> authorities = user.getAuthorities();
-        Business business = businessMapper.selectBusinessById(foodDTO.getBusiness().getId());
+        Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null) {
+            throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+        }
         if (authorities.stream()
                 .noneMatch(auth -> "ADMIN".equals(auth.getName()))
                 && !Objects.equals(user.getId(), business.getUserId())) {
@@ -168,6 +177,7 @@ public class FoodServiceImpl implements FoodService {
             throw new APIException(ResultCodeEnum.FOOD_MISSED);
         }
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
 
         User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         List<Authority> authorities = user.getAuthorities();
@@ -189,7 +199,7 @@ public class FoodServiceImpl implements FoodService {
     @Override
     @Transactional
     public Long modifyFoodMessage(FoodUpdateDTO foodUpdateDTO) {
-        if (foodUpdateDTO.getFoodId() == null) {
+        if (foodUpdateDTO == null || foodUpdateDTO.getFoodId() == null) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
         Food food = foodMapper.selectFoodById(foodUpdateDTO.getFoodId());
@@ -198,6 +208,7 @@ public class FoodServiceImpl implements FoodService {
         }
 
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         List<Authority> authorities = user.getAuthorities();
         if (authorities.stream()
@@ -207,6 +218,7 @@ public class FoodServiceImpl implements FoodService {
         }
 
         ObjectCopyUtil.copyPropertiesIgnoreNull(foodUpdateDTO,food);
+        validateFoodEntity(food);
         if (foodUpdateDTO.getCategory() != null) food.setCategory(normalizeCategory(foodUpdateDTO.getCategory()));
         if (foodUpdateDTO.getPurchaseLimit() != null) food.setPurchaseLimit(normalizePurchaseLimit(foodUpdateDTO.getPurchaseLimit()));
         food.setUpdater(user.getId());
@@ -225,6 +237,7 @@ public class FoodServiceImpl implements FoodService {
         if (food == null) throw new APIException(ResultCodeEnum.FOOD_MISSED);
         User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         boolean admin = user.getAuthorities().stream().anyMatch(a -> "ADMIN".equals(a.getName()));
         if (!admin && (business == null || !Objects.equals(user.getId(), business.getUserId()))) {
             throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
@@ -248,6 +261,7 @@ public class FoodServiceImpl implements FoodService {
             throw new APIException(ResultCodeEnum.FOOD_MISSED);
         }
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         List<Authority> authorities = user.getAuthorities();
         if (authorities.stream()
@@ -270,5 +284,28 @@ public class FoodServiceImpl implements FoodService {
         if (purchaseLimit == null) return null;
         if (purchaseLimit <= 0) throw new APIException("单笔限购数量必须大于0");
         return Math.min(purchaseLimit, 999);
+    }
+
+    private void validateFoodUpdate(FoodDTO dto) {
+        if (dto.getFoodName() != null && dto.getFoodName().trim().isEmpty()) {
+            throw new APIException("商品名称不能为空");
+        }
+        if (dto.getFoodPrice() != null && dto.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) < 0) {
+            throw new APIException("商品价格不能为负数");
+        }
+        if (dto.getStock() != null && dto.getStock() < 0) {
+            throw new APIException("库存不能为负数");
+        }
+        if (dto.getPurchaseLimit() != null && dto.getPurchaseLimit() <= 0) {
+            throw new APIException("单笔限购数量必须大于0");
+        }
+    }
+
+    private void validateFoodEntity(Food food) {
+        if (food.getFoodName() == null || food.getFoodName().trim().isEmpty()
+                || food.getFoodPrice() == null || food.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) < 0
+                || (food.getStock() != null && food.getStock() < 0)) {
+            throw new APIException("商品信息不合法");
+        }
     }
 }

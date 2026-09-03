@@ -48,26 +48,34 @@
       <li v-for="order in filteredOrders" :key="order.id" class="order-item" title="查看订单详情">
         <div class="order-header">
           <span class="order-id">订单号: {{ order.id }}</span>
-          <span class="status-badge" :class="getStatusClass(order.orderState)">{{ getStatusText(order.orderState) }}</span>
+          <span class="status-badge" :class="getStatusClass(order.orderState)">{{ getStatusText(order.orderState, order) }}</span>
         </div>
 
         <div class="order-content">
           <div class="customer-info">
             <p><span>顾客:</span> {{ order.customerName || '-' }}</p>
-            <p><span>电话:</span> {{ order.contactTel || '-' }}</p>
-            <p><span>地址:</span> {{ order.address || '-' }}</p>
+            <template v-if="order.serviceMode !== 'PICKUP'">
+              <p><span>电话:</span> {{ order.contactTel || '-' }}</p>
+              <p><span>地址:</span> {{ order.address || '-' }}</p>
+            </template>
+            <p v-else class="pickup-label"><span>履约:</span> 到店自取</p>
           </div>
 
           <div class="order-items">
             <p class="items-title">商品明细:</p>
             <div v-for="(item, index) in order.foodList" :key="index" class="item-row">
               <span class="item-name">{{ item.foodName || '未知商品' }}&nbsp; &#165;{{ item.foodPrice }} &nbsp; × {{ item.quantity || 0 }}</span>
-              <span class="item-price">¥ {{ (item.foodPrice * item.quantity).toFixed(2) }}</span>
+              <span class="item-price">¥ {{ (Number(item.foodPrice || 0) * Number(item.quantity || 0)).toFixed(2) }}</span>
             </div>
           </div>
 
           <div class="price-row">
-            <br><span class="items-title">配送费: &#165;{{ Number(order.deliveryPrice || 0).toFixed(2) }}</span>
+            <template v-if="order.serviceMode !== 'PICKUP'">
+              <br><span class="items-title">配送费: &#165;{{ Number(order.deliveryPrice || 0).toFixed(2) }}</span>
+            </template>
+            <template v-else>
+              <br><span class="items-title pickup-label">无需配送费 · 到店自取</span>
+            </template>
           </div>
           
           <div class="order-footer">
@@ -86,7 +94,7 @@
             <button class="confirm-btn" @click.stop="readyOrder(order.id)">确认出餐</button>
           </template>
 
-          <div v-else class="fulfillment-tip"><i class="fas fa-route"></i> {{ fulfillmentTip(order.orderState) }}</div>
+          <div v-else class="fulfillment-tip"><i class="fas fa-route"></i> {{ fulfillmentTip(order.orderState, order) }}</div>
         </div>
       </li>
     </ul>
@@ -284,7 +292,8 @@ export default {
     });
 
     // 获取状态文本
-    const getStatusText = (state) => {
+    const getStatusText = (state, order = {}) => {
+      if (state === 4 && order.serviceMode === 'PICKUP') return '待顾客自取';
       return statusMap[state] || "未知状态";
     };
 
@@ -338,7 +347,7 @@ export default {
     const readyOrder = async (id) => {
       try {
         const response = await request.post(`/api/v1/orders/${id}/merchant-ready`);
-        if (response.success) { toast.success('已确认出餐，配送任务已发布'); fetchOrders(); }
+        if (response.success) { toast.success(orderById(id)?.serviceMode === 'PICKUP' ? '已确认出餐，等待顾客到店取餐' : '已确认出餐，配送任务已发布'); fetchOrders(); }
         else toast.error(response.message || '确认出餐失败');
       } catch (error) { toast.error(error.response?.data?.message || '确认出餐失败，请稍后重试'); }
     };
@@ -393,10 +402,11 @@ export default {
       }
     };
 
-    const fulfillmentTip = state => ({
-      2: '餐品制作中，完成后请确认出餐', 3: '任务已进入骑手大厅', 4: '骑手正在前往商家',
-      5: '骑手配送中', 6: '等待顾客确认', 7: '订单已闭环', 8: '订单已取消', 9: '调度员正在处理'
-    }[state] || '履约中');
+    const orderById = id => orders.value.find(item => item.id === id);
+    const fulfillmentTip = (state, order = {}) => {
+      if (state === 4 && order.serviceMode === 'PICKUP') return '等待顾客到店取餐';
+      return ({ 2: '餐品制作中，完成后请确认出餐', 3: '任务已进入骑手大厅', 4: '骑手正在前往商家', 5: '骑手配送中', 6: '等待顾客确认', 7: '订单已闭环', 8: '订单已取消', 9: '调度员正在处理' }[state] || '履约中');
+    };
 
     // 关闭弹窗
     const closeModal = () => {

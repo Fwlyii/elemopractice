@@ -36,7 +36,7 @@
         <li v-for="item in displayedOrders" :key="item.id" class="order-item" @click="goDetail(item.id)" title="查看详情">
           <div class="order-header">
             <span class="order-id">订单号: {{ item.id }}</span>
-            <span class="status-badge" :class="getStatusClass(item.orderState)">{{ getStatusText(item.orderState)
+            <span class="status-badge" :class="getStatusClass(item.orderState)">{{ getStatusText(item.orderState, item)
             }}</span>
           </div>
 
@@ -44,7 +44,7 @@
             <img class="thumb" :src="item.businessImg || require('@/assets/default-business.png')" alt="商家图片" @error="handleImageError">
             <div class="meta">
               <p class="name">{{ item.businessName || '未知商家' }}</p>
-              <p class="price">¥ {{ Number(item.orderTotal).toFixed(2) || 0}}</p><br>
+              <p class="price">¥ {{ Number(item.orderTotal || 0).toFixed(2) }}</p><br>
               <p class="time">下单时间: {{ item.orderDate || ''}}</p>
             </div>
           </div>
@@ -62,7 +62,7 @@
             </template>
 
             <!-- 骑手确认送达后，顾客才可确认收货 -->
-            <template v-else-if="item.orderState === 6">
+            <template v-else-if="item.orderState === 6 || (item.orderState === 4 && item.serviceMode === 'PICKUP')">
               <button class="confirm-btn" @click.stop="confirmOrder(item.id)">确认收货</button>
             </template>
 
@@ -218,11 +218,11 @@ export default {
     };
 
     // 获取状态文本
-    const getStatusText = (state) => {
+    const getStatusText = (state, order = {}) => {
       const statusMap = {
         0: "待支付",
         1: "待商家接单", 2: "正在派单", 3: "待骑手接单",
-        4: "骑手待取餐", 5: "配送中", 6: "已送达·待确认",
+        4: order.serviceMode === 'PICKUP' ? "待到店自取" : "骑手待取餐", 5: "配送中", 6: "已送达·待确认",
         7: "已完成", 8: "已取消", 9: "配送异常"
       };
       return statusMap[state] || "未知状态";

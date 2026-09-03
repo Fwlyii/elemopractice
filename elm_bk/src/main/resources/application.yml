@@ -29,7 +29,8 @@ mybatis:
 
 
 jwt:
-  secret: ${JWT_SECRET}
+  # 本地演示兜底值仅用于开发；部署时请通过 JWT_SECRET 覆盖，并使用至少64字节随机密钥。
+  secret: ${JWT_SECRET:elm-demo-development-secret-change-before-production-use-env-2026-09-03-please}
   token-validity-in-seconds: 86400
   token-validity-in-seconds-for-remember-me: 108000
 

@@ -113,7 +113,9 @@
 			  router.push({
 				path: '/userAddress',
 				query: {
-				  businessId: businessId.value
+					  businessId: businessId.value,
+					  serviceMode: route.query.serviceMode || 'delivery',
+					  foodIds: route.query.foodIds
 				}
 			  });
 			} else {

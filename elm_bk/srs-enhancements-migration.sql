@@ -35,6 +35,19 @@ UPDATE orders
 SET address_snapshot = CONVERT(CAST(CONVERT(address_snapshot USING latin1) AS BINARY) USING utf8mb4)
 WHERE address_snapshot REGEXP '[åæçèé]';
 
+-- 自取订单不需要收货地址；历史表结构可能仍将 address_id 设为 NOT NULL。
+SET @order_address_nullable_sql := (
+  SELECT IF(COUNT(*) > 0,
+    'ALTER TABLE orders MODIFY COLUMN address_id BIGINT NULL',
+    'SELECT 1')
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'orders'
+    AND column_name = 'address_id' AND is_nullable = 'NO'
+);
+PREPARE order_address_nullable_stmt FROM @order_address_nullable_sql;
+EXECUTE order_address_nullable_stmt;
+DEALLOCATE PREPARE order_address_nullable_stmt;
+
 -- 商品库存：历史库没有该列时补充，默认每个新商品100份。
 SET @stock_column_exists := (SELECT COUNT(*) FROM information_schema.columns
   WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'stock');

@@ -1408,4 +1408,13 @@ body {
 .shop-setting-row small { margin-left: auto; color: #9aadb9; font-size: 11px; }
 .shop-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .shop-tags span { padding: 2px 6px; border: 1px solid #cfe3f0; border-radius: 3px; background: #f5fbff; color: #168bd1; font-size: 11px; }
+
+/* 申请新店是列表后的普通操作，不能固定覆盖正在浏览的店铺卡片。 */
+.shop-management-page .footer-button-container {
+  position: static;
+  width: min(100% - 24px, 600px);
+  margin: 0 auto 76px;
+  padding: 16px 0 0;
+}
+.shop-management-page .container { padding-bottom: 8px; }
 </style>

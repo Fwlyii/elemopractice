@@ -4,7 +4,7 @@
             <button class="back-button" type="button" aria-label="返回" @click="goBack">‹</button>
             <div class="service-switch" role="tablist" aria-label="配送方式">
                 <button type="button" :class="{ active: deliveryMode === 'delivery' }" @click="setDeliveryMode('delivery')">外送</button>
-                <button type="button" :class="{ active: deliveryMode === 'pickup' }" @click="setDeliveryMode('pickup')">自取</button>
+                <button type="button" :class="{ active: deliveryMode === 'pickup' }" :disabled="business.dineInAvailable === false" @click="setDeliveryMode('pickup')">自取</button>
             </div>
             <div class="header-actions">
                 <button type="button" title="搜索商品" @click="focusMenu"><i class="fa fa-search"></i></button>
@@ -17,7 +17,7 @@
             <div class="business-info">
                 <div class="business-title-row">
                     <h1>{{ business.businessName || '商家' }}</h1>
-                    <span class="open-badge">营业中</span>
+                    <span class="open-badge" :class="{ closed: business.status !== undefined && business.status !== 1 }">{{ business.status === 1 || business.status === undefined ? '营业中' : '暂未营业' }}</span>
                 </div>
                 <p class="business-meta">起送 ¥{{ formatMoney(business.startPrice) }} · {{ deliveryMode === 'pickup' ? '到店自取' : `配送 ¥${formatMoney(business.deliveryPrice)}` }}</p>
                 <p class="business-address"><i class="fa fa-map-marker"></i>{{ business.businessAddress || '校园周边配送' }}</p>
@@ -29,7 +29,7 @@
         </section>
 
         <div class="offer-strip" aria-label="商家优惠">
-            <span>配送费优惠</span><span>满减活动</span><span>品质保障</span><span>支持自取</span>
+            <span v-if="Number(business.deliveryPrice || 0) === 0">免配送费</span><span v-else>配送 ¥{{ formatMoney(business.deliveryPrice) }}</span><span v-if="business.promotionThreshold && business.promotionDiscount">满{{ formatMoney(business.promotionThreshold) }}减{{ formatMoney(business.promotionDiscount) }}</span><span>品质保障</span><span v-if="business.dineInAvailable">支持自取</span>
         </div>
 
         <nav class="page-tabs" role="tablist" aria-label="商家内容">
@@ -139,7 +139,7 @@ export default {
         const isFavorited = ref(false);
         const interactionLoading = ref(false);
         const activeTab = ref('order');
-        const deliveryMode = ref(localStorage.getItem('businessServiceMode') || 'delivery');
+        const deliveryMode = ref('delivery');
         const reviews = ref([]);
         const loadingReviews = ref(false);
 
@@ -154,8 +154,12 @@ export default {
             return (reviews.value.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.value.length).toFixed(1);
         });
         const setDeliveryMode = (mode) => {
+            if (mode === 'pickup' && business.value.dineInAvailable === false) {
+                toast.warning('该商家暂不支持到店自取');
+                return;
+            }
             deliveryMode.value = mode;
-            localStorage.setItem('businessServiceMode', mode);
+            if (businessId.value) localStorage.setItem(`businessServiceMode:${businessId.value}`, mode);
         };
         const selectTab = (tab) => {
             activeTab.value = tab;
@@ -539,11 +543,17 @@ export default {
                         businessImg: response.data.businessImg,
                         startPrice: response.data.startPrice,
                         deliveryPrice: response.data.deliveryPrice,
+                        dineInAvailable: response.data.dineInAvailable,
+                        status: response.data.status,
+                        promotionThreshold: response.data.promotionThreshold,
+                        promotionDiscount: response.data.promotionDiscount,
                         businessExplain: response.data.businessExplain,
                         businessAddress: response.data.businessAddress,
                         orderTypeId: response.data.orderTypeId,
                         remarks: response.data.remarks
                     };
+                    const savedMode = localStorage.getItem(`businessServiceMode:${businessId.value}`) || 'delivery';
+                    deliveryMode.value = savedMode === 'pickup' && response.data.dineInAvailable === false ? 'delivery' : savedMode;
                     console.log("商家信息设置成功:", business.value);
                 } else {
                     console.log("API请求失败，进入else分支");
@@ -631,7 +641,8 @@ export default {
             router.push({
                 path: "/cart",
                 query: {
-                    businessId: businessId.value
+                    businessId: businessId.value,
+                    serviceMode: deliveryMode.value
                 }
             });
         };
@@ -647,8 +658,8 @@ export default {
 				router.push({
 					path: '/userAddress',
 				query: {
-					businessId: businessId.value,
-					serviceMode: deliveryMode.value,
+                    businessId: businessId.value,
+                    serviceMode: deliveryMode.value,
 				}
 			});
         };
@@ -669,14 +680,16 @@ export default {
         });
 
         const totalSettle = computed(() => {
-            const settle = totalPrice.value + (business.value.deliveryPrice || 0);
+            const settle = totalPrice.value + (deliveryMode.value === 'pickup' ? 0 : (business.value.deliveryPrice || 0));
             console.log(`计算结算总额: ${settle}`);
             return settle;
         });
 
         // 检查是否达到起送费
         const canOrder = computed(() => {
-            const canOrder = totalPrice.value >= business.value.startPrice;
+            const canOrder = (business.value.status === undefined || business.value.status === 1)
+                && (deliveryMode.value !== 'pickup' || business.value.dineInAvailable !== false)
+                && totalPrice.value >= Number(business.value.startPrice || 0);
             console.log(`检查是否可下单: ${canOrder}`);
             return canOrder;
         });
@@ -1082,6 +1095,7 @@ export default {
 .business-title-row { display: flex; align-items: center; gap: 8px; }
 .store-hero .business-info .business-title-row h1 { color: #fff; font-size: 21px; line-height: 1.3; }
 .open-badge { border: 1px solid rgba(255,255,255,.8); border-radius: 4px; padding: 2px 5px; color: #fff; font-size: 11px; }
+.open-badge.closed { background:#f2f4f6; border-color:#dce3e9; color:#7d8b98; }
 .store-hero .business-info p { margin-top: 6px; color: rgba(255,255,255,.9); font-size: 13px; }
 .store-hero .business-info .business-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 58vw; }
 .business-address i { margin-right: 4px; }

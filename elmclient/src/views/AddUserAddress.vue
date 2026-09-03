@@ -106,7 +106,11 @@ export default {
 				.then(response => {
 					if (response.success) {
 							toast.success('添加地址成功！');
-							router.push({ path: '/userAddress' , query: { businessId: businessId.value }});
+							router.push({ path: '/userAddress' , query: {
+								businessId: businessId.value,
+								serviceMode: route.query.serviceMode || 'delivery',
+								foodIds: route.query.foodIds
+							}});
 						} else {
 							toast.error('新增地址失败！原因：' + response.message);
 						}

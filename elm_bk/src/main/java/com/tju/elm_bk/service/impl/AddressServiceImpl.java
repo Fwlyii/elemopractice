@@ -30,7 +30,13 @@ public class AddressServiceImpl implements AddressService {
     @Override
     public HttpResult<AddressVO> addDeliveryAddress(AddressCreateDTO createDTO) {
         if (createDTO == null || createDTO.getCustomer() == null
-                || createDTO.getCustomer().getUsername() == null) {
+                || createDTO.getCustomer().getUsername() == null
+                || createDTO.getCustomer().getUsername().isBlank()
+                || createDTO.getContactName() == null || createDTO.getContactName().isBlank()
+                || createDTO.getContactTel() == null || createDTO.getContactTel().isBlank()
+                || createDTO.getAddress() == null || createDTO.getAddress().isBlank()
+                || createDTO.getContactSex() == null
+                || (createDTO.getContactSex() != 0 && createDTO.getContactSex() != 1)) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
         String currentUsername = SecurityUtils.getCurrentUsername()
@@ -55,8 +61,9 @@ public class AddressServiceImpl implements AddressService {
             address.setCreator(currentUser.getId());
             address.setUpdater(currentUser.getId());
             address.setIsDeleted(false);
-            address.setUserId(currentUser.getId());
-            address.setUser(currentUser);
+            // 管理员可以代目标用户创建地址，但地址归属必须是目标用户，而不是操作者。
+            address.setUserId(targetUser.getId());
+            address.setUser(targetUser);
 
             deliveryAddressMapper.insert(address);
             AddressVO addressVO = new AddressVO();
@@ -101,9 +108,13 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public HttpResult updateDeliveryAddress(DeliveryAddress deliveryAddress) {
+        if (deliveryAddress == null || deliveryAddress.getId() == null) {
+            throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+        }
         User currentUser = currentUser();
         DeliveryAddress existing = deliveryAddressMapper.getDeliveryAddressById(deliveryAddress.getId());
         assertAddressOwner(existing, currentUser);
+        validateAddressFields(deliveryAddress);
         // 地址归属由数据库记录决定，忽略客户端伪造的 userId/creator/updater。
         deliveryAddress.setUserId(existing.getUserId());
         deliveryAddress.setCreator(existing.getCreator());
@@ -115,6 +126,9 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public HttpResult deleteDeliveryAddress(DeliveryAddress deliveryAddress) {
+        if (deliveryAddress == null || deliveryAddress.getId() == null) {
+            throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+        }
         User currentUser = currentUser();
         DeliveryAddress existing = deliveryAddressMapper.getDeliveryAddressById(deliveryAddress.getId());
         assertAddressOwner(existing, currentUser);
@@ -123,6 +137,16 @@ public class AddressServiceImpl implements AddressService {
         deliveryAddress.setUserId(existing.getUserId());
         deliveryAddress.setUpdater(currentUser.getId());
         return HttpResult.success(deliveryAddressMapper.updateDeliveryAddress(deliveryAddress));
+    }
+
+    private void validateAddressFields(DeliveryAddress address) {
+        if (address.getContactName() == null || address.getContactName().isBlank()
+                || address.getContactTel() == null || !address.getContactTel().matches("^1[3-9]\\d{9}$")
+                || address.getAddress() == null || address.getAddress().isBlank()
+                || address.getContactSex() == null
+                || (address.getContactSex() != 0 && address.getContactSex() != 1)) {
+            throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+        }
     }
 
     private User currentUser() {

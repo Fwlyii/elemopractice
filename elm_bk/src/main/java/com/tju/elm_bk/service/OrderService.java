@@ -37,12 +37,10 @@ public interface OrderService {
     Long orderSubmit(Long businessId, Long addressId, String idempotencyKey);
 
     default Long orderSubmit(Long businessId, Long addressId, String idempotencyKey, String serviceMode) {
-        return orderSubmit(businessId, addressId, idempotencyKey);
+        return orderSubmit(businessId, addressId, idempotencyKey, serviceMode, null);
     }
 
     /** 提交购物车中选中的商品；foodIds 为空时兼容旧行为。 */
-    default Long orderSubmit(Long businessId, Long addressId, String idempotencyKey,
-                             String serviceMode, List<Long> foodIds) {
-        return orderSubmit(businessId, addressId, idempotencyKey, serviceMode);
-    }
+    Long orderSubmit(Long businessId, Long addressId, String idempotencyKey,
+                     String serviceMode, List<Long> foodIds);
 }

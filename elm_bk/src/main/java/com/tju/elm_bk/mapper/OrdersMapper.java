@@ -28,9 +28,9 @@ public interface OrdersMapper {
 
     @Update("UPDATE orders SET order_state = 7, updater = 0, update_time = NOW() WHERE id = #{orderId} AND order_state = 6 AND is_deleted = 0")
     int completeExpiredDelivered(@Param("orderId") Long orderId);
-    List<OrderVO> selectOrders(Long userId);
+    List<OrderVO> selectOrders(@Param("userId") Long userId);
 
-    OrderVO selectOrderById(Long orderId);
+    OrderVO selectOrderById(@Param("orderId") Long orderId);
 
     void insertOrder(Order order);
 
@@ -58,11 +58,11 @@ public interface OrdersMapper {
               order by o.order_date desc
         </script>
     """)
-    List<OrderItemVO> selectOrderItemsList(Long businessId, Integer orderState,Long userId);
+    List<OrderItemVO> selectOrderItemsList(@Param("businessId") Long businessId, @Param("orderState") Integer orderState, @Param("userId") Long userId);
 
     @Select("""
         <script>
-            select o.*, uc.username as customerName, b.business_name,b.business_img,
+            select o.*, uc.username as customerName, b.business_name,b.business_img,b.business_address as businessAddress,
                    COALESCE(o.address_snapshot, da.address) AS address,
                    COALESCE(o.contact_name_snapshot, da.contact_name) AS contact_name,
                    COALESCE(o.contact_sex_snapshot, da.contact_sex) AS contact_sex,
@@ -83,11 +83,11 @@ public interface OrdersMapper {
               order by o.order_date desc
         </script>
     """)
-    List<OrderItemDetailVO> selectOrderDetailetItem(Long businessId, Integer orderState);
+    List<OrderItemDetailVO> selectOrderDetailetItem(@Param("businessId") Long businessId, @Param("orderState") Integer orderState);
 
     @Select("""
         <script>
-            select o.*, uc.username as customerName, b.business_name,b.business_img,
+            select o.*, uc.username as customerName, b.business_name,b.business_img,b.business_address as businessAddress,
                    COALESCE(o.address_snapshot, da.address) AS address,
                    COALESCE(o.contact_name_snapshot, da.contact_name) AS contact_name,
                    COALESCE(o.contact_sex_snapshot, da.contact_sex) AS contact_sex,
@@ -99,12 +99,12 @@ public interface OrdersMapper {
             where o.is_deleted = 0 and o.id = #{orderItemId}
         </script>
     """)
-    OrderItemDetailVO selectOrderItemById(Long orderItemId);
+    OrderItemDetailVO selectOrderItemById(@Param("orderItemId") Long orderItemId);
 
 
 
     @Update("update orders set order_state = #{orderState} where id = #{orderId}")
-    Integer setOrderState(Long orderId, Integer orderState);
+    Integer setOrderState(@Param("orderId") Long orderId, @Param("orderState") Integer orderState);
 
     @Update("""
         UPDATE orders
@@ -125,7 +125,7 @@ public interface OrdersMapper {
     int updatePaymentStatus(@Param("orderId") Long orderId, @Param("status") String status);
 
     @Select("select * from orders where id = #{orderId}")
-    Order getOrderById(Long orderId);
+    Order getOrderById(@Param("orderId") Long orderId);
 
     @Select("SELECT id FROM orders WHERE customer_id=#{customerId} AND idempotency_key=#{idempotencyKey} AND is_deleted=0 LIMIT 1")
     Long findIdByIdempotencyKey(@Param("customerId") Long customerId, @Param("idempotencyKey") String idempotencyKey);
@@ -135,7 +135,7 @@ public interface OrdersMapper {
 
     // AI服务相关查询方法
     @Select("SELECT * FROM orders WHERE id = #{id} AND is_deleted = 0")
-    Order selectById(Long id);
+    Order selectById(@Param("id") Long id);
 
     @Select("SELECT * FROM orders WHERE customer_id = #{userId} AND is_deleted = 0 " +
             "ORDER BY order_date DESC LIMIT #{limit}")

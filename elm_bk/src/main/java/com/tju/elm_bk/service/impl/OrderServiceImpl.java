@@ -78,7 +78,9 @@ public class OrderServiceImpl implements OrderService {
         Order order = ordersMapper.getOrderById(orderId);
         Business business = businessMapper.selectBusinessById(order.getBusinessId());
         boolean admin = user.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
-        if(!admin && !Objects.equals(orderVO.getCustomer().getId(), user.getId()) && !Objects.equals(business.getUserId(), user.getId())) {
+        boolean merchant = business != null && Objects.equals(business.getUserId(), user.getId());
+        Long customerId = orderVO.getCustomer() == null ? null : orderVO.getCustomer().getId();
+        if(!admin && !Objects.equals(customerId, user.getId()) && !merchant) {
             throw new APIException(ResultCodeEnum.USER_UNMATCHED);
         }
         return orderVO;
@@ -94,8 +96,9 @@ public class OrderServiceImpl implements OrderService {
         if (business == null) {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
+        ensureBusinessOrderable(business);
         DeliveryAddress deliveryAddress = deliveryAddressMapper.getDeliveryAddressById(orderDTO.getDeliveryAddress().getId());
-        if (deliveryAddress == null) {
+        if (deliveryAddress == null || Boolean.TRUE.equals(deliveryAddress.getIsDeleted())) {
             throw new APIException(ResultCodeEnum.ADDRESS_MISSED);
         }
 
@@ -134,6 +137,7 @@ public class OrderServiceImpl implements OrderService {
             totalPrice += (cartItemVO.getFoodPrice() * cartItemVO.getQuantity());
         }
         order.setOrderTotal(BigDecimal.valueOf(totalPrice));
+        validateStartPrice(business, order.getOrderTotal());
 
         // 插入订单数据到数据库
         ordersMapper.insertOrder(order);
@@ -261,7 +265,7 @@ public class OrderServiceImpl implements OrderService {
                     && !Objects.equals(order.getOrderState(), OrderStatus.WAITING_MERCHANT_ACCEPT.getCode())) {
                 throw new APIException(ResultCodeEnum.ORDER_CANCEL_DENY);
             }
-            if ((!Objects.equals(business.getUserId(),userId) && !Objects.equals(order.getCustomerId(),userId))) {
+            if (business == null || (!Objects.equals(business.getUserId(),userId) && !Objects.equals(order.getCustomerId(),userId))) {
                 throw new APIException(ResultCodeEnum.ORDER_CANCEL_FAILED);
             }
             reason = Objects.equals(userId, order.getCustomerId()) ? "顾客取消订单" : "商家取消订单";
@@ -389,6 +393,12 @@ public class OrderServiceImpl implements OrderService {
         if (null == business) {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
+        ensureBusinessOrderable(business);
+
+        String normalizedServiceMode = normalizeServiceMode(serviceMode);
+        if ("PICKUP".equals(normalizedServiceMode) && !Boolean.TRUE.equals(business.getDineInAvailable())) {
+            throw new APIException("该商家暂不支持到店自取，请选择外送");
+        }
 
         // 设置订单信息
         Long userId = userMapper.getUserIdByUsername(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
@@ -396,9 +406,23 @@ public class OrderServiceImpl implements OrderService {
             Long existingOrderId = ordersMapper.findIdByIdempotencyKey(userId, normalizedKey);
             if (existingOrderId != null) return existingOrderId;
         }
-        DeliveryAddress deliveryAddress = deliveryAddressMapper.getDeliveryAddressById(addressId);
-        if (deliveryAddress == null || !Objects.equals(deliveryAddress.getUserId(), userId)) {
-            throw new APIException(ResultCodeEnum.ADDRESS_PERMISSION_DENIED);
+        DeliveryAddress deliveryAddress = null;
+        if ("DELIVERY".equals(normalizedServiceMode)) {
+            if (addressId == null) {
+                throw new APIException("外送订单请选择收货地址");
+            }
+            deliveryAddress = deliveryAddressMapper.getDeliveryAddressById(addressId);
+            if (deliveryAddress == null || Boolean.TRUE.equals(deliveryAddress.getIsDeleted())
+                    || !Objects.equals(deliveryAddress.getUserId(), userId)) {
+                throw new APIException(ResultCodeEnum.ADDRESS_PERMISSION_DENIED);
+            }
+        } else if (addressId != null) {
+            // 自取不需要地址；若旧客户端仍传地址，只校验归属后忽略，避免把他人地址写进订单。
+            deliveryAddress = deliveryAddressMapper.getDeliveryAddressById(addressId);
+            if (deliveryAddress == null || Boolean.TRUE.equals(deliveryAddress.getIsDeleted())
+                    || !Objects.equals(deliveryAddress.getUserId(), userId)) {
+                throw new APIException(ResultCodeEnum.ADDRESS_PERMISSION_DENIED);
+            }
         }
         List<CartItemVO> cartItemsInBusiness = cartMapper.selectCartItems(userId,businessId);
         if (selectedFoodIds != null && !selectedFoodIds.isEmpty()) {
@@ -411,13 +435,12 @@ public class OrderServiceImpl implements OrderService {
             throw new APIException(ResultCodeEnum.CART_EMPTY);
         }
         validatePurchaseLimits(cartItemsInBusiness);
-        String normalizedServiceMode = "pickup".equalsIgnoreCase(serviceMode) ? "PICKUP" : "DELIVERY";
         Order order = new Order();
         order.setBusinessId(businessId);
         order.setOrderDate(LocalDateTime.now());
         order.setCustomerId(userId);
         order.setIdempotencyKey(normalizedKey);
-        order.setAddressId(addressId);
+        order.setAddressId("DELIVERY".equals(normalizedServiceMode) ? addressId : null);
         copyAddressSnapshot(order, deliveryAddress);
 
         order.setOrderState(0);
@@ -439,6 +462,7 @@ public class OrderServiceImpl implements OrderService {
         // 在创建订单事务中原子预占库存；任一商品不足会回滚整笔订单。
         reserveStock(cartItemsInBusiness);
         BigDecimal subtotal = BigDecimal.valueOf(totalPrice).setScale(2, RoundingMode.HALF_UP);
+        validateStartPrice(business, subtotal);
         UserAsset assets = assetMapper.findByUserId(userId);
         BigDecimal merchantPromotion = BigDecimal.ZERO;
         if (business.getPromotionThreshold() != null && business.getPromotionDiscount() != null
@@ -529,9 +553,39 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void copyAddressSnapshot(Order order, DeliveryAddress address) {
+        if (address == null) return;
         order.setAddressSnapshot(address.getAddress());
         order.setContactNameSnapshot(address.getContactName());
         order.setContactSexSnapshot(address.getContactSex());
         order.setContactTelSnapshot(address.getContactTel());
+    }
+
+    private String normalizeServiceMode(String serviceMode) {
+        if (serviceMode == null || serviceMode.isBlank() || "delivery".equalsIgnoreCase(serviceMode)) {
+            return "DELIVERY";
+        }
+        if ("pickup".equalsIgnoreCase(serviceMode)) {
+            return "PICKUP";
+        }
+        throw new APIException("不支持的履约方式，请选择外送或自取");
+    }
+
+    private void ensureBusinessOrderable(Business business) {
+        if (business.getStatus() != null && business.getStatus() != 1) {
+            throw new APIException("商家当前未营业或尚未通过审核");
+        }
+        if (business.getDeliveryPrice() != null && business.getDeliveryPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new APIException("商家配送费配置异常");
+        }
+    }
+
+    private void validateStartPrice(Business business, BigDecimal subtotal) {
+        BigDecimal startPrice = business.getStartPrice() == null ? BigDecimal.ZERO : business.getStartPrice();
+        if (startPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new APIException("商家起送价配置异常");
+        }
+        if (subtotal.compareTo(startPrice) < 0) {
+            throw new APIException("订单未达到商家起送价 ¥" + startPrice.setScale(2, RoundingMode.HALF_UP));
+        }
     }
 }

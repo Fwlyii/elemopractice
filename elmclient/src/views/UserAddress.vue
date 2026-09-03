@@ -2,11 +2,20 @@
 	<div class="wrapper">
 		<!-- header部分 -->
     <div class="header">
-
-      <p>订单配送地址</p>
+      <button class="back-button" type="button" aria-label="返回" @click="goBack">‹</button>
+      <p>{{ isPickup ? '到店自取' : '选择收货地址' }}</p>
     </div>
+
+		<div v-if="isPickup" class="pickup-card">
+			<div class="pickup-icon"><i class="fa fa-shopping-bag"></i></div>
+			<div><strong>到店自取</strong><p>商家备餐完成后，请到门店出示订单取餐</p></div>
+		</div>
+
+		<div v-else-if="!deliveryAddressArr.length" class="empty-address">
+			<i class="fa fa-map-marker"></i><p>还没有收货地址</p><button type="button" @click="toAddUserAddress">新增收货地址</button>
+		</div>
 		<!-- 地址列表部分 -->
-		<ul class="addresslist">
+		<ul v-if="!isPickup && deliveryAddressArr.length" class="addresslist">
 			<li v-for="item in deliveryAddressArr" :key="item.id">
 		<div class="addresslist-left" @click="setDeliveryAddress(item)">
 					<h3 style="color: black;">{{ item.contactName }}{{ sexFilter(item.contactSex) }} {{ item.contactTel }}</h3>
@@ -24,13 +33,13 @@
 		</ul>
 
 		<!-- 新增地址部分 -->
-		<div class="addbtn" @click="toAddUserAddress">
+		<div v-if="!isPickup && deliveryAddressArr.length" class="addbtn" @click="toAddUserAddress">
 			<i class="fa fa-plus-circle"></i>
 			<p>新增收货地址</p>
 		</div>
 		<!-- 底部结算栏 -->
 		<div class="order-bar">
-			<button class="checkout-order-btn" :disabled="submitting" @click="submitOrder">{{ submitting ? '提交中…' : '确认下单' }}</button>
+			<button class="checkout-order-btn" :disabled="submitting" @click="submitOrder">{{ submitting ? '提交中…' : (isPickup ? '确认自取订单' : '确认下单') }}</button>
 		</div>
 
 		<!-- 确认删除弹窗 -->
@@ -54,7 +63,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
@@ -71,6 +80,7 @@ export default {
 		const addressSelectedId = ref(0);
 		const showConfirmModal = ref(false);
 		const addressDeleteSelectId = ref(0);
+		const isPickup = computed(() => String(route.query.serviceMode || 'delivery').toLowerCase() === 'pickup');
 
 		const goBack = () => {
       router.back();
@@ -113,7 +123,7 @@ export default {
 		};
 
 		const toAddUserAddress = () => {
-			router.push({ path: '/addUserAddress', query: { businessId: businessId.value } });
+			router.push({ path: '/addUserAddress', query: { businessId: businessId.value, serviceMode: route.query.serviceMode || 'delivery', foodIds: route.query.foodIds } });
 		};
 
 		// 修改：切换地址选择状态
@@ -130,7 +140,7 @@ export default {
 		const submitting = ref(false);
 		const submitOrder = () => {
 			if (submitting.value) return;
-			if (addressSelectedId.value === 0) {
+			if (!isPickup.value && addressSelectedId.value === 0) {
 				toast.error("请选择配送地址");
 				return;
 			}
@@ -140,7 +150,7 @@ export default {
 				request.post('/api/orders/submit', null, {
 					params: {
 						businessId: businessId.value,
-						addressId: addressSelectedId.value,
+						addressId: isPickup.value ? undefined : addressSelectedId.value,
 						foodIds: route.query.foodIds || undefined,
 						serviceMode: route.query.serviceMode || 'delivery'
 					},
@@ -168,7 +178,12 @@ export default {
 		};
 
 		const editUserAddress = (id) => {
-			router.push({ path: '/editUserAddress', query: { businessId: businessId.value, id } });
+			router.push({ path: '/editUserAddress', query: {
+				businessId: businessId.value,
+				id,
+				serviceMode: route.query.serviceMode || 'delivery',
+				foodIds: route.query.foodIds
+			} });
 		};
 
 		const removeUserAddress = (id) => {
@@ -214,6 +229,7 @@ export default {
 
 		return {
 			businessId,
+			isPickup,
 			user,
 			deliveryAddressArr,
 			listDeliveryAddressByUserId,
@@ -258,6 +274,12 @@ export default {
   justify-content: center;
   align-items: center;
 }
+.back-button { position:absolute; left:14px; border:0; background:transparent; color:#fff; font-size:32px; line-height:1; cursor:pointer; padding:4px 10px; }
+.pickup-card { margin:15vw 3vw 3vw; padding:18px; display:flex; align-items:center; gap:14px; background:#fff; border-radius:12px; border:1px solid #d9ecf8; color:#2d4f6b; }
+.pickup-icon { width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:#e9f6ff; color:#168bd1; font-size:20px; }
+.pickup-card strong { font-size:16px; }.pickup-card p { margin:5px 0 0; color:#7890a5; font-size:12px; }
+.empty-address { margin:18vw 3vw 0; padding:40px 20px; text-align:center; color:#8aa0b2; background:#fff; border-radius:12px; }
+.empty-address i { font-size:34px; color:#a9cde5; }.empty-address p { margin:12px 0 16px; }.empty-address button { border:1px solid #168bd1; border-radius:18px; color:#168bd1; background:#fff; padding:8px 18px; }
 .wapper title {
  font-size: 1.1rem;
   color: #ffffff;

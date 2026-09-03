@@ -114,6 +114,13 @@ public class DeliveryServiceImpl implements DeliveryService {
         User merchant = currentUser();
         Order order = requireOrder(orderId);
         requireBusinessOwner(merchant.getId(), order.getBusinessId());
+        if ("PICKUP".equalsIgnoreCase(order.getServiceMode())) {
+            // 自取单不进入骑手配送域；商家确认出餐后直接进入“待自取”。
+            changeOrderState(orderId, OrderStatus.WAITING_DISPATCH, OrderStatus.WAITING_PICKUP,
+                    merchant.getId(), "商家确认出餐，等待顾客到店自取");
+            notifyUser(order.getCustomerId(), "餐品已备好，请到店取餐", orderId);
+            return null;
+        }
         if (deliveryTaskMapper.selectByOrderId(orderId) != null) throw new APIException("该订单已经生成配送任务");
         changeOrderState(orderId, OrderStatus.WAITING_DISPATCH, OrderStatus.WAITING_RIDER_ACCEPT,
                 merchant.getId(), "商家确认出餐，配送任务进入接单大厅");
@@ -213,6 +220,16 @@ public class DeliveryServiceImpl implements DeliveryService {
         if (!Objects.equals(order.getCustomerId(), customer.getId())) {
             throw new APIException("只有下单顾客可以确认收货");
         }
+        if ("PICKUP".equalsIgnoreCase(order.getServiceMode())) {
+            if (!Objects.equals(order.getOrderState(), OrderStatus.WAITING_PICKUP.getCode())) {
+                throw new APIException("商家尚未确认出餐，暂不能确认取餐");
+            }
+            changeOrderState(orderId, OrderStatus.WAITING_PICKUP, OrderStatus.COMPLETED,
+                    customer.getId(), "顾客到店取餐并确认完成");
+            awardCustomerPoints(order, customer.getId());
+            notifyMerchant(order, "顾客已到店取餐，订单完成", orderId);
+            return null;
+        }
         DeliveryTask task = deliveryTaskMapper.selectByOrderId(orderId);
         if (task == null || !DeliveryTaskStatus.DELIVERED.name().equals(task.getTaskStatus())) {
             throw new APIException("骑手尚未确认送达");
@@ -223,10 +240,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         changeOrderState(orderId, OrderStatus.DELIVERED, OrderStatus.COMPLETED,
                 customer.getId(), "顾客确认收货");
         riderMapper.addCompletedStats(task.getRiderUserId(), safe(task.getDistanceKm()), safe(task.getRiderFee()));
-        assetMapper.ensure(customer.getId());
-        int earnedPoints = order.getOrderTotal() == null ? 0 : order.getOrderTotal().setScale(0, RoundingMode.FLOOR).intValue();
-        assetMapper.addPoints(customer.getId(), earnedPoints);
-        assetMapper.insertLedger(customer.getId(), "POINT_EARN", BigDecimal.ZERO, earnedPoints, "完成订单奖励积分", orderId);
+        awardCustomerPoints(order, customer.getId());
         notifyUser(task.getRiderUserId(), "订单 #" + orderId + " 已完成，配送收入已计入", orderId);
         notifyMerchant(order, "顾客已确认收货，订单完成", orderId);
         return deliveryTaskMapper.selectViewById(task.getId());
@@ -480,6 +494,14 @@ public class DeliveryServiceImpl implements DeliveryService {
         if (business != null) {
             notifyUser(business.getUserId(), content, orderId);
         }
+    }
+
+    private void awardCustomerPoints(Order order, Long customerId) {
+        assetMapper.ensure(customerId);
+        int earnedPoints = order.getOrderTotal() == null ? 0 : order.getOrderTotal().setScale(0, RoundingMode.FLOOR).intValue();
+        if (earnedPoints <= 0) return;
+        assetMapper.addPoints(customerId, earnedPoints);
+        assetMapper.insertLedger(customerId, "POINT_EARN", BigDecimal.ZERO, earnedPoints, "完成订单奖励积分", order.getId());
     }
 
     private void notifyUser(Long userId, String content, Long orderId) {

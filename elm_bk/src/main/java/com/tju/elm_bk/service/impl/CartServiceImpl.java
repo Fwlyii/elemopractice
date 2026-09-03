@@ -57,6 +57,17 @@ public class CartServiceImpl implements CartService {
 //            throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
 //        }
 
+        Cart existing = cartMapper.selectActiveCartItem(user.getId(), food.getBusinessId(), food.getId());
+        if (existing != null) {
+            int mergedQuantity = (existing.getQuantity() == null ? 0 : existing.getQuantity()) + cartItemCreateDTO.getQuantity();
+            ensurePurchasable(food, cartItemCreateDTO.getQuantity(), user.getId());
+            cartMapper.updateCartItem(existing.getId(), mergedQuantity);
+            CartVO merged = cartMapper.selectCart(existing.getId());
+            merged.setCustomer(toUserVO(user));
+            merged.setBusiness(businessMapper.selectBusinessVO(existing.getBusinessId()));
+            return merged;
+        }
+
         Cart cart = new Cart();
         cart.setQuantity(cartItemCreateDTO.getQuantity());
         cart.setBusinessId(food.getBusinessId());
@@ -102,12 +113,18 @@ public class CartServiceImpl implements CartService {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
 
-        if (quantity <= 0) {
+        if (quantity == null || quantity <= 0) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
 
         Long userId = userMapper.getUserIdByUsername(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         ensurePurchasable(food, quantity, userId);
+        Cart existing = cartMapper.selectActiveCartItem(userId, business.getId(), foodId);
+        if (existing != null) {
+            int mergedQuantity = (existing.getQuantity() == null ? 0 : existing.getQuantity()) + quantity;
+            cartMapper.updateCartItem(existing.getId(), mergedQuantity);
+            return existing.getId();
+        }
         Cart cart = new Cart();
 
         cart.setCustomerId(userId);
@@ -137,7 +154,7 @@ public class CartServiceImpl implements CartService {
         if (!Objects.equals(cart.getCustomerId(), userId)) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
-        if (quantity < 0) {
+        if (quantity == null || quantity < 0) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
         if (quantity == 0) {
@@ -146,9 +163,8 @@ public class CartServiceImpl implements CartService {
         }
 
         Food food = foodMapper.selectFoodById(cart.getFoodId());
-        if (food == null || food.getShelveStatus() != 1 || (food.getStock() != null && quantity > food.getStock())) {
-            throw new APIException("商品已下架或库存不足");
-        }
+        if (food == null) throw new APIException("商品已下架或不存在");
+        ensurePurchasableForUpdate(food, quantity, userId, cart.getId());
 
         cartMapper.updateCartItem(cartId, quantity);
         return cart.getId();
@@ -165,6 +181,9 @@ public class CartServiceImpl implements CartService {
     public Long removeItem(Long cartId) {
         Long userId = userMapper.getUserIdByUsername(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         Cart cart = cartMapper.selectCartById(cartId);
+        if (cart == null) {
+            throw new APIException(ResultCodeEnum.CART_MISSED);
+        }
         if (!Objects.equals(cart.getCustomerId(), userId)) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
@@ -173,6 +192,9 @@ public class CartServiceImpl implements CartService {
     }
 
     private void ensurePurchasable(Food food, Integer quantity, Long userId) {
+        if (quantity == null || quantity <= 0) {
+            throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
+        }
         if (food.getShelveStatus() == null || food.getShelveStatus() != 1) {
             throw new APIException("商品已下架");
         }
@@ -196,5 +218,27 @@ public class CartServiceImpl implements CartService {
         if (food.getPurchaseLimit() != null && existing + quantity > food.getPurchaseLimit()) {
             throw new APIException("商品“" + food.getFoodName() + "”单笔限购" + food.getPurchaseLimit() + "份");
         }
+    }
+
+    private void ensurePurchasableForUpdate(Food food, Integer quantity, Long userId, Long cartId) {
+        if (food.getShelveStatus() == null || food.getShelveStatus() != 1) {
+            throw new APIException("商品已下架");
+        }
+        Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        if (business == null || (business.getStatus() != null && business.getStatus() != 1)) {
+            throw new APIException("商家当前未营业");
+        }
+        if (food.getStock() != null && quantity > food.getStock()) {
+            throw new APIException("商品库存不足");
+        }
+        if (food.getPurchaseLimit() != null && quantity > food.getPurchaseLimit()) {
+            throw new APIException("商品“" + food.getFoodName() + "”单笔限购" + food.getPurchaseLimit() + "份");
+        }
+    }
+
+    private UserVO toUserVO(User user) {
+        UserVO vo = new UserVO();
+        BeanUtils.copyProperties(user, vo);
+        return vo;
     }
 }

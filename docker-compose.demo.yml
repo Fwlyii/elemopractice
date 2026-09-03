@@ -28,7 +28,7 @@ services:
       SPRING_DATASOURCE_USERNAME: elm_demo
       SPRING_DATASOURCE_PASSWORD: elm_demo_password
       # 仅供本地/答辩演示；正式环境请在 .env 中覆盖 JWT_SECRET。
-      JWT_SECRET: ${JWT_SECRET:-elm-demo-only-change-this-secret}
+      JWT_SECRET: ${JWT_SECRET:-elm-demo-development-secret-change-before-production-use-env-2026-09-03-please}
       DEEPSEEK_API_KEY: ""
       TZ: Asia/Shanghai
     ports:

@@ -16,10 +16,10 @@ import org.apache.ibatis.annotations.*;
 @Mapper
 public interface BusinessMapper {
 
-    BusinessVO getBusinessById(Long businessId);
+    BusinessVO getBusinessById(@Param("id") Long businessId);
 
-    @Select("SELECT * FROM business WHERE id = #{id}")
-    BusinessPermissionVO getBusinessPermissionById(Long businessId);
+    @Select("SELECT * FROM business WHERE id = #{businessId}")
+    BusinessPermissionVO getBusinessPermissionById(@Param("businessId") Long businessId);
 
     // 更新商户信息
     int updateBusiness(@Param("id") Long id, @Param("updateDto") BusinessUpdateDTO updateDto);
@@ -40,11 +40,11 @@ public interface BusinessMapper {
 
     List<BusinessVO> getBusinesses();
 
-    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId)}")
-    BusinessVO selectBusinessVO(Long businessId);
+    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId}")
+    BusinessVO selectBusinessVO(@Param("businessId") Long businessId);
 
-    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId)}")
-    Business selectBusinessById(Long businessId);
+    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId}")
+    Business selectBusinessById(@Param("businessId") Long businessId);
 
     @Update("UPDATE business SET status = #{status},update_time=#{updateTime},updater=#{updater} WHERE id = #{id}")
     void updateBusinessStatus(BusinessPermissionDTO businessPermissionDTO);
@@ -74,7 +74,7 @@ public interface BusinessMapper {
      * @return 商家ID列表
      */
     @Select("SELECT id FROM business WHERE user_id = #{userId}")
-    List<Long> getBusinessIdsByUserId(Long userId);
+    List<Long> getBusinessIdsByUserId(@Param("userId") Long userId);
 
     /**
      * 获取所有已激活的商家信息
@@ -95,7 +95,7 @@ public interface BusinessMapper {
     List<BusinessInfoDTO>getAllActiveBusinesses();
 
     @Select("<script>" +
-            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, status " +
+            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, dine_in_available, promotion_threshold, promotion_discount, status " +
             "FROM business " +
             "WHERE is_deleted = 0 " +
             "<if test='userId != null'>" +
@@ -109,7 +109,7 @@ public interface BusinessMapper {
 
 
     @Select("<script>" +
-            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain " +
+            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, dine_in_available, promotion_threshold, promotion_discount, status " +
             "FROM business " +
             "WHERE is_deleted = 0 AND status = 1" +
             "<if test='type != null'>" +
@@ -119,11 +119,11 @@ public interface BusinessMapper {
     List<Business> listBusinessByOrderTypeId(@Param("type") Integer type);
 
     @Select("select id as merchantId, business_name as merchantName from business where user_id = #{userId} and is_deleted = 0 and status = 1")
-    List<MerchantStatsVO> selectBusinessIdListByUserId(Long userId);
+    List<MerchantStatsVO> selectBusinessIdListByUserId(@Param("userId") Long userId);
 
     // AI服务相关查询方法
     @Select("SELECT * FROM business WHERE id = #{id} AND is_deleted = 0")
-    Business selectById(Long id);
+    Business selectById(@Param("id") Long id);
 
     @Select("<script>" +
             "SELECT * FROM business " +

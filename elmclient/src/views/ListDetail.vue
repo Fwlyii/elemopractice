@@ -37,11 +37,12 @@
 				<!-- 收货人信息 -->
 				<div class="info-section">
 					<h3 class="section-title">收货信息</h3>
-					<div class="info-content">
+					<div v-if="orderDetail.serviceMode !== 'PICKUP'" class="info-content">
 						<p><span>收货人:</span> {{ orderDetail.contactName || '-' }} {{ getGenderText(orderDetail.contactSex) }}</p>
 						<p><span>联系电话:</span> {{ orderDetail.contactTel || '-' }}</p>
 						<p><span>配送地址:</span> {{ orderDetail.address || '-' }}</p>
 					</div>
+					<div v-else class="pickup-detail"><i class="fa fa-shopping-bag"></i><span>到店自取 · {{ orderDetail.businessAddress || orderDetail.businessName || '请到商家门店取餐' }}</span></div>
 				</div>
 
 				<div v-if="orderDetail.orderState === 7" class="info-section review-section">
@@ -74,7 +75,7 @@
 							<div class="item-info">
 								<span class="item-name">{{ item.foodName || '未知商品' }} &#165;{{ item.foodPrice }} &nbsp; × {{ item.quantity || 0 }}</span>
 							</div>
-							<div class="item-price">¥ {{ (item.foodPrice * item.quantity).toFixed(2) }}</div>
+							<div class="item-price">¥ {{ (Number(item.foodPrice || 0) * Number(item.quantity || 0)).toFixed(2) }}</div>
 						</div>
 					</div>
 				</div>
@@ -87,13 +88,13 @@
 							<span>商品金额</span>
 							<span>¥ {{ itemsTotal.toFixed(2) || '0'}}</span>
 						</div>
-						<div class="price-row">
+						<div v-if="orderDetail.serviceMode !== 'PICKUP'" class="price-row">
 							<span>配送费</span>
-							<span>&#165;{{ orderDetail.deliveryPrice.toFixed(2) || '0.00' }}</span>
+							<span>&#165;{{ Number(orderDetail.deliveryPrice || 0).toFixed(2) }}</span>
 						</div>
 						<div class="price-row total">
 							<span>实付款</span>
-							<span>¥ {{ orderDetail.orderTotal.toFixed(2) || '0.00'}}</span>
+							<span>¥ {{ Number(orderDetail.orderTotal || 0).toFixed(2) }}</span>
 						</div>
 					</div>
 				</div>
@@ -170,24 +171,16 @@ export default {
 		// 获取状态文本
 		const getStatusText = (state) => {
 			const statusMap = {
-				0: "待支付",
-				1: "待接单", 
-				2: "已接单",
-				3: "已完成",
-				4: "已取消"
+				0: "待支付", 1: "待商家接单", 2: "制作中", 3: "待骑手接单",
+				4: orderDetail.value.serviceMode === 'PICKUP' ? "待到店自取" : "待骑手取餐",
+				5: "配送中", 6: "已送达·待确认", 7: "已完成", 8: "已取消", 9: "配送异常"
 			};
 			return statusMap[state] || "未知状态";
 		};
 
 		// 获取状态样式类
 		const getStatusClass = (state) => {
-			const classMap = {
-				0: "status-unpaid",
-				1: "status-pending",
-				2: "status-accepted", 
-				3: "status-done",
-				4: "status-canceled"
-			};
+			const classMap = { 0: "status-unpaid", 1: "status-pending", 2: "status-accepted", 3: "status-accepted", 4: "status-accepted", 5: "status-accepted", 6: "status-accepted", 7: "status-done", 8: "status-canceled", 9: "status-unpaid" };
 			return classMap[state] || "status-unknown";
 		};
 
@@ -198,7 +191,12 @@ export default {
 				1: "fa-hourglass-half",
 				2: "fa-check-circle",
 				3: "fa-check-circle",
-				4: "fa-times-circle"
+				4: "fa-shopping-bag",
+				5: "fa-motorcycle",
+				6: "fa-check-circle",
+				7: "fa-check-circle",
+				8: "fa-times-circle",
+				9: "fa-exclamation-triangle"
 			};
 			return iconMap[state] || "fa-question-circle";
 		};
@@ -225,7 +223,7 @@ export default {
 				return 0;
 			}
 			return orderDetail.value.foodList.reduce((total, item) => {
-				return total + (item.foodPrice || 0) * (item.quantity || 0);
+				return total + Number(item.foodPrice || 0) * Number(item.quantity || 0);
 			}, 0);
 		});
 
@@ -442,6 +440,8 @@ export default {
 	margin: 2vw 0;
 	display: flex;
 }
+.pickup-detail { display:flex; align-items:center; gap:10px; padding:12px 14px; color:#168bd1; background:#f5fbff; border:1px solid #d9ecf8; border-radius:10px; }
+.pickup-detail i { font-size:20px; }
 
 .info-content span {
 	color: #666;

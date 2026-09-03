@@ -76,7 +76,7 @@ public class OrderController {
     @PostMapping("/submit")
     @Operation(summary = "提交订单", description = "使用幂等键避免重复点击创建多笔订单")
     public HttpResult<Long> orderSubmit(@RequestParam Long businessId,
-                                        @RequestParam Long addressId,
+                                        @RequestParam(required = false) Long addressId,
                                         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                         @RequestParam(required = false) String requestId,
                                         @RequestParam(required = false, defaultValue = "delivery") String serviceMode,
