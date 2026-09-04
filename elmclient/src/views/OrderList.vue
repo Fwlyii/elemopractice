@@ -61,6 +61,10 @@
               <template v-else-if="item.orderState === 6 || (item.orderState === 4 && item.serviceMode === 'PICKUP')">
                 <button class="confirm-btn" @click.stop="confirmOrder(item.id)">确认收货</button>
               </template>
+              <template v-else-if="item.orderState === 7">
+                <button class="detail-btn" @click.stop="goDetail(item.id)">订单详情</button>
+                <button class="review-btn" @click.stop="reviewOrder(item.id)">评价</button>
+              </template>
               <template v-else>
                 <button class="detail-btn" @click.stop="goDetail(item.id)">查看详情</button>
               </template>
@@ -335,6 +339,9 @@ export default {
         query: { orderId: id }
       });
     };
+    const reviewOrder = (id) => {
+      router.push({ path: '/listDetail', query: { orderId: id, focus: 'review' } });
+    };
 
     // 关闭弹窗
     const closeModal = () => {
@@ -415,6 +422,7 @@ export default {
       payOrder,
       confirmOrder,
       goDetail,
+      reviewOrder,
       orderCounts,
       confirmCanceled,
       confirmFinished,
@@ -874,7 +882,7 @@ export default {
 .order-price{align-self:center;white-space:nowrap;color:#202d3d;font-size:15px}
 .actions{margin-top:12px;padding-top:12px;border-top:1px solid #edf3f7;gap:8px}
 .actions button{min-width:78px;padding:7px 13px;border-radius:6px;font-size:13px;background:#fff}
-.pay-btn,.confirm-btn{background:#0097ff!important;color:#fff;border:1px solid #0097ff!important}
+.pay-btn,.confirm-btn,.review-btn{background:#0097ff!important;color:#fff;border:1px solid #0097ff!important}
 .detail-btn,.cancel-btn{background:#fff!important;color:#4d6171;border:1px solid #d8e2e9!important}
 .order-item p,.order-item span{overflow-wrap:anywhere}
 .loading,.empty-state{min-height:220px;font-size:14px}

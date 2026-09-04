@@ -20,7 +20,7 @@
 						:alt="business.businessName" @error="handleImageError" />
 					<div class="business-details">
 						<div class="business-header">
-							<h3>{{ business.businessName || '未知商铺' }}</h3>
+							<h3>{{ business.businessName || '未知商铺' }} <small v-if="business.operatingStatus === false" class="closed-shop-tag">休息中</small></h3>
 						</div>
 						<p class="description">{{ business.businessExplain || '暂无描述' }}</p>
 						<p class="description">{{ business.businessAddress || '暂无地址信息' }}</p>
@@ -227,4 +227,5 @@ export default {
 	background: #f0f7ff;
 	color: #0097ff;
 }
+.closed-shop-tag{margin-left:5px;padding:2px 6px;border-radius:7px;background:#edf1f4;color:#80909c;font-size:10px;font-weight:500;vertical-align:2px}
 </style>

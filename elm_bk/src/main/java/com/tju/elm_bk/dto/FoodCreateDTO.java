@@ -34,7 +34,7 @@ public class FoodCreateDTO {
     @Schema(description = "可售库存，默认100")
     private Integer stock;
 
-    @Schema(description = "商品分类，默认招牌推荐")
+    @Schema(description = "商家自定义的商品分类，空值归入其他")
     private String category;
 
     @Schema(description = "单笔限购数量，空表示不限购")

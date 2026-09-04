@@ -54,7 +54,7 @@
         </button>
         <button class="identity-item" @click="goToRole('merchant')">
           <span class="identity-icon merchant"><i class="fas fa-store"></i></span>
-          <span class="identity-copy"><b>商家端</b><small>{{ hasBusiness ? '进入经营工作台' : '登录或申请商家身份' }}</small></span>
+          <span class="identity-copy"><b>商家端</b><small>{{ hasBusiness ? '进入经营工作台' : '申请商家身份' }}</small></span>
           <i class="fas fa-chevron-right"></i>
         </button>
         <button class="identity-item" @click="goToRole('rider')">
@@ -413,6 +413,7 @@ export default {
           toast.error('登录已过期，请重新登录！');
           localStorage.removeItem('token');
           sessionStorage.removeItem('token');
+          localStorage.removeItem('userInfo');
           sessionStorage.removeItem('userInfo');
           router.push({ path: '/login' });
         } else {
@@ -426,6 +427,7 @@ export default {
     const logout = () => {
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
       sessionStorage.removeItem('userInfo');
       router.push({ path: '/index' });
     };
@@ -438,7 +440,7 @@ export default {
     const goToRole = (role) => {
       if (role === 'user') return router.push('/index');
       if (role === 'admin') return hasAdmin.value ? router.push('/admin/home') : toast.warning('当前账号没有管理员权限');
-      if (role === 'merchant') return hasBusiness.value ? router.push('/merchant/business') : router.push('/login?role=merchant');
+      if (role === 'merchant') return hasBusiness.value ? router.push('/merchant/business') : router.push('/merchant/apply');
       if (role === 'rider') return hasRider.value ? router.push('/rider/dashboard?tab=available') : router.push('/rider/apply');
     };
     const openEditModal = () => {

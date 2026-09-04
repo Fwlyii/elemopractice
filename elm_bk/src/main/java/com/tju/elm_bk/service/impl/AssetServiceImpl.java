@@ -33,7 +33,8 @@ public class AssetServiceImpl implements AssetService {
     private AssetVO snapshot(Long userId) {
         assetMapper.ensure(userId); var a=assetMapper.findByUserId(userId);
         LocalDateTime expire=a.getMembershipExpire();
-        return new AssetVO(a.getBalance(),a.getPoints(),expire,expire!=null&&expire.isAfter(LocalDateTime.now()),assetMapper.countCoupons(userId));
+        return new AssetVO(a.getBalance(),a.getPoints(),expire,expire!=null&&expire.isAfter(LocalDateTime.now()),
+                assetMapper.countCoupons(userId), assetMapper.countWelcomeCoupons(userId) > 0);
     }
     @Override public AssetVO me(){ return snapshot(current().getId()); }
     @Override @Transactional public AssetVO recharge(BigDecimal amount){
@@ -49,9 +50,9 @@ public class AssetServiceImpl implements AssetService {
         assetMapper.ensure(id);
         // 锁住该用户唯一的资产行，使“检查+领取”在并发请求下仍只成功一次。
         assetMapper.lockByUserId(id);
-        if (assetMapper.countWelcomeCoupons(id) == 0 && assetMapper.claimWelcomeCoupon(id) == 1) {
-            assetMapper.insertLedger(id,"COUPON_GRANT",BigDecimal.ZERO,0,"领取新人券",null);
-        }
+        if (assetMapper.countWelcomeCoupons(id) > 0) throw new APIException("新人券每个账号仅可领取一次");
+        if (assetMapper.claimWelcomeCoupon(id) != 1) throw new APIException("新人券领取失败，请勿重复操作");
+        assetMapper.insertLedger(id,"COUPON_GRANT",BigDecimal.ZERO,0,"领取新人券",null);
         return snapshot(id);
     }
     @Override public List<UserCoupon> availableCoupons(){ return assetMapper.listAvailableCoupons(current().getId()); }

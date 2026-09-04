@@ -17,9 +17,9 @@
             <div class="business-info">
                 <div class="business-title-row">
                     <h1>{{ business.businessName || '商家' }}</h1>
-                    <span class="open-badge" :class="{ closed: business.status !== undefined && business.status !== 1 }">{{ business.status === 1 || business.status === undefined ? '营业中' : '暂未营业' }}</span>
+                    <span class="open-badge" :class="{ closed: !isBusinessOpen }">{{ business.status !== undefined && business.status !== 1 ? '暂未上线' : business.operatingStatus === false ? '休息中' : '营业中' }}</span>
                 </div>
-                <p class="business-meta">起送 ¥{{ formatMoney(business.startPrice) }} · {{ deliveryMode === 'pickup' ? '到店自取' : `配送 ¥${formatMoney(business.deliveryPrice)}` }}</p>
+                <p class="business-meta">{{ deliveryMode === 'pickup' ? '到店自取 · 无起送门槛' : `起送 ¥${formatMoney(business.startPrice)} · 配送 ¥${formatMoney(business.deliveryPrice)}` }}</p>
                 <p class="business-address"><i class="fa fa-map-marker"></i>{{ business.businessAddress || '校园周边配送' }}</p>
             </div>
             <div class="hero-reactions">
@@ -29,7 +29,7 @@
         </section>
 
         <div class="offer-strip" aria-label="商家优惠">
-            <span v-if="Number(business.deliveryPrice || 0) === 0">免配送费</span><span v-else>配送 ¥{{ formatMoney(business.deliveryPrice) }}</span><span v-if="business.promotionThreshold && business.promotionDiscount">满{{ formatMoney(business.promotionThreshold) }}减{{ formatMoney(business.promotionDiscount) }}</span><span>品质保障</span><span v-if="business.dineInAvailable">支持自取</span>
+            <span v-if="deliveryMode === 'pickup'">自取免配送费</span><template v-else><span v-if="Number(business.deliveryPrice || 0) === 0">免配送费</span><span v-else>配送 ¥{{ formatMoney(business.deliveryPrice) }}</span></template><span v-if="business.promotionThreshold && business.promotionDiscount">满{{ formatMoney(business.promotionThreshold) }}减{{ formatMoney(business.promotionDiscount) }}</span><span>品质保障</span><span v-if="business.dineInAvailable">支持自取</span>
         </div>
 
         <nav class="page-tabs" role="tablist" aria-label="商家内容">
@@ -48,27 +48,34 @@
                 <div class="section-heading"><h2>菜单</h2><span>{{ foodArr.length }} 件商品</span></div>
                 <div v-if="loadingFoods" class="state-card">正在加载菜单…</div>
                 <div v-else-if="!foodArr.length" class="state-card">暂时没有可售商品</div>
-                <ul v-else class="food">
-                    <li v-for="(item, index) in foodArr" :key="item.foodId">
-                        <div class="food-left">
-                            <img :src="item.foodImg || require('@/assets/food-default.png')" :alt="item.foodName" @error="handleImageError" />
-                            <div class="food-left-info">
-                                <h3>{{ item.foodName || '' }}</h3>
-                                <p class="food-explain">{{ item.foodExplain || '商家精选，现点现做' }}</p>
-                                <p class="food-price">¥{{ formatMoney(item.foodPrice) }}
-                                    <span class="food-meta-chip">{{ item.category || '招牌推荐' }}</span>
-                                    <span v-if="item.purchaseLimit" class="food-meta-chip limit-chip">每单限{{ item.purchaseLimit }}份</span>
-                                    <span class="stock-label">库存 {{ item.stock ?? 0 }}</span>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="food-right">
-                            <button type="button" class="quantity-btn minus-btn" v-show="getCartQuantity(item.id) > 0" @click="minus(index)" aria-label="减少数量">−</button>
-                            <span v-show="getCartQuantity(item.id) > 0" class="quantity">{{ getCartQuantity(item.id) }}</span>
-                            <button type="button" class="quantity-btn plus-btn" :class="{ disabled: item.stock <= getCartQuantity(item.id) }" @click="add(index)" aria-label="增加数量">＋</button>
-                        </div>
-                    </li>
-                </ul>
+                <div v-else class="menu-layout">
+                    <nav class="category-sidebar" aria-label="商品分类">
+                        <button v-for="category in menuCategories" :key="category" type="button"
+                            :class="{ active: activeCategory === category }" @click="activeCategory = category">
+                            {{ category }}
+                        </button>
+                    </nav>
+                    <div class="category-content">
+                        <h3 class="category-title">{{ activeCategory }}</h3>
+                        <ul class="food">
+                            <li v-for="item in visibleFoods" :key="item.foodId">
+                                <div class="food-left">
+                                    <img :src="item.foodImg || require('@/assets/food-default.png')" :alt="item.foodName" @error="handleImageError" />
+                                    <div class="food-left-info">
+                                        <h3>{{ item.foodName || '' }}</h3>
+                                        <p class="food-explain">{{ item.foodExplain || '商家精选，现点现做' }}</p>
+                                        <p class="food-price">¥{{ formatMoney(item.foodPrice) }}<span v-if="Number(item.stock || 0) <= 0" class="sold-out-label">已售罄</span></p>
+                                    </div>
+                                </div>
+                                <div class="food-right">
+                                    <button type="button" class="quantity-btn minus-btn" v-show="getCartQuantity(item.id) > 0" @click="minus(item)" aria-label="减少数量">−</button>
+                                    <span v-show="getCartQuantity(item.id) > 0" class="quantity">{{ getCartQuantity(item.id) }}</span>
+                                    <button type="button" class="quantity-btn plus-btn" :disabled="Number(item.stock || 0) <= getCartQuantity(item.id)" :class="{ disabled: Number(item.stock || 0) <= getCartQuantity(item.id) }" @click="add(item)" aria-label="增加数量">＋</button>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </section>
 
             <section v-else-if="activeTab === 'reviews'" class="reviews-panel" aria-label="评价">
@@ -97,7 +104,7 @@
                 <div class="cart-left-icon" :class="{ filled: totalQuantity > 0 }"><i class="fa fa-shopping-cart"></i><div v-if="totalQuantity" class="cart-left-icon-quantity">{{ totalQuantity }}</div></div>
                 <div class="cart-left-info"><p>¥{{ formatMoney(totalPrice) }}</p><span>{{ deliveryMode === 'pickup' ? '到店自取 · 免配送费' : `另需配送费 ¥${formatMoney(business.deliveryPrice)}` }}</span></div>
             </div>
-            <div class="cart-right"><button type="button" class="cart-right-item" :class="{ ready: canOrder }" :disabled="!canOrder" @click="toOrder">{{ !canOrder ? `¥${formatMoney(business.startPrice)} 起送` : '去结算' }}</button></div>
+            <div class="cart-right"><button type="button" class="cart-right-item" :class="{ ready: canOrder }" :disabled="!canOrder" @click="toOrder">{{ orderButtonText }}</button></div>
         </div>
     </div>
 </template>
@@ -129,6 +136,7 @@ export default {
             remarks: ""
         });
         const foodArr = ref([]);
+        const activeCategory = ref('');
         const cartItems = ref([]); // 购物车商品列表
         const loadingBusiness = ref(false);
         const loadingFoods = ref(false);
@@ -142,6 +150,10 @@ export default {
         const deliveryMode = ref('delivery');
         const reviews = ref([]);
         const loadingReviews = ref(false);
+        const requireLogin = (message = '登录后即可继续') => {
+            toast.info(message);
+            router.push({ path: '/login', query: { role: 'user', redirect: route.fullPath } });
+        };
 
         const formatMoney = (value) => Number(value || 0).toFixed(2);
         const formatDate = (value) => value ? new Date(value).toLocaleDateString('zh-CN') : '';
@@ -153,6 +165,19 @@ export default {
             if (!reviews.value.length) return '—';
             return (reviews.value.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.value.length).toFixed(1);
         });
+        const menuCategories = computed(() => {
+            const categories = [];
+            foodArr.value.forEach(item => {
+                const category = String(item.category || '其他').trim() || '其他';
+                if (!categories.includes(category)) categories.push(category);
+            });
+            return categories;
+        });
+        const visibleFoods = computed(() => foodArr.value.filter(item =>
+            (String(item.category || '其他').trim() || '其他') === activeCategory.value));
+        watch(menuCategories, categories => {
+            if (!categories.includes(activeCategory.value)) activeCategory.value = categories[0] || '';
+        }, { immediate: true });
         const setDeliveryMode = (mode) => {
             if (mode === 'pickup' && business.value.dineInAvailable === false) {
                 toast.warning('该商家暂不支持到店自取');
@@ -167,7 +192,7 @@ export default {
         };
         const focusMenu = () => {
             activeTab.value = 'order';
-            window.setTimeout(() => document.querySelector('.food')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+            window.setTimeout(() => document.querySelector('.menu-layout')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
         };
         const goBack = () => router.back();
         const handleImageError = (event) => {
@@ -257,17 +282,16 @@ export default {
         };
 
         // 添加商品到购物车
-        const addToCart = async (index) => {
-            const food = foodArr.value[index];
+        const addToCart = async (food) => {
             console.log(`添加商品到购物车: ${food.foodName}, foodId: ${food.id}`);
 
             // 检查用户是否登录
             if (!userInfo.value?.id) {
-                toast.error('请先登录');
+                requireLogin('登录后即可加入购物车');
                 return;
             }
             if (food.stock != null && getCartQuantity(food.id) >= food.stock) {
-                toast.warning('该商品库存不足');
+                toast.warning('该商品当前可售数量已达上限');
                 return;
             }
 
@@ -348,13 +372,12 @@ export default {
         };
 
         // 从购物车移除商品（减少数量）
-        const removeFromCart = async (index) => {
-            const food = foodArr.value[index];
+        const removeFromCart = async (food) => {
             console.log(`从购物车移除商品: ${food.foodName}, foodId: ${food.id}`);
 
             // 检查用户是否登录
             if (!userInfo.value?.id) {
-                toast.error('请先登录');
+                requireLogin('登录后即可调整购物车');
                 return;
             }
 
@@ -509,7 +532,7 @@ export default {
         const toggleLike = async () => {
             if (interactionLoading.value) return;
             if (!userInfo.value?.id) {
-                toast.error('请先登录');
+                requireLogin('登录后即可点赞');
                 return;
             }
             await updateInteraction('like', !isLiked.value);
@@ -518,7 +541,7 @@ export default {
         const toggleFavorite = async () => {
             if (interactionLoading.value) return;
             if (!userInfo.value?.id) {
-                toast.error('请先登录');
+                requireLogin('登录后即可收藏');
                 return;
             }
             await updateInteraction('favorite', !isFavorited.value);
@@ -545,6 +568,7 @@ export default {
                         deliveryPrice: response.data.deliveryPrice,
                         dineInAvailable: response.data.dineInAvailable,
                         status: response.data.status,
+                        operatingStatus: response.data.operatingStatus,
                         promotionThreshold: response.data.promotionThreshold,
                         promotionDiscount: response.data.promotionDiscount,
                         businessExplain: response.data.businessExplain,
@@ -595,7 +619,7 @@ export default {
                         businessId: item.businessId,
                         businessName: item.businessName,
                         stock: item.stock,
-                        category: item.category || '招牌推荐',
+                        category: item.category || '其他',
                         purchaseLimit: item.purchaseLimit
                     }));
                     console.log("食品列表设置成功:", foodArr.value);
@@ -683,10 +707,22 @@ export default {
 
         // 检查是否达到起送费
         const canOrder = computed(() => {
-            const canOrder = (business.value.status === undefined || business.value.status === 1)
+            const canOrder = totalQuantity.value > 0
+                && (business.value.status === undefined || business.value.status === 1)
+                && business.value.operatingStatus !== false
                 && (deliveryMode.value !== 'pickup' || business.value.dineInAvailable !== false)
-                && totalPrice.value >= Number(business.value.startPrice || 0);
+                && (deliveryMode.value === 'pickup' || totalPrice.value >= Number(business.value.startPrice || 0));
             return canOrder;
+        });
+        const isBusinessOpen = computed(() => (business.value.status === undefined || business.value.status === 1)
+            && business.value.operatingStatus !== false);
+        const orderButtonText = computed(() => {
+            if (!isBusinessOpen.value) return '休息中';
+            if (totalQuantity.value === 0) return '请选择餐品';
+            if (deliveryMode.value === 'delivery' && totalPrice.value < Number(business.value.startPrice || 0)) {
+                return `还差 ¥${formatMoney(Number(business.value.startPrice || 0) - totalPrice.value)} 起送`;
+            }
+            return '去结算';
         });
 
         // 初始化
@@ -723,12 +759,17 @@ export default {
         return {
             business,
             foodArr,
+            activeCategory,
+            menuCategories,
+            visibleFoods,
             loadingBusiness,
             loadingFoods,
             totalPrice,
             totalQuantity,
             totalSettle,
             canOrder,
+            isBusinessOpen,
+            orderButtonText,
             isLiked,
             isFavorited,
             getCartQuantity,
@@ -1114,7 +1155,15 @@ export default {
 .section-heading h2 { color: #2f526a; font-size: 18px; }
 .section-heading span { color: #9aadb9; font-size: 12px; }
 .state-card { padding: 52px 12px; text-align: center; color: #93a7b4; background: #fff; border: 1px solid #e1edf4; border-radius: 8px; }
+.menu-layout { display: grid; grid-template-columns: 108px minmax(0, 1fr); align-items: start; border: 1px solid #e1edf4; border-radius: 8px; overflow: hidden; background: #fff; }
+.category-sidebar { display: flex; flex-direction: column; align-self: stretch; background: #eef3f7; }
+.category-sidebar button { min-height: 52px; padding: 10px 8px; border: 0; border-bottom: 1px solid #e2e9ee; background: transparent; color: #607b8d; font-size: 13px; line-height: 1.35; cursor: pointer; }
+.category-sidebar button.active { position: relative; background: #fff; color: #168bd1; font-weight: 600; }
+.category-sidebar button.active::before { content: ''; position: absolute; left: 0; top: 13px; bottom: 13px; width: 3px; border-radius: 0 3px 3px 0; background: #168bd1; }
+.category-content { min-width: 0; background: #fff; }
+.category-title { padding: 12px 12px 8px; color: #385b72; font-size: 14px; font-weight: 600; border-bottom: 1px solid #eef3f6; }
 .wrapper .food { width: auto; margin: 0; padding: 0; background: #fff; border: 1px solid #e1edf4; border-radius: 8px; overflow: hidden; }
+.menu-layout .food { border: 0; border-radius: 0; }
 .wrapper .food li { width: 100%; min-height: 98px; padding: 13px 12px; box-sizing: border-box; border-bottom: 1px solid #eef3f6; }
 .wrapper .food li:last-child { border-bottom: 0; }
 .wrapper .food li .food-left img { width: 82px; height: 82px; flex: 0 0 82px; object-fit: cover; border-radius: 7px; background: #f0f5f8; }
@@ -1123,6 +1172,7 @@ export default {
 .wrapper .food li .food-left .food-left-info p { margin-top: 6px; color: #91a3ae; font-size: 12px; font-weight: 400; }
 .wrapper .food li .food-left .food-left-info .food-explain { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 47vw; }
 .wrapper .food li .food-left .food-left-info .food-price { color: #e76c48; font-size: 16px; font-weight: 600; }
+.sold-out-label { margin-left: 8px; color: #96a8b4; font-size: 11px; font-weight: 400; }
 .stock-label { color: #9aacb7; font-size: 11px; font-weight: 400; }
 .wrapper .food li .food-right { width: auto; gap: 7px; }
 .quantity-btn { width: 27px; height: 27px; padding: 0; border-radius: 50%; border: 1px solid #168bd1; background: #fff; color: #168bd1; font-size: 20px; line-height: 22px; cursor: pointer; }
@@ -1169,5 +1219,18 @@ export default {
     .page-content { padding-bottom: 30px; }
     .wrapper { padding-bottom: 0; }
     .wrapper .cart { left: 50%; width: 760px; transform: translateX(-50%); border-radius: 8px 8px 0 0; }
+}
+@media (max-width: 520px) {
+    .page-content { padding-left: 0; padding-right: 0; }
+    .mode-hint, .section-heading { margin-left: 12px; margin-right: 12px; }
+    .menu-layout { grid-template-columns: 86px minmax(0, 1fr); border-left: 0; border-right: 0; border-radius: 0; }
+    .category-sidebar button { min-height: 50px; padding: 9px 6px; font-size: 12px; }
+    .wrapper .food li { min-height: 92px; padding: 11px 9px; }
+    .wrapper .food li .food-left img { width: 70px; height: 70px; flex-basis: 70px; }
+    .wrapper .food li .food-left .food-left-info { margin-left: 9px; }
+    .wrapper .food li .food-left .food-left-info h3 { max-width: 32vw; font-size: 14px; }
+    .wrapper .food li .food-left .food-left-info .food-explain { max-width: 32vw; }
+    .wrapper .food li .food-right { gap: 4px; }
+    .quantity-btn { width: 25px; height: 25px; font-size: 18px; }
 }
 </style>

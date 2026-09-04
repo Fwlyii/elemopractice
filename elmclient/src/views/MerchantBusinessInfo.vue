@@ -20,6 +20,7 @@
         </p>
         <p class="explain-text">{{ business.businessExplain }}</p>
         <div class="store-settings">
+          <span :class="business.operatingStatus === false ? 'closed-setting' : 'open-setting'">{{ business.operatingStatus === false ? '休息中' : '营业中' }}</span>
           <span v-if="business.dineInAvailable">堂食店</span>
           <span v-if="business.promotionThreshold && business.promotionDiscount">满{{ Number(business.promotionThreshold).toFixed(0) }}减{{ Number(business.promotionDiscount).toFixed(0) }}</span>
           <span v-else class="muted-setting">未设置满减</span>
@@ -39,6 +40,7 @@
     </div>
 
     <div class="edit-button-container">
+      <button class="operating-button" :class="{ closed: business.operatingStatus === false }" @click="toggleOperatingStatus">{{ business.operatingStatus === false ? '开始营业' : '暂停营业' }}</button>
       <button class="edit-button" @click="showEditBusinessModal">编辑商家信息</button>
     </div>
 
@@ -50,11 +52,8 @@
             <h3>{{ item.foodName }}</h3>
             <text class="food-status" v-if="item.shelveStatus === 0">(已下架)</text>
             <p>{{ item.foodExplain }}</p>
-            <p class="food-price">&#165;{{ item.foodPrice }}
-              <span class="food-meta-chip">{{ item.category || '招牌推荐' }}</span>
-              <span v-if="item.purchaseLimit" class="food-meta-chip limit-chip">每单限{{ item.purchaseLimit }}份</span>
-              <span class="stock-label">库存 {{ item.stock ?? 0 }}</span>
-            </p>
+            <p class="food-category-note">分类：{{ item.category || '其他' }}<span v-if="item.purchaseLimit"> · 单笔最多 {{ item.purchaseLimit }} 份</span></p>
+            <p class="food-price">&#165;{{ item.foodPrice }}<span v-if="Number(item.stock || 0) <= 0" class="sold-out-label">已售罄</span></p>
           </div>
         </div>
         <div class="food-right">
@@ -80,6 +79,8 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import Swal from 'sweetalert2';
 import request from '../utils/request';
+import businessDefaultImg from '@/assets/business-default.png';
+import foodDefaultImg from '@/assets/food-default.png';
 
 export default {
   name: "BusinessInfo",
@@ -89,6 +90,35 @@ export default {
     const business = ref({});
     const foodArr = ref([]);
     const favoriteCount = ref({});
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
+    const categoryOptionsHtml = () => [...new Set(foodArr.value
+      .map(item => String(item.category || '').trim())
+      .filter(Boolean))]
+      .map(category => `<option value="${escapeHtml(category)}"></option>`)
+      .join('');
+    const toggleOperatingStatus = async () => {
+      const nextStatus = business.value.operatingStatus === false;
+      const actionText = nextStatus ? '开始营业' : '暂停营业';
+      const confirmation = await Swal.fire({
+        title: actionText,
+        text: nextStatus ? '开启后顾客可以正常下单。' : '暂停后仍展示店铺，但顾客暂时不能下单。',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: actionText,
+        cancelButtonText: '取消'
+      });
+      if (!confirmation.isConfirmed) return;
+      try {
+        const response = await request.patch(`/api/businesses/own/${businessId.value}`, { operatingStatus: nextStatus });
+        if (!response?.success) throw new Error(response?.message || '更新失败');
+        business.value = response.data || { ...business.value, operatingStatus: nextStatus };
+        Swal.fire({ icon: 'success', title: nextStatus ? '店铺已营业' : '店铺已暂停营业', timer: 1200, showConfirmButton: false });
+      } catch (error) {
+        Swal.fire('更新失败', error?.response?.data?.message || error?.message || '请稍后重试', 'error');
+      }
+    };
 
     onMounted(() => {
       businessId.value = parseInt(route.query.businessId);
@@ -143,25 +173,25 @@ export default {
         title: '编辑商铺信息',
         html: `
           <div style="text-align: center; margin-bottom: 15px;">
-            <img id="image-preview" src="${business.value.businessImg}" style="max-width: 200px; max-height: 150px; border-radius: 5px; border: 2px dashed #ddd; margin: 0 auto;">
+            <img id="image-preview" src="${escapeHtml(business.value.businessImg || businessDefaultImg)}" onerror="this.onerror=null;this.src='${escapeHtml(businessDefaultImg)}'" style="max-width: 200px; max-height: 150px; border-radius: 5px; border: 2px dashed #ddd; margin: 0 auto;">
           </div>
           <div style="text-align: center; margin-bottom: 15px;">
             <button type="button" id="upload-btn" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
               更换图片
             </button>
           </div>
-          <input id="businessName" class="swal2-input" placeholder="商铺名称" value="${business.value.businessName}">
-          <input id="startPrice" type="number" class="swal2-input" placeholder="起送费" value="${business.value.startPrice}">
-          <input id="deliveryPrice" type="number" class="swal2-input" placeholder="配送费" value="${business.value.deliveryPrice}">
+          <label class="edit-field"><span>商铺名称</span><input id="businessName" class="swal2-input" placeholder="例如：北洋食堂" value="${escapeHtml(business.value.businessName)}"></label>
+          <label class="edit-field"><span>外送起送价</span><input id="startPrice" type="number" min="0" step="0.01" class="swal2-input" placeholder="自取不受此门槛限制" value="${escapeHtml(business.value.startPrice)}"></label>
+          <label class="edit-field"><span>外送配送费</span><input id="deliveryPrice" type="number" min="0" step="0.01" class="swal2-input" placeholder="仅外送订单收取" value="${escapeHtml(business.value.deliveryPrice)}"></label>
           <label style="display:flex;align-items:center;gap:8px;width:90%;margin:8px auto;color:#45677d;font-size:13px;text-align:left;"><input id="dineInAvailable" type="checkbox" ${currentDineInAvailable ? 'checked' : ''}>支持堂食 <small style="margin-left:auto;color:#9aadb9;">首页显示“堂食店”</small></label>
-          <select id="promotionPreset" class="swal2-input" style="width:90%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+          <label class="edit-field"><span>满减活动</span><select id="promotionPreset" class="swal2-input">
             <option value="" ${!currentPromotionValue ? 'selected' : ''}>不设置满减</option>
             <option value="20-3" ${currentPromotionValue === '20-3' ? 'selected' : ''}>满20减3</option>
             <option value="30-5" ${currentPromotionValue === '30-5' ? 'selected' : ''}>满30减5</option>
             <option value="50-10" ${currentPromotionValue === '50-10' ? 'selected' : ''}>满50减10</option>
-          </select>
-          <textarea id="businessExplain" class="swal2-textarea" placeholder="商铺介绍">${business.value.businessExplain}</textarea>
-          <select id="orderTypeId" class="swal2-input" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </select></label>
+          <label class="edit-field"><span>商铺介绍</span><textarea id="businessExplain" class="swal2-textarea" placeholder="向顾客介绍你的店铺">${escapeHtml(business.value.businessExplain)}</textarea></label>
+          <label class="edit-field"><span>经营类型</span><select id="orderTypeId" class="swal2-input" required>
             <option value="" disabled ${!currentOrderTypeId ? 'selected' : ''}>请选择商铺类型</option>
             <option value="1" ${currentOrderTypeId === 1 ? 'selected' : ''}>美食</option>
             <option value="2" ${currentOrderTypeId === 2 ? 'selected' : ''}>早餐</option>
@@ -173,7 +203,7 @@ export default {
             <option value="8" ${currentOrderTypeId === 8 ? 'selected' : ''}>米粉面馆</option>
             <option value="9" ${currentOrderTypeId === 9 ? 'selected' : ''}>包子粥铺</option>
             <option value="10" ${currentOrderTypeId === 10 ? 'selected' : ''}>炸鸡炸串</option>
-          </select>
+          </select></label>
         `,
         focusConfirm: false,
         showCancelButton: true,
@@ -228,15 +258,15 @@ export default {
             }
           };
 
-          // 商铺名称校验（最多10个字符）
+          // 商铺名称校验
           validateField('businessName', (value) => {
-            return value.length <= 10;
-          }, '商铺名称不能超过10个字符');
+            return value.length > 0 && value.length <= 64;
+          }, '商铺名称不能为空且不能超过64个字符');
 
-          // 商铺介绍校验（最多15个字符）
+          // 商铺介绍校验
           validateField('businessExplain', (value) => {
-            return value.length <= 15;
-          }, '商铺介绍不能超过15个字符');
+            return value.length <= 255;
+          }, '商铺介绍不能超过255个字符');
 
           // 起送价校验
           validateField('startPrice', (value) => {
@@ -395,18 +425,12 @@ console.log('修改成功，新的接口测试ok');
               选择图片
             </button>
           </div>
-          <input id="foodName" class="swal2-input" placeholder="商品名称">
-          <input id="foodExplain" class="swal2-input" placeholder="商品简介">
-          <input id="foodPrice" type="number" class="swal2-input" placeholder="商品价格">
-          <input id="foodStock" type="number" min="0" class="swal2-input" placeholder="可售库存（默认100）" value="100">
-          <select id="foodCategory" class="swal2-input" aria-label="商品分类">
-            <option value="招牌推荐">招牌推荐</option>
-            <option value="主食">主食</option>
-            <option value="小吃">小吃</option>
-            <option value="饮品">饮品</option>
-            <option value="套餐">套餐</option>
-          </select>
-          <input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="单笔限购（可选）">
+          <label class="edit-field"><span>商品名称</span><input id="foodName" class="swal2-input" placeholder="例如：招牌牛肉面"></label>
+          <label class="edit-field"><span>商品简介</span><input id="foodExplain" class="swal2-input" placeholder="例如：现点现做"></label>
+          <label class="edit-field"><span>商品价格</span><input id="foodPrice" type="number" min="0" step="0.01" class="swal2-input" placeholder="请输入售价"></label>
+          <label class="edit-field"><span>商品分类</span><input id="foodCategory" class="swal2-input" maxlength="32" list="food-category-options" placeholder="输入分类，例如：盖饭、饮品"><small>可以选择店内已有分类，也可以直接创建新分类</small></label>
+          <datalist id="food-category-options">${categoryOptionsHtml()}</datalist>
+          <label class="edit-field"><span>单笔限购</span><input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="可选，不填表示不限购"></label>
         `,
         focusConfirm: false,
         showCancelButton: true,
@@ -462,15 +486,15 @@ console.log('修改成功，新的接口测试ok');
             }
           };
 
-          // 商品名称校验（最多6个字符）
+          // 商品名称校验
           validateField('foodName', (value) => {
-            return value.length <= 6;
-          }, '商品名称不能超过6个字符');
+            return value.length > 0 && value.length <= 100;
+          }, '商品名称不能为空且不能超过100个字符');
 
-          // 商品简介校验（最多8个字符）
+          // 商品简介校验
           validateField('foodExplain', (value) => {
-            return value.length <= 8;
-          }, '商品简介不能超过8个字符');
+            return value.length <= 255;
+          }, '商品简介不能超过255个字符');
 
           // 商品价格校验
           validateField('foodPrice', (value) => {
@@ -480,6 +504,9 @@ console.log('修改成功，新的接口测试ok');
             if (value.includes('.') && value.split('.')[1].length > 2) return false;
             return true;
           }, '商品价格必须大于等于0，小数点最多保留两位');
+
+          validateField('foodCategory', (value) => value.length > 0 && value.length <= 32,
+            '商品分类不能为空且不能超过32个字符');
 
           uploadBtn.addEventListener('click', () => {
             fileInput.click();
@@ -502,12 +529,11 @@ console.log('修改成功，新的接口测试ok');
           const foodName = document.getElementById('foodName').value.trim();
           const foodExplain = document.getElementById('foodExplain').value.trim();
           const foodPrice = parseFloat(document.getElementById('foodPrice').value);
-          const stock = parseInt(document.getElementById('foodStock').value || '100', 10);
-          const category = document.getElementById('foodCategory').value || '招牌推荐';
+          const category = document.getElementById('foodCategory').value.trim();
           const limitInput = document.getElementById('purchaseLimit').value;
           const purchaseLimit = limitInput ? parseInt(limitInput, 10) : null;
 
-          if (!foodName || !foodExplain || isNaN(foodPrice) || isNaN(stock) || stock < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
+          if (!foodName || !foodExplain || !category || category.length > 32 || isNaN(foodPrice) || foodPrice < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
             Swal.showValidationMessage('请填写完整且正确的信息');
             return false;
           }
@@ -541,7 +567,7 @@ console.log('修改成功，新的接口测试ok');
                 foodName,
                 foodImg: uploadResponse.data,
                 foodExplain,
-                foodPrice, stock, category, purchaseLimit
+                foodPrice, category, purchaseLimit
               };
             } else {
               throw new Error('上传失败');
@@ -569,7 +595,7 @@ console.log('修改成功，新的接口测试ok');
             foodExplain: formValues.foodExplain,
             foodPrice: formValues.foodPrice,
             businessId: businessId.value,
-            stock: formValues.stock,
+            stock: 100000,
             category: formValues.category,
             purchaseLimit: formValues.purchaseLimit,
             shelveStatus: 1
@@ -606,25 +632,19 @@ console.log('修改成功，新的接口测试ok');
         title: '编辑商品信息',
         html: `
           <div style="text-align: center; margin-bottom: 15px;">
-            <img id="image-preview" src="${foodItem.foodImg}" style="max-width: 200px; max-height: 150px; border-radius: 5px; border: 2px dashed #ddd; margin: 0 auto;">
+            <img id="image-preview" src="${escapeHtml(foodItem.foodImg || foodDefaultImg)}" onerror="this.onerror=null;this.src='${escapeHtml(foodDefaultImg)}'" style="max-width: 200px; max-height: 150px; border-radius: 5px; border: 2px dashed #ddd; margin: 0 auto;">
           </div>
           <div style="text-align: center; margin-bottom: 15px;">
             <button type="button" id="upload-btn" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
               更换图片
             </button>
           </div>
-          <input id="foodName" class="swal2-input" placeholder="商品名称" value="${foodItem.foodName}">
-          <input id="foodExplain" class="swal2-input" placeholder="商品简介" value="${foodItem.foodExplain}">
-          <input id="foodPrice" type="number" class="swal2-input" placeholder="商品价格" value="${foodItem.foodPrice}">
-          <input id="foodStock" type="number" min="0" class="swal2-input" placeholder="可售库存" value="${foodItem.stock ?? 0}">
-          <select id="foodCategory" class="swal2-input" aria-label="商品分类">
-            <option value="招牌推荐" ${(foodItem.category || '招牌推荐') === '招牌推荐' ? 'selected' : ''}>招牌推荐</option>
-            <option value="主食" ${foodItem.category === '主食' ? 'selected' : ''}>主食</option>
-            <option value="小吃" ${foodItem.category === '小吃' ? 'selected' : ''}>小吃</option>
-            <option value="饮品" ${foodItem.category === '饮品' ? 'selected' : ''}>饮品</option>
-            <option value="套餐" ${foodItem.category === '套餐' ? 'selected' : ''}>套餐</option>
-          </select>
-          <input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="单笔限购（可选）" value="${foodItem.purchaseLimit ?? ''}">
+          <label class="edit-field"><span>商品名称</span><input id="foodName" class="swal2-input" placeholder="例如：招牌牛肉面" value="${escapeHtml(foodItem.foodName)}"></label>
+          <label class="edit-field"><span>商品简介</span><input id="foodExplain" class="swal2-input" placeholder="例如：现点现做" value="${escapeHtml(foodItem.foodExplain)}"></label>
+          <label class="edit-field"><span>商品价格</span><input id="foodPrice" type="number" min="0" step="0.01" class="swal2-input" placeholder="请输入售价" value="${escapeHtml(foodItem.foodPrice)}"></label>
+          <label class="edit-field"><span>商品分类</span><input id="foodCategory" class="swal2-input" maxlength="32" list="food-category-options" placeholder="输入分类，例如：盖饭、饮品" value="${escapeHtml(foodItem.category || '其他')}"><small>可以选择店内已有分类，也可以直接创建新分类</small></label>
+          <datalist id="food-category-options">${categoryOptionsHtml()}</datalist>
+          <label class="edit-field"><span>单笔限购</span><input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="可选，不填表示不限购" value="${escapeHtml(foodItem.purchaseLimit ?? '')}"></label>
         `,
         focusConfirm: false,
         showCancelButton: true,
@@ -679,15 +699,15 @@ console.log('修改成功，新的接口测试ok');
             }
           };
 
-          // 商品名称校验（最多6个字符）
+          // 商品名称校验
           validateField('foodName', (value) => {
-            return value.length <= 6;
-          }, '商品名称不能超过6个字符');
+            return value.length > 0 && value.length <= 100;
+          }, '商品名称不能为空且不能超过100个字符');
 
-          // 商品简介校验（最多8个字符）
+          // 商品简介校验
           validateField('foodExplain', (value) => {
-            return value.length <= 8;
-          }, '商品简介不能超过8个字符');
+            return value.length <= 255;
+          }, '商品简介不能超过255个字符');
 
           // 商品价格校验
           validateField('foodPrice', (value) => {
@@ -697,6 +717,9 @@ console.log('修改成功，新的接口测试ok');
             if (value.includes('.') && value.split('.')[1].length > 2) return false;
             return true;
           }, '商品价格必须大于等于0，小数点最多保留两位');
+
+          validateField('foodCategory', (value) => value.length > 0 && value.length <= 32,
+            '商品分类不能为空且不能超过32个字符');
 
           uploadBtn.addEventListener('click', () => {
             fileInput.click();
@@ -717,12 +740,11 @@ console.log('修改成功，新的接口测试ok');
           const foodName = document.getElementById('foodName').value.trim();
           const foodExplain = document.getElementById('foodExplain').value.trim();
           const foodPrice = parseFloat(document.getElementById('foodPrice').value);
-          const stock = parseInt(document.getElementById('foodStock').value || '0', 10);
-          const category = document.getElementById('foodCategory').value || '招牌推荐';
+          const category = document.getElementById('foodCategory').value.trim();
           const limitInput = document.getElementById('purchaseLimit').value;
           const purchaseLimit = limitInput ? parseInt(limitInput, 10) : null;
 
-          if (!foodName || !foodExplain || isNaN(foodPrice) || isNaN(stock) || stock < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
+          if (!foodName || !foodExplain || !category || category.length > 32 || isNaN(foodPrice) || foodPrice < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
             Swal.showValidationMessage('请填写完整且正确的信息');
             return false;
           }
@@ -764,7 +786,7 @@ console.log('修改成功，新的接口测试ok');
             foodName,
             foodImg: finalImageUrl,
             foodExplain,
-            foodPrice, stock, category, purchaseLimit
+            foodPrice, category, purchaseLimit
           };
         }
       });
@@ -786,7 +808,6 @@ console.log('修改成功，新的接口测试ok');
             foodExplain: formValues.foodExplain,
             foodPrice: formValues.foodPrice,
             businessId: businessId.value,
-            stock: formValues.stock,
             category: formValues.category,
             purchaseLimit: formValues.purchaseLimit
           };
@@ -800,7 +821,6 @@ console.log('修改成功，新的接口测试ok');
               foodImg: formValues.foodImg,
               foodExplain: formValues.foodExplain,
               foodPrice: formValues.foodPrice,
-              stock: formValues.stock,
               category: formValues.category,
               purchaseLimit: formValues.purchaseLimit
             };
@@ -876,26 +896,15 @@ console.log('修改成功，新的接口测试ok');
       showEditFoodModal,
       shelveFood,
       deleteFood,
-      handleImageError
+      handleImageError,
+      toggleOperatingStatus
     };
   }
 };
 </script>
 
 <style scoped>
-.food-meta-chip {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: #edf6fc;
-  color: #2384bd;
-  font-size: 11px;
-  font-weight: 500;
-  vertical-align: 1px;
-}
-.food-meta-chip.limit-chip { background: #fff5e8; color: #c27a1a; }
-.stock-label { margin-left: 6px; color: #8aa0b2; font-size: 11px; font-weight: 400; }
+.food-category-note { color:#7890a0!important; font-size:12px!important; }
 /* 实时校验错误提示样式 */
 .field-error-message {
   color: #dc3545 !important;
@@ -923,53 +932,58 @@ console.log('修改成功，新的接口测试ok');
 /****************** 总容器 ******************/
 .wrapper {
   width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
   min-height: 100vh;
-  padding-bottom: 14vw;
+  padding: 72px 0 88px;
   box-sizing: border-box;
-  background-color: #f5f5f5;
+  background-color: #f4f8fb;
 }
 
 /****************** header部分 ******************/
 .wrapper header {
-  width: 100%;
-  height: 12vw;
+  width: min(100%, 720px);
+  height: 56px;
   background-color: #0097ff;
   color: #fff;
-  font-size: 4.8vw;
+  font-size: 18px;
+  font-weight: 600;
   position: fixed;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   top: 0;
   z-index: 1000;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 4vw;
+  padding: 0 16px;
   box-sizing: border-box;
 }
 
 .wrapper header .fa-angle-left {
-  font-size: 7vw;
+  font-size: 32px;
   cursor: pointer;
 }
 
 /****************** 商家信息卡片 ******************/
 .business-info-card {
-  margin-top: 15vw;
-  padding: 4vw;
+  padding: 18px;
   background-color: #fff;
-  border-radius: 10px;
+  border: 1px solid #e4edf3;
+  border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  margin: 15vw 4vw 0;
+  margin: 0 16px;
 }
 
 .business-info-card .business-logo {
-  width: 25vw;
-  height: 25vw;
-  border-radius: 5px;
+  flex: 0 0 110px;
+  width: 110px;
+  height: 110px;
+  border-radius: 8px;
   overflow: hidden;
-  margin-right: 4vw;
+  margin-right: 18px;
 }
 
 .business-info-card .business-logo img {
@@ -979,25 +993,25 @@ console.log('修改成功，新的接口测试ok');
 }
 
 .business-info-card .info-details h1 {
-  font-size: 5vw;
-  margin-bottom: 1vw;
+  font-size: 24px;
+  margin-bottom: 6px;
   color: #333;
 }
 
 .business-info-card .info-details .price-info {
-  font-size: 3vw;
+  font-size: 14px;
   color: #666;
-  margin-top: 1vw;
+  margin-top: 6px;
 }
 
 .business-info-card .info-details .info-item {
-  margin-right: 2vw;
+  margin-right: 12px;
 }
 
 .business-info-card .info-details .explain-text {
-  font-size: 3.2vw;
+  font-size: 14px;
   color: #888;
-  margin-top: 2vw;
+  margin-top: 10px;
   line-height: 1.5;
 }
 
@@ -1006,11 +1020,12 @@ console.log('修改成功，新的接口测试ok');
   display: flex;
   justify-content: space-around;
   background-color: #fff;
-  margin: 3vw 4vw;
-  padding: 3vw 0;
+  margin: 14px 16px;
+  padding: 14px 0;
+  border: 1px solid #e4edf3;
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  font-size: 3.5vw;
+  font-size: 14px;
   color: #666;
 }
 
@@ -1020,8 +1035,8 @@ console.log('修改成功，新的接口测试ok');
 }
 
 .likes-collections .icon-item .fa {
-  margin-right: 1.5vw;
-  font-size: 4.5vw;
+  margin-right: 7px;
+  font-size: 18px;
   color: #0097ef;
 }
 
@@ -1029,16 +1044,21 @@ console.log('修改成功，新的接口测试ok');
 .edit-button-container {
   display: flex;
   justify-content: center;
-  margin-top: 4vw;
+  gap: 10px;
+  margin: 0 16px 14px;
 }
 
-.edit-button {
+.edit-button,
+.operating-button {
+  flex: 1;
+  min-height: 40px;
   background-color: #007bff;
   color: #fff;
-  border: none;
-  padding: 2.5vw 5vw;
-  border-radius: 5px;
-  font-size: 3.5vw;
+  border: 1px solid #007bff;
+  padding: 9px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color 0.3s;
 }
@@ -1046,69 +1066,77 @@ console.log('修改成功，新的接口测试ok');
 .edit-button:hover {
   background-color: #0056b3;
 }
+.operating-button{background:#fff;color:#168bd1;border-color:#168bd1;cursor:pointer}.operating-button.closed{background:#168bd1;color:#fff}.sold-out-label{margin-left:6px;color:#8a98a4;font-size:11px}.store-settings .open-setting{border-color:#bfe2cc;background:#f1faf4;color:#34895a}.store-settings .closed-setting{border-color:#dce4e9;background:#f5f7f8;color:#7f8e99}
 
 /****************** 食品列表部分 ******************/
 .wrapper .food {
-  width: 100%;
-  margin-bottom: 14vw;
-  margin-top: 4vw;
+  width: auto;
+  margin: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .wrapper .food li {
   width: 100%;
   box-sizing: border-box;
-  padding: 4vw;
+  padding: 14px;
   user-select: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background-color: #fff;
-  border-bottom: 1px solid #eee;
+  border: 1px solid #e4edf3;
+  border-radius: 10px;
 }
 
 .wrapper .food li .food-left {
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 .wrapper .food li .food-left img {
-  width: 18vw;
-  height: 18vw;
-  border-radius: 5px;
+  flex: 0 0 80px;
+  width: 80px;
+  height: 80px;
+  border-radius: 7px;
   object-fit: cover;
 }
 
 .wrapper .food li .food-left .food-left-info {
-  margin-left: 3vw;
+  min-width: 0;
+  margin-left: 12px;
 }
 
 .wrapper .food li .food-left .food-left-info h3 {
-  font-size: 4vw;
+  font-size: 16px;
   color: #555;
-  margin-bottom: 1vw;
+  margin-bottom: 5px;
 }
 
 .wrapper .food li .food-left .food-left-info p {
-  font-size: 3vw;
+  font-size: 13px;
   color: #888;
-  margin-top: 1vw;
+  margin-top: 5px;
 }
 
 .wrapper .food li .food-left .food-left-info .food-price {
-  font-size: 3.8vw;
+  font-size: 16px;
   color: #ff5722;
   font-weight: bold;
-  margin-top: 2vw;
+  margin-top: 8px;
 }
 
 .wrapper .food li .food-right {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .wrapper .food li .food-left .food-left-info .food-status {
-  font-size: 4vw;
-  margin-bottom: 1vw;
+  font-size: 12px;
+  margin-bottom: 5px;
   color: #e41414;
 }
 
@@ -1116,11 +1144,11 @@ console.log('修改成功，新的接口测试ok');
   background-color: #0097ef;
   color: #fff;
   border: none;
-  padding: 2vw 3.5vw;
+  padding: 7px 11px;
   border-radius: 5px;
-  font-size: 3vw;
+  font-size: 13px;
   cursor: pointer;
-  margin-left: 2vw;
+  margin-left: 7px;
   transition: background-color 0.3s;
 }
 
@@ -1147,12 +1175,13 @@ console.log('修改成功，新的接口测试ok');
 .footer-button-container {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 720px);
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 14vw;
+  height: 72px;
   background-color: #fff;
   border-top: 1px solid #f0f0f0;
   z-index: 100;
@@ -1160,12 +1189,13 @@ console.log('修改成功，新的接口测试ok');
 }
 
 .add-food-button {
-  width: 90%;
+  width: calc(100% - 32px);
   background-color: #0097ef;
   color: #fff;
-  padding: 3.5vw 0;
-  border-radius: 8vw;
-  font-size: 4.5vw;
+  min-height: 44px;
+  padding: 10px 0;
+  border-radius: 7px;
+  font-size: 15px;
   font-weight: bold;
   border: none;
   cursor: pointer;
@@ -1180,4 +1210,20 @@ console.log('修改成功，新的接口测试ok');
 .store-settings { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
 .store-settings span { padding: 3px 7px; border: 1px solid #cfe3f0; border-radius: 4px; background: #f5fbff; color: #168bd1; font-size: 11px; }
 .store-settings .muted-setting { border-color: #e1e9ee; background: #fafcfd; color: #9aadb9; }
+
+@media (max-width: 540px) {
+  .wrapper { padding-top: 64px; }
+  .business-info-card { align-items: flex-start; padding: 14px; }
+  .business-info-card .business-logo { flex-basis: 82px; width: 82px; height: 82px; margin-right: 12px; }
+  .business-info-card .info-details h1 { font-size: 19px; }
+  .business-info-card .info-details .price-info,
+  .business-info-card .info-details .explain-text { font-size: 12px; }
+  .wrapper .food li { align-items: flex-start; gap: 10px; }
+  .wrapper .food li .food-left img { flex-basis: 68px; width: 68px; height: 68px; }
+  .wrapper .food li .food-right { flex-direction: column; gap: 5px; }
+  .wrapper .food li .food-right .action-button { width: 54px; margin-left: 0; padding: 6px 8px; }
+}
+</style>
+<style>
+.swal2-html-container .edit-field{display:block;width:90%;margin:11px auto 0;text-align:left;color:#45677d;font-size:13px;font-weight:600}.swal2-html-container .edit-field>span{display:block;margin:0 0 5px}.swal2-html-container .edit-field>small{display:block;margin-top:5px;color:#91a4b1;font-size:11px;font-weight:400}.swal2-html-container .edit-field .swal2-input,.swal2-html-container .edit-field .swal2-textarea{width:100%;margin:0;height:42px;padding:8px 11px;border:1px solid #d8e5ee;border-radius:5px;box-sizing:border-box;font-size:14px}.swal2-html-container .edit-field .swal2-textarea{height:76px;resize:vertical}.swal2-html-container .edit-field .swal2-input:focus,.swal2-html-container .edit-field .swal2-textarea:focus{border-color:#58afe7;box-shadow:0 0 0 3px #e8f5fd;outline:0}
 </style>

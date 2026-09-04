@@ -15,4 +15,6 @@ public class AssetVO {
     private LocalDateTime membershipExpire;
     private boolean member;
     private int availableCoupons;
+    /** 新人券是否曾经领取过；即使已经使用或过期也为 true。 */
+    private boolean welcomeCouponClaimed;
 }

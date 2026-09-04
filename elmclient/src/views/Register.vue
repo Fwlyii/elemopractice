@@ -59,14 +59,16 @@
       </li>
       <li class="form-item">
         <label for="password" class="form-item-title">密码：</label>
-        <div class="form-item-content">
-          <input id="password" type="password" v-model="user.password" placeholder="密码" />
+        <div class="form-item-content password-field">
+          <input id="password" :type="showPassword ? 'text' : 'password'" v-model="user.password" placeholder="密码" />
+          <button type="button" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword"><i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i></button>
         </div>
       </li>
       <li class="form-item">
         <label for="confirmPassword" class="form-item-title">确认密码：</label>
-        <div class="form-item-content">
-          <input id="confirmPassword" type="password" v-model="confirmPassword" placeholder="确认密码" />
+        <div class="form-item-content password-field">
+          <input id="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" v-model="confirmPassword" placeholder="确认密码" />
+          <button type="button" :aria-label="showConfirmPassword ? '隐藏密码' : '显示密码'" @click="showConfirmPassword = !showConfirmPassword"><i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i></button>
         </div>
       </li>
       <li class="form-item">
@@ -120,6 +122,8 @@ export default {
       photo: ''
     });
     const confirmPassword = ref('');
+    const showPassword = ref(false);
+    const showConfirmPassword = ref(false);
     const avatar = ref(null);
     const uploadedFile = ref(null);
 
@@ -285,6 +289,8 @@ const handleFileChange = (event) => {
     return {
       user,
       confirmPassword,
+      showPassword,
+      showConfirmPassword,
       avatar,
       uploadedFile,
       triggerFileInput,
@@ -539,4 +545,5 @@ header {
   top: 2vw; /* 距离顶部的距离，与 header 高度（12vw）适配，确保垂直居中 */
   z-index: 1001; /* 比 header 的 z-index:1000 高，避免被遮挡 */
 }
+.password-field{position:relative}.password-field input{padding-right:42px}.password-field button{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#718da4;padding:8px;cursor:pointer}
 </style>

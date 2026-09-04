@@ -38,17 +38,17 @@ VALUES
 
 INSERT INTO food
   (id, create_time, is_deleted, food_explain, food_img, food_name, food_price,
-   remarks, business_id, shelve_status)
+   remarks, business_id, shelve_status, category)
 VALUES
-  (1, NOW(), 0, '鸡腿、时蔬与米饭', NULL, '照烧鸡腿饭', 18.80, NULL, 1, 1),
-  (2, NOW(), 0, '番茄、牛肉与滑蛋', NULL, '番茄滑蛋牛肉饭', 22.00, NULL, 1, 1),
-  (3, NOW(), 0, '清爽低脂套餐', NULL, '香煎鸡胸沙拉', 19.90, NULL, 1, 1),
-  (4, NOW(), 0, '现磨咖啡', NULL, '热拿铁', 12.00, NULL, 2, 1),
-  (5, NOW(), 0, '鸡蛋、培根与芝士', NULL, '元气早餐卷', 9.90, NULL, 2, 1),
-  (6, NOW(), 0, '豆浆与两只包子', NULL, '经典早餐套餐', 8.80, NULL, 2, 1),
-  (7, NOW(), 0, '鸡翅、薯条与饮料', NULL, '双人炸物拼盘', 32.00, NULL, 3, 1),
-  (8, NOW(), 0, '微辣酥脆', NULL, '香辣鸡排', 15.80, NULL, 3, 1),
-  (9, NOW(), 0, '冰爽柠檬气泡水', NULL, '柠檬气泡水', 7.00, NULL, 3, 1);
+  (1, NOW(), 0, '鸡腿、时蔬与米饭', NULL, '照烧鸡腿饭', 18.80, NULL, 1, 1, '盖饭'),
+  (2, NOW(), 0, '番茄、牛肉与滑蛋', NULL, '番茄滑蛋牛肉饭', 22.00, NULL, 1, 1, '盖饭'),
+  (3, NOW(), 0, '清爽低脂套餐', NULL, '香煎鸡胸沙拉', 19.90, NULL, 1, 1, '轻食'),
+  (4, NOW(), 0, '现磨咖啡', NULL, '热拿铁', 12.00, NULL, 2, 1, '咖啡饮品'),
+  (5, NOW(), 0, '鸡蛋、培根与芝士', NULL, '元气早餐卷', 9.90, NULL, 2, 1, '早餐主食'),
+  (6, NOW(), 0, '豆浆与两只包子', NULL, '经典早餐套餐', 8.80, NULL, 2, 1, '早餐套餐'),
+  (7, NOW(), 0, '鸡翅、薯条与饮料', NULL, '双人炸物拼盘', 32.00, NULL, 3, 1, '炸物小吃'),
+  (8, NOW(), 0, '微辣酥脆', NULL, '香辣鸡排', 15.80, NULL, 3, 1, '炸物小吃'),
+  (9, NOW(), 0, '冰爽柠檬气泡水', NULL, '柠檬气泡水', 7.00, NULL, 3, 1, '饮品');
 
 INSERT INTO delivery_address
   (id, create_time, is_deleted, address, contact_name, contact_sex, contact_tel, user_id)
@@ -140,8 +140,8 @@ INSERT INTO food
   (id, create_time, is_deleted, food_explain, food_img, food_name, food_price,
    remarks, business_id, shelve_status, stock, category, purchase_limit)
 VALUES
-  (10, NOW(), 0, '牛肉、土豆和时蔬', NULL, '招牌牛肉麻辣香锅', 32.00, '演示样本', 4, 1, 100, '招牌推荐', 2),
-  (11, NOW(), 0, '鲜虾、玉米和藕片', NULL, '鲜香虾滑锅', 38.00, '演示样本', 4, 1, 100, '热销菜品', 2),
+  (10, NOW(), 0, '牛肉、土豆和时蔬', NULL, '招牌牛肉麻辣香锅', 32.00, '演示样本', 4, 1, 100, '麻辣香锅', 2),
+  (11, NOW(), 0, '鲜虾、玉米和藕片', NULL, '鲜香虾滑锅', 38.00, '演示样本', 4, 1, 100, '麻辣香锅', 2),
   (12, NOW(), 0, '午餐双人套餐', NULL, '双人香锅套餐', 58.00, '演示样本', 4, 1, 100, '套餐', 1),
   (13, NOW(), 0, '低糖冷萃咖啡', NULL, '冰美式', 15.00, '演示样本', 5, 1, 100, '咖啡', 3),
   (14, NOW(), 0, '奶香浓郁', NULL, '生椰拿铁', 19.00, '演示样本', 5, 1, 100, '咖啡', 3),

@@ -37,6 +37,7 @@ public class BusinessSearchVO {
     private BigDecimal promotionDiscount;
     private BigDecimal averagePrice;
     private LocalDateTime createTime;
+    private Boolean operatingStatus;
 
     /** 后端规则引擎生成的候选展示标签，前端只负责渲染。 */
     private List<String> recommendationTags;

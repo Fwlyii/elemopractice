@@ -1,4 +1,5 @@
 package com.tju.elm_bk.mapper;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +65,15 @@ public interface BusinessMapper {
     Integer getSalesCount(@Param("businessId") Long businessId);
 
     /**
+     * 统一展示评分：优先取未隐藏评价的实时均值，没有评价时才使用演示快照。
+     * 点赞与收藏是互动指标，不参与星级计算。
+     */
+    @Select("SELECT COALESCE(ROUND((SELECT AVG(r.rating) FROM review r " +
+            "WHERE r.business_id = b.id AND r.is_hidden = 0), 2), b.demo_rating) " +
+            "FROM business b WHERE b.id = #{businessId} AND b.is_deleted = 0")
+    BigDecimal getDisplayRating(@Param("businessId") Long businessId);
+
+    /**
      * 根据用户ID查询对应的所有商铺ID
      * @param userId 用户ID
      * @return 商家ID列表
@@ -90,7 +100,7 @@ public interface BusinessMapper {
     List<BusinessInfoDTO>getAllActiveBusinesses();
 
     @Select("<script>" +
-            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, dine_in_available, promotion_threshold, promotion_discount, status " +
+            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, dine_in_available, promotion_threshold, promotion_discount, status, operating_status " +
             "FROM business " +
             "WHERE is_deleted = 0 " +
             "<if test='userId != null'>" +
@@ -104,7 +114,7 @@ public interface BusinessMapper {
 
 
     @Select("<script>" +
-            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, dine_in_available, promotion_threshold, promotion_discount, status " +
+            "SELECT id, business_name, business_address, business_img, order_type_id, delivery_price, start_price, remarks, business_explain, dine_in_available, promotion_threshold, promotion_discount, status, operating_status " +
             "FROM business " +
             "WHERE is_deleted = 0 AND status = 1" +
             "<if test='type != null'>" +

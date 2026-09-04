@@ -26,11 +26,12 @@ const asset = ref({ balance: 0, points: 0, availableCoupons: 0, member: false })
 const spending = ref({ completedOrderCount: 0, totalSpent: 0, visitedBusinessCount: 0 });
 const ledger = ref([]);
 const coupons = ref([]);
-const welcomeClaimed = computed(() => coupons.value.some(coupon => coupon.name === '新人券'));
+const welcomeClaimed = computed(() => Boolean(asset.value.welcomeCouponClaimed)
+  || coupons.value.some(coupon => coupon.name === '新人券'));
 const load = async () => { const [assetRes, statsRes, ledgerRes, couponRes] = await Promise.all([request.get('/api/v1/assets/me'), request.get('/api/v1/assets/spending-stats'), request.get('/api/v1/assets/ledger'), request.get('/api/v1/assets/coupons')]); if (assetRes.success) asset.value = assetRes.data || asset.value; if (statsRes.success) spending.value = statsRes.data || spending.value; if (ledgerRes.success) ledger.value = ledgerRes.data || []; if (couponRes.success) coupons.value = couponRes.data || []; };
 const money = (v) => Number(v || 0).toFixed(2); const formatDate = (v) => v ? new Date(v).toLocaleDateString('zh-CN') : '-';
 const recharge = async () => { const amount = window.prompt('输入充值金额（1-500元）', '20'); if (!amount) return; try { const res=await request.post('/api/v1/assets/recharge', null, { params: { amount } }); if(res.success){await load();toast.success('充值成功');} } catch(e){toast.error(e?.message || '充值失败');} };
-const claimCoupon = async () => { claiming.value=true; try { const res=await request.post('/api/v1/assets/welcome-coupon'); if(res.success){await load();toast.success('优惠券已放入卡包');} } finally {claiming.value=false;} };
+const claimCoupon = async () => { if(welcomeClaimed.value) return toast.info('新人券每个账号只能领取一次'); claiming.value=true; try { const res=await request.post('/api/v1/assets/welcome-coupon'); if(res.success){asset.value=res.data || asset.value;await load();toast.success('优惠券已放入卡包');} } catch(e){toast.warning(e?.response?.data?.message || e?.message || '领取失败');await load();} finally {claiming.value=false;} };
 const activateMember = async () => { const res=await request.post('/api/v1/assets/membership'); if(res.success){await load();toast.success('会员已开通，有效期30天');} };
 const ledgerLabel = (type) => ({ RECHARGE:'充值', COUPON_GRANT:'优惠券', MEMBERSHIP:'会员', POINT_EARN:'积分' }[type] || '资产变更');
 onMounted(load);

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -75,6 +76,15 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(permitUrlArr).permitAll()
+                        // 游客可以浏览已上线商家、菜单和评价，也可以使用不保存个人历史的 AI 对话。
+                        // 写购物车、下单、收藏以及读取私人会话仍然要求登录。
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/businesses/{id}",
+                                "/api/businesses/type",
+                                "/api/foods/list",
+                                "/api/v1/reviews/business/{businessId}",
+                                "/api/ai/chat/recommendations").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
                         .anyRequest().authenticated()
                 )
                 .headers(httpSecurity -> httpSecurity  // 显式参数名

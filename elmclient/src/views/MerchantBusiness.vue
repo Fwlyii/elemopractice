@@ -39,6 +39,7 @@
               <p>商家地址：{{ shop?.businessAddress || '暂无地址信息' }}</p>
             </div>
             <div class="shop-tags">
+              <span :class="shop?.operatingStatus === false ? 'shop-closed' : 'shop-open'">{{ shop?.operatingStatus === false ? '休息中' : '营业中' }}</span>
               <span v-if="shop?.dineInAvailable">堂食店</span>
               <span v-if="shop?.promotionThreshold && shop?.promotionDiscount">满{{ Number(shop.promotionThreshold).toFixed(0) }}减{{ Number(shop.promotionDiscount).toFixed(0) }}</span>
             </div>
@@ -1408,6 +1409,7 @@ body {
 .shop-setting-row small { margin-left: auto; color: #9aadb9; font-size: 11px; }
 .shop-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .shop-tags span { padding: 2px 6px; border: 1px solid #cfe3f0; border-radius: 3px; background: #f5fbff; color: #168bd1; font-size: 11px; }
+.shop-tags .shop-open{border-color:#bfe2cc;background:#f1faf4;color:#34895a}.shop-tags .shop-closed{border-color:#dce4e9;background:#f5f7f8;color:#7f8e99}
 
 /* 申请新店是列表后的普通操作，不能固定覆盖正在浏览的店铺卡片。 */
 .shop-management-page .footer-button-container {

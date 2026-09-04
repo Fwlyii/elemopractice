@@ -30,9 +30,9 @@
 					</div>
 					<div class="cart-info">
 						<h3>{{ item.foodName }}</h3>
-						<small class="food-meta">{{ item.category || '招牌推荐' }}<span v-if="item.purchaseLimit"> · 每单限{{ item.purchaseLimit }}份</span></small>
+						<small v-if="item.purchaseLimit" class="food-meta">每单最多 {{ item.purchaseLimit }} 份</small>
 						<p>&#165;{{ Number(item.foodPrice || 0).toFixed(2) }} / 份</p>
-						<small class="stock-hint">剩余库存 {{ item.stock ?? 0 }}</small>
+						<small v-if="Number(item.stock || 0) <= 0" class="stock-hint">当前已售罄</small>
 					</div>
 					<div class="cart-item-side">
 						<button type="button" class="delete-item" :disabled="updatingCartIds.has(item.id)" :aria-label="`删除${item.foodName}`" @click="removeItem(item)"><i class="fa fa-trash-o"></i></button>
@@ -88,7 +88,7 @@ export default {
 				listCart();
 			} else {
 				toast.error("用户未登录，请先登录！");
-				router.push({ path: '/login' });
+				router.replace({ path: '/login', query: { role: 'user', redirect: route.fullPath } });
 			}
 		});
 
@@ -163,7 +163,7 @@ export default {
 			const next = Number(item.quantity || 0) + delta;
 			if (next <= 0) return removeItem(item);
 			if (next > maxQuantity(item)) {
-				toast.warning(item.purchaseLimit ? `该商品每单限购 ${item.purchaseLimit} 份` : '已达到库存上限');
+				toast.warning(item.purchaseLimit ? `该商品每单限购 ${item.purchaseLimit} 份` : '当前可售数量已达上限');
 				return;
 			}
 			return updateItemQuantity(item, next);

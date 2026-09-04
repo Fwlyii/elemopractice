@@ -7,7 +7,6 @@ import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.BusinessMapper;
-import com.tju.elm_bk.mapper.MerchantInteractionMapper;
 import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.ResultCodeEnum;
@@ -42,8 +41,6 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Autowired
     private UserService userService;
-    @Autowired
-    private MerchantInteractionMapper interactionMapper;
     @Autowired
     private UserMapper userMapper;
     @Autowired
@@ -289,14 +286,9 @@ public class BusinessServiceImpl implements BusinessService {
             int salesCount = business.getSalesCount() == null
                     ? businessMapper.getSalesCount(business.getId())
                     : business.getSalesCount();
-            Integer likeCount = interactionMapper.countLikesByMerchantId(business.getId());
-            Integer collectCount = interactionMapper.countCollectionsByMerchantId(business.getId());
-            // 计算评分 (点赞权重0.6，收藏权重0.4，归一化到1-5分)
-            double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            BigDecimal rating = business.getScore() == null
-                    ? BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP)
-                    : business.getScore().setScale(2, RoundingMode.HALF_UP);
-            business.setScore(rating);
+            if (business.getScore() != null) {
+                business.setScore(business.getScore().setScale(2, RoundingMode.HALF_UP));
+            }
             business.setSalesCount(salesCount);
             populateRecommendationMetadata(business, recentPurchaseIds);
         }
@@ -306,11 +298,13 @@ public class BusinessServiceImpl implements BusinessService {
 
         if (isScore && isSales) {
             // 先按评分降序，再按销量降序
-            comparator = Comparator.comparing(BusinessSearchVO::getScore, Comparator.reverseOrder())
+            comparator = Comparator.comparing(BusinessSearchVO::getScore,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
                     .thenComparing(BusinessSearchVO::getSalesCount, Comparator.reverseOrder());
         } else if (isScore) {
             // 按评分降序
-            comparator = Comparator.comparing(BusinessSearchVO::getScore, Comparator.reverseOrder());
+            comparator = Comparator.comparing(BusinessSearchVO::getScore,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
         } else if (isSales) {
             // 按销量降序
             comparator = Comparator.comparing(BusinessSearchVO::getSalesCount, Comparator.reverseOrder());
@@ -332,21 +326,17 @@ public class BusinessServiceImpl implements BusinessService {
             int salesCount = business.getSalesCount() == null
                     ? businessMapper.getSalesCount(business.getId())
                     : business.getSalesCount();
-            Integer likeCount = interactionMapper.countLikesByMerchantId(business.getId());
-            Integer collectCount = interactionMapper.countCollectionsByMerchantId(business.getId());
-            // 计算评分 (点赞权重0.6，收藏权重0.4，归一化到1-5分)
-            double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            BigDecimal rating = business.getScore() == null
-                    ? BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP)
-                    : business.getScore().setScale(2, RoundingMode.HALF_UP);
-            business.setScore(rating);
+            if (business.getScore() != null) {
+                business.setScore(business.getScore().setScale(2, RoundingMode.HALF_UP));
+            }
             business.setSalesCount(salesCount);
             populateRecommendationMetadata(business, recentPurchaseIds);
         }
 
         // 使用 Comparator 进行排序
         Comparator<BusinessSearchVO> comparator = null;
-        comparator = Comparator.comparing(BusinessSearchVO::getScore, Comparator.reverseOrder())
+        comparator = Comparator.comparing(BusinessSearchVO::getScore,
+                        Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparing(BusinessSearchVO::getSalesCount, Comparator.reverseOrder());
 
         businesses.sort(comparator);
@@ -418,7 +408,9 @@ public class BusinessServiceImpl implements BusinessService {
                 + (score.doubleValue() - 3) * 16
                 + Math.min(sales, 200) * 0.08
                 + (Boolean.TRUE.equals(business.getDineInAvailable()) ? 5 : 0)
-                + ((business.getDeliveryPrice() == null || business.getDeliveryPrice().compareTo(BigDecimal.ZERO) == 0) ? 3 : 0);
+                + ((business.getDeliveryPrice() == null || business.getDeliveryPrice().compareTo(BigDecimal.ZERO) == 0) ? 3 : 0)
+                // 休息中的店铺仍允许浏览，但默认排在可下单店铺之后。
+                - (Boolean.FALSE.equals(business.getOperatingStatus()) ? 1000 : 0);
         business.setRecommendationScore(BigDecimal.valueOf(Math.max(0, recommendation)).setScale(2, RoundingMode.HALF_UP));
     }
 

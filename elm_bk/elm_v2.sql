@@ -90,6 +90,7 @@ CREATE TABLE `business`  (
   `demo_sales_count` int NULL DEFAULT NULL COMMENT '演示用近30日销量快照，真实业务由订单聚合计算',
   `user_id` bigint NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0 COMMENT '0-待审核 1-已上线 2-被拒绝',
+  `operating_status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '营业状态：1营业中，0休息中',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `user_id`(`user_id` ASC) USING BTREE,
   CONSTRAINT `business_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
@@ -171,7 +172,7 @@ CREATE TABLE `food`  (
   `business_id` bigint NOT NULL,
   `shelve_status` tinyint NULL DEFAULT 1 COMMENT '0-已下架 1-已上架',
   `stock` int NOT NULL DEFAULT 100 COMMENT '可售库存',
-  `category` varchar(32) NOT NULL DEFAULT '招牌推荐' COMMENT '商品分类',
+  `category` varchar(32) NOT NULL DEFAULT '其他' COMMENT '商家自定义商品分类',
   `purchase_limit` int NULL DEFAULT NULL COMMENT '单笔限购数量，空表示不限购',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `business_id`(`business_id` ASC) USING BTREE,

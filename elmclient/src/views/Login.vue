@@ -34,7 +34,7 @@
         </label>
         <label class="field">
           <span>密码</span>
-          <div class="input-wrap"><i class="fas fa-lock"></i><input v-model="password" type="password" autocomplete="current-password" placeholder="请输入密码" /></div>
+          <div class="input-wrap"><i class="fas fa-lock"></i><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" placeholder="请输入密码" /><button class="password-toggle" type="button" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword"><i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i></button></div>
         </label>
 
         <div class="form-options">
@@ -71,6 +71,7 @@ const queryRole = typeof route.query.role === 'string' && roleMap[route.query.ro
 const selectedRole = ref(queryRole);
 const userName = ref(localStorage.getItem('savedUserName') || '');
 const password = ref('');
+const showPassword = ref(false);
 const rememberMe = ref(false);
 const submitting = ref(false);
 const savedUserName = computed(() => localStorage.getItem('savedUserName') || '');
@@ -114,7 +115,7 @@ const login = async () => {
       const roleName = activeRole.value.label;
       toast.warning(`当前账号没有${roleName}权限，请切换身份或先完成申请`);
       if (selectedRole.value === 'rider') router.push('/rider/apply');
-      else if (selectedRole.value === 'merchant') router.push('/myInformation');
+      else if (selectedRole.value === 'merchant') router.push('/merchant/apply');
       return;
     }
 	    toast.success(`已进入${activeRole.value.label}端`);
@@ -135,4 +136,5 @@ const login = async () => {
 
 <style scoped>
 *{box-sizing:border-box}.login-page{min-height:100vh;background:#f5f9fd;display:flex;align-items:center;justify-content:center;padding:32px 20px;color:#24405c}.back-btn-container{position:fixed;top:18px;left:20px;z-index:10}.login-shell{width:min(100%,980px);min-height:590px;background:#fff;border:1px solid #e1edf8;border-radius:12px;display:grid;grid-template-columns:42% 58%;overflow:hidden;box-shadow:0 12px 35px rgba(45,100,155,.09)}.login-intro{padding:68px 52px;background:#eaf5ff;border-right:1px solid #dcecf9;display:flex;flex-direction:column;justify-content:center}.intro-logo{width:52px;height:52px;border-radius:10px;background:#0097ff;color:#fff;display:grid;place-items:center;font-size:22px;margin-bottom:28px}.eyebrow{font-size:10px;color:#4f8ac0;letter-spacing:1.4px;font-weight:700}.login-intro h1{font-size:36px;line-height:1.25;margin:18px 0;color:#173b60;font-weight:700}.login-intro h1 span{color:#0097ff}.intro-copy{color:#69839d;font-size:14px;line-height:1.9;max-width:280px}.intro-line{display:flex;align-items:center;gap:10px;margin-top:46px;color:#7592ad;font-size:11px}.intro-line span{width:30px;border-top:1px solid #95c8ed}.login-card{padding:58px 70px;display:flex;flex-direction:column;justify-content:center}.card-kicker{margin:0;color:#5f87aa;font-size:12px}.card-heading h2{font-size:28px;margin:8px 0;color:#183b5e}.card-heading>p:last-child{font-size:13px;color:#8096ab;margin-bottom:25px}.role-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:24px}.role-item{border:1px solid #dfebf5;background:#fff;border-radius:7px;height:64px;color:#7b92a7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:11px}.role-item i{font-size:17px}.role-item:hover,.role-item.selected{border-color:#80c5f4;background:#edf8ff;color:#007fda}.field{display:block;margin-bottom:16px}.field>span{display:block;font-size:12px;color:#526f8b;font-weight:600;margin-bottom:7px}.input-wrap{height:44px;display:flex;align-items:center;gap:9px;padding:0 13px;border:1px solid #d8e5f0;border-radius:6px;background:#fff}.input-wrap:focus-within{border-color:#66b9ee;box-shadow:0 0 0 3px #e8f5ff}.input-wrap i{color:#98aec1;font-size:13px}.input-wrap input{border:0;outline:0;flex:1;font-size:14px;color:#29455f}.form-options{display:flex;justify-content:space-between;align-items:center;color:#8297aa;font-size:11px;margin:1px 0 21px}.form-options label{display:flex;align-items:center;gap:5px}.form-options input{accent-color:#0097ff}.login-button{height:45px;border:0;border-radius:6px;background:#0097ff;color:#fff;font-weight:600;font-size:15px;cursor:pointer;box-shadow:0 5px 12px rgba(0,151,255,.2)}.login-button:hover{background:#007fd8}.login-button:disabled{opacity:.7;cursor:wait}.register-hint{text-align:center;color:#8297aa;font-size:12px;margin:18px 0 0}.register-hint a{color:#008be7}.security-note{text-align:center;color:#a0afbd;font-size:10px;margin:20px 0 0}.security-note i{color:#7db9e5;margin-right:4px}@media(max-width:760px){.login-page{padding:18px 14px}.login-shell{display:block;min-height:0}.login-intro{padding:28px 26px;min-height:205px}.intro-logo{width:42px;height:42px;font-size:18px;margin-bottom:14px}.login-intro h1{font-size:27px;margin:10px 0}.intro-copy{font-size:12px;line-height:1.6}.intro-line{margin-top:18px}.login-card{padding:30px 24px 34px}.role-item{height:58px}.card-heading h2{font-size:24px}}
+.input-wrap input{min-width:0}.password-toggle{border:0;background:transparent;color:#7592aa;padding:6px;cursor:pointer}.password-toggle i{color:inherit}
 </style>

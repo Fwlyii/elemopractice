@@ -152,7 +152,7 @@
                 <button v-for="business in suggestedBusinesses" :key="business.id || business.businessId" type="button" class="guess-card" @click="toBusinessInfo(business.id || business.businessId)">
                     <img :src="business.businessImg || require('@/assets/business-default.png')" :alt="business.businessName" @error="handleImageError">
                     <strong>{{ business.businessName || '附近好店' }}</strong>
-                    <span><b>★ {{ business.score || getBusinessRating(business.id || business.businessId) }}</b> · 人均 ¥{{ formatMoney(business.averagePrice || business.avgPrice || 20) }}</span>
+                    <span><b>{{ hasBusinessRating(business.score) ? `★ ${Number(business.score).toFixed(1)}` : '暂无评分' }}</b> · 人均 ¥{{ formatMoney(business.averagePrice || business.avgPrice || 20) }}</span>
                 </button>
             </div>
         </section>
@@ -263,10 +263,9 @@
                     <img :src="business.businessImg || require('@/assets/business-default.png')"
                         @error="handleImageError" :alt="business.businessName">
                     <div class="business-info-detail">
-                        <h3>{{ business.businessName || '未命名商铺'}}</h3>
+                        <h3>{{ business.businessName || '未命名商铺'}} <small v-if="business.operatingStatus === false" class="closed-shop-tag">休息中</small></h3>
                         <div class="business-info-rating">
-                            <span class="rating-score">{{ business.score || getBusinessRating(business.id ||
-                                business.businessId) }}分</span>
+                            <span class="rating-score">{{ formatBusinessRating(business.score) }}</span>
                             <span class="monthly-sales">月售 {{ business.salesCount || 0 }}</span>
                             <span class="average-price">人均 ¥{{ formatMoney(business.averagePrice || business.startPrice || 0) }}</span>
                         </div>
@@ -311,7 +310,6 @@ export default {
         const originalBusinessList = ref([]); // 保存原始数据用于筛选和排序
         const currentPage = ref(1);
         const pageSize = 6;
-        const ratingMap = ref({});
         const purchasedBusinessIds = ref(new Set());
         const suggestedBusinesses = computed(() => businessList.value.slice(0, 3));
         const visibleBusinessList = computed(() => businessList.value.slice(0, currentPage.value * pageSize));
@@ -374,7 +372,7 @@ export default {
             if (Array.isArray(business.recommendationTags) && business.recommendationTags.length) {
                 return business.recommendationTags.map(label => ({ label, tone: tagTone(label) }));
             }
-            const score = Number(business.score || getBusinessRating(business.id || business.businessId));
+            const score = numericBusinessRating(business.score);
             const sales = Number(business.salesCount || 0);
             const promotion = getPromotion(business);
             const candidates = [];
@@ -398,7 +396,7 @@ export default {
             if (business.recommendationScore !== undefined && business.recommendationScore !== null) {
                 return Number(business.recommendationScore) || 0;
             }
-            const score = Number(business.score || getBusinessRating(business.id || business.businessId));
+            const score = numericBusinessRating(business.score);
             const sales = Math.min(Number(business.salesCount || 0), 200);
             const promotion = getPromotion(business);
             return (hasRecentPurchase(business) ? 120 : 0)
@@ -726,62 +724,15 @@ export default {
             }
         };
 
-        const loadReactions = () => {
-            try {
-                return JSON.parse(localStorage.getItem('reactions')) || { likes: {}, favorites: {} };
-            } catch (e) {
-                return { likes: {}, favorites: {} };
-            }
+        const hasBusinessRating = (score) => {
+            const value = Number(score);
+            return score !== null && score !== undefined
+                && Number.isFinite(value) && value >= 1 && value <= 5;
         };
-
-        const getReactionCount = (businessId) => {
-            const reactions = loadReactions();
-            const likesMap = reactions.likes[String(businessId)] || {};
-            const favsMap = reactions.favorites[String(businessId)] || {};
-            const likes = Object.keys(likesMap).length;
-            const favs = Object.keys(favsMap).length;
-            return likes + favs;
-        };
-
-        const guessCommentCount = (biz) => {
-            // 兼容不同后端字段命名，若不存在则为0
-            return (
-                biz.commentCount ??
-                biz.comments ??
-                biz.remarkNum ??
-                biz.reviewCount ??
-                0
-            ) || 0;
-        };
-
-        const computeRatings = () => {
-            const entries = originalBusinessList.value || [];
-            if (!entries.length) { ratingMap.value = {}; return; }
-            const reactionCounts = entries.map(b => getReactionCount(b.businessId || b.id));
-            const commentCounts = entries.map(b => guessCommentCount(b));
-            const rMin = Math.min(...reactionCounts);
-            const rMax = Math.max(...reactionCounts);
-            const cMin = Math.min(...commentCounts);
-            const cMax = Math.max(...commentCounts);
-            const weights = { comments: 0.6, reactions: 0.4 };
-            const map = {};
-            entries.forEach((b, idx) => {
-                const r = reactionCounts[idx];
-                const c = commentCounts[idx];
-                const rNorm = rMax > rMin ? (r - rMin) / (rMax - rMin) : (r > 0 ? 1 : 0);
-                const cNorm = cMax > cMin ? (c - cMin) / (cMax - cMin) : (c > 0 ? 1 : 0);
-                const combined = weights.comments * cNorm + weights.reactions * rNorm;
-                let rating = 1 + combined * 4; // map to [1,5]
-                if (rating < 1) rating = 1;
-                if (rating > 5) rating = 5;
-                map[b.businessId || b.id] = rating.toFixed(1);
-            });
-            ratingMap.value = map;
-        };
-
-        const getBusinessRating = (businessId) => {
-            return ratingMap.value[businessId] || '1.0';
-        };
+        const numericBusinessRating = (score) => hasBusinessRating(score) ? Number(score) : 0;
+        const formatBusinessRating = (score) => hasBusinessRating(score)
+            ? `${Number(score).toFixed(1)}分`
+            : '暂无评分';
 
         // 排序商家列表
         const sortBusinessList = (list, sortType) => {
@@ -794,8 +745,8 @@ export default {
                     sortedList.sort((a, b) => {
                         const recommendationDiff = getRecommendationScore(b) - getRecommendationScore(a);
                         if (Math.abs(recommendationDiff) > 0.01) return recommendationDiff;
-                        const scoreA = parseFloat(a.score || getBusinessRating(a.id || a.businessId));
-                        const scoreB = parseFloat(b.score || getBusinessRating(b.id || b.businessId));
+                        const scoreA = numericBusinessRating(a.score);
+                        const scoreB = numericBusinessRating(b.score);
 
                         // 评分比较（保留一位小数精度）
                         const scoreDiff = Math.round((scoreB - scoreA) * 10) / 10;
@@ -920,7 +871,6 @@ export default {
                         ? response.data
                         : (Array.isArray(response) ? response : []);
                     originalBusinessList.value = searchData;
-                    computeRatings();
                     applyFiltersAndSort();
                 } catch (error) {
                     console.error('搜索失败:', error);
@@ -951,7 +901,6 @@ export default {
                     ? response.data
                     : (Array.isArray(response) ? response : []);
                 originalBusinessList.value = businessData;
-                computeRatings();
                 applyFiltersAndSort();
             } catch (error) {
                 console.error('获取商家列表失败:', error);
@@ -1053,7 +1002,8 @@ export default {
             loadMoreBusinesses,
             toBusinessInfo,
             handleImageError,
-            getBusinessRating,
+            formatBusinessRating,
+            hasBusinessRating,
             displayLocation,
             showPicker,
             loading,
@@ -2373,6 +2323,7 @@ export default {
 .business-tag.tag-gold { border-color: #f0dfb0; background: #fffbef; color: #b48731; }
 .business-tag.tag-green { border-color: #c5e5d2; background: #f2fbf5; color: #3d9b69; }
 .business-tag.tag-neutral { border-color: #dce7ed; background: #f8fbfc; color: #7591a0; }
+.closed-shop-tag{margin-left:5px;padding:2px 6px;border-radius:7px;background:#edf1f4;color:#80909c;font-size:10px;font-weight:500;vertical-align:2px}
 .wrapper .empty-business-list { padding: 50px 16px; }
 .load-more { display: block; width: calc(100% - 28px); margin: 2px auto 82px; padding: 11px 0; border: 1px solid #c8e4f4; border-radius: 6px; background: #fff; color: #168bd1; font-size: 13px; cursor: pointer; }
 .load-more:active { background: #f1faff; }

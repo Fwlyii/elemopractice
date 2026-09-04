@@ -60,19 +60,20 @@ export default {
         return false;
       }
       // 这些页面已有自己的返回按钮，或本身就是一级页面；不要再叠一层全局按钮。
-      return !['Home', 'Index', 'MyInformation', 'SuccessfulPayment', 'BusinessInfo', 'UserAddress', 'Assets', 'AiChat'].includes(route.name);
+      return !['Home', 'Index', 'MyInformation', 'SuccessfulPayment', 'BusinessInfo', 'UserAddress', 'Assets', 'AiChat', 'Favorites', 'ListDetail'].includes(route.name);
          });
 
 
     const showFooter = computed(() => {
-      if (route.path.startsWith('/merchant') || route.path.startsWith('/admin') || isRiderArea.value) {
+      const isMerchantApplication = route.name === 'MerchantApply';
+      if ((route.path.startsWith('/merchant') && !isMerchantApplication) || route.path.startsWith('/admin') || isRiderArea.value) {
         return false;
       }
       return !['BusinessInfo', 'Payment', 'SuccessfulPayment', 'Orders', 'Cart','Favorites','Notifications','UserAddress','AddUserAddress','ListDetail','Register','Login','EditUserAddress'].includes(route.name);
     });
 
     const showBusinessFooter = computed(() => {
-     if(route.name === 'MerchantBusinessInfo'){
+     if(['MerchantBusinessInfo', 'MerchantApply'].includes(route.name)){
         return false;
       }
       return route.path.startsWith('/merchant');

@@ -147,14 +147,18 @@ public class FoodServiceImpl implements FoodService {
 
     @Override
     public List<FoodItemVO> getFoodItemList(Long businessId, Integer shelveStatus) {
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         Business business = businessMapper.selectBusinessById(businessId);
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        boolean admin = user.getAuthorities().stream().anyMatch(authority -> "ADMIN".equals(authority.getName()));
-        boolean owner = Objects.equals(user.getId(), business.getUserId());
+        User user = SecurityUtils.getCurrentUsername()
+                .filter(username -> !"anonymousUser".equals(username))
+                .map(userMapper::findByUsernameWithAuthorities)
+                .orElse(null);
+        boolean admin = user != null && isAdmin(user);
+        boolean owner = user != null && Objects.equals(user.getId(), business.getUserId());
 
         // 下架商品属于商家后台数据：只有本店商家或管理员可以查询。
         if (!admin && !owner) {
+            if (!Objects.equals(business.getStatus(), 1)) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
             shelveStatus = 1;
         }
 
@@ -276,7 +280,7 @@ public class FoodServiceImpl implements FoodService {
         foodUpdateDTO.setFoodImg(food.getFoodImg());
         foodUpdateDTO.setRemarks(food.getRemarks());
         food.setStock(foodUpdateDTO.getStock());
-        if (food.getCategory() == null || food.getCategory().isBlank()) food.setCategory("招牌推荐");
+        if (food.getCategory() == null || food.getCategory().isBlank()) food.setCategory("其他");
         food.setUpdater(user.getId()); food.setUpdateTime(LocalDateTime.now());
         foodMapper.updateFoodMessage(food);
         return food.getId();
@@ -303,7 +307,7 @@ public class FoodServiceImpl implements FoodService {
     }
 
     private String normalizeCategory(String category) {
-        if (category == null || category.trim().isEmpty()) return "招牌推荐";
+        if (category == null || category.trim().isEmpty()) return "其他";
         String normalized = category.trim();
         return normalized.length() > 32 ? normalized.substring(0, 32) : normalized;
     }

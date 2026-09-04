@@ -66,6 +66,9 @@ public class BusinessVO {
     @Schema(description = "店铺状态：0待审核，1营业中，2已拒绝")
     private Integer status;
 
+    @Schema(description = "营业状态：true营业中，false休息中")
+    private Boolean operatingStatus;
+
     @Schema(description = "满减门槛")
     private BigDecimal promotionThreshold;
 

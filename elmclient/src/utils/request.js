@@ -57,15 +57,18 @@ request.interceptors.response.use(
     return response.data; // 直接返回响应体，简化后续处理
   },
   (error) => {
-    // 示例：token 过期时跳转登录页
-    if (error.response?.status === 401) {
+    // 只有“原本携带了登录态”的 401 才表示会话过期。游客请求公开页面时即使某个
+    // 可选接口返回 401，也不能被全局拦截器强行踢到登录页，否则退出登录后会形成跳转循环。
+    const hadToken = Boolean(localStorage.getItem('token') || sessionStorage.getItem('token'));
+    if (error.response?.status === 401 && hadToken && !error.config?.skipAuthRedirect) {
       // 清除存储的 token 和用户信息
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
       localStorage.removeItem('userInfo');
       sessionStorage.removeItem('userInfo');
-      // 跳转登录页（需确保 router 已全局引入或通过其他方式获取）
-      window.location.href = '/login';
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      const redirect = currentPath.startsWith('/login') ? '' : `?redirect=${encodeURIComponent(currentPath)}`;
+      window.location.assign(`/login${redirect}`);
     }
     return Promise.reject(error);
   }

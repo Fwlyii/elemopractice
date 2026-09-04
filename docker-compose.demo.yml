@@ -13,6 +13,7 @@ services:
       - ./elm_bk/elm_v2.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./demo-seed.sql:/docker-entrypoint-initdb.d/02-demo-seed.sql:ro
       - ./rider-demo-seed.sql:/docker-entrypoint-initdb.d/03-rider-demo-seed.sql:ro
+      - ./demo-showcase-seed.sql:/docker-entrypoint-initdb.d/04-demo-showcase-seed.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pelm_demo_root_password"]
       interval: 5s

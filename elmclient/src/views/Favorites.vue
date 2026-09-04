@@ -1,7 +1,7 @@
 <template>
-
+  <div class="favorites-page">
     <div class="header">
-      <!-- <i class="fas fa-chevron-left back-icon" @click="goBack"></i> -->
+      <button class="back-button" type="button" aria-label="返回" @click="goBack">‹</button>
       <h1>我的收藏</h1>
     </div>
     <div class="container">
@@ -21,14 +21,14 @@
       <div v-else class="business-list">
         <div v-for="business in favoriteList" :key="business.businessId" class="business-item"
           @click="goToBusinessInfo(business.businessId)">
-          <img :src="business.businessImg || require('@/assets/default-business.png')"
+          <img :src="business.businessImg || require('@/assets/business-default.png')"
      :alt="business.businessName"
      class="business-img"
      @error="handleImageError"><div class="business-details">
-            <div class="business-name">{{ business.businessName }}</div>
+            <div class="business-name">{{ business.businessName }} <span class="status-tag" :class="{ closed: business.operatingStatus === false }">{{ business.operatingStatus === false ? '休息中' : '营业中' }}</span></div>
             <div class="business-info-row">
-              <span class="star-rating">
-                <i class="fas fa-star"></i> {{ business.starRating }}
+              <span class="star-rating" :class="{ unrated: business.starRating === null }">
+                <i class="fas fa-star"></i> {{ business.starRating === null ? '暂无评分' : `${business.starRating}分` }}
               </span>
               <span class="sales-volume">月售{{ business.salesVolume }}单</span>
             </div>
@@ -40,6 +40,7 @@
         </div>
       </div>
     </div>
+  </div>
 </template>
 
 <script>
@@ -59,10 +60,12 @@ export default {
       loading.value = true;
       errorMessage.value = '';
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        const cached = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+        let userInfo = null;
+        try { userInfo = cached ? JSON.parse(cached) : null; } catch (_) { userInfo = null; }
         if (!userInfo || !userInfo.id) {
           toast.warning('请先登录以查看收藏列表！');
-          router.push('/login');
+          router.replace({ path: '/login', query: { role: 'user', redirect: '/favorites' } });
           return;
         }
 
@@ -74,10 +77,11 @@ export default {
           businessId: business.id,
           businessName: business.businessName,
           businessImg: business.businessImg,
-          starRating: Number(business.score) || 0,
+          starRating: business.score == null ? null : Number(business.score).toFixed(1),
           salesVolume: business.salesCount || 0,
           deliveryFee: Number(business.deliveryPrice) || 0,
-          startPrice: Number(business.startPrice) || 0
+          startPrice: Number(business.startPrice) || 0,
+          operatingStatus: business.operatingStatus
         }));
 
       } catch (error) {
@@ -175,6 +179,8 @@ body {
   padding: 5px;
 }
 
+.favorites-page{min-height:100vh;background:#f4f8fb;color:#29445d}.favorites-page .header{left:50%;transform:translateX(-50%);max-width:600px}.favorites-page .container{width:100%;max-width:600px;margin:50px auto 0!important;padding:14px 0 40px;box-sizing:border-box;background:#f4f8fb}.back-button{position:absolute;left:12px;border:0;background:transparent;color:#fff;font-size:30px;line-height:1;cursor:pointer}.status-tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:8px;background:#eaf7ef;color:#3a9660;font-size:10px;font-weight:500;vertical-align:2px}.status-tag.closed{background:#edf1f4;color:#8394a1}@media(max-width:600px){.favorites-page .header{left:0;transform:none}}
+
 .loading-message,
 .error-message,
 .empty-message {
@@ -264,6 +270,11 @@ body {
 .star-rating i {
   color: #f39c12;
   margin-right: 5px;
+}
+
+.star-rating.unrated,
+.star-rating.unrated i {
+  color: #8fa1ad;
 }
 
 .sales-volume {

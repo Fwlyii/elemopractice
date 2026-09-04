@@ -427,7 +427,10 @@ public class OrderServiceImpl implements OrderService {
         // 在创建订单事务中原子预占库存；任一商品不足会回滚整笔订单。
         reserveStock(cartItemsInBusiness);
         subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
-        validateStartPrice(business, subtotal);
+        // 起送价只属于配送场景；自取不产生配送成本，不设置起送门槛。
+        if ("DELIVERY".equals(normalizedServiceMode)) {
+            validateStartPrice(business, subtotal);
+        }
         UserAsset assets = assetMapper.findByUserId(userId);
         BigDecimal merchantPromotion = BigDecimal.ZERO;
         if (business.getPromotionThreshold() != null && business.getPromotionDiscount() != null
@@ -541,6 +544,9 @@ public class OrderServiceImpl implements OrderService {
     private void ensureBusinessOrderable(Business business) {
         if (business.getStatus() != null && business.getStatus() != 1) {
             throw new APIException("商家当前未营业或尚未通过审核");
+        }
+        if (Boolean.FALSE.equals(business.getOperatingStatus())) {
+            throw new APIException("商家当前休息中，暂时无法下单");
         }
         if (business.getDeliveryPrice() != null && business.getDeliveryPrice().compareTo(BigDecimal.ZERO) < 0) {
             throw new APIException("商家配送费配置异常");

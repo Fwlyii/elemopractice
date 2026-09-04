@@ -120,6 +120,10 @@ public class MockAiChatServiceImpl implements AiChatService {
         if ("food".equals(chatType) || message.contains("菜") || message.contains("美食") || message.contains("推荐")) {
             return generateFoodResponse(request);
         }
+
+        if (message.contains("配送费") || message.contains("起送价") || message.contains("起送费")) {
+            return "配送费和起送价由各商家单独设置，您可以在商家页和结算页查看。外送订单需要达到起送价并支付页面显示的配送费；到店自取没有起送门槛，也不收配送费。最终金额会由系统按商品和优惠重新计算。";
+        }
         
         if ("order".equals(chatType) || message.contains("订单") || message.contains("配送")) {
             return generateOrderResponse(request);

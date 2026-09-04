@@ -15,6 +15,7 @@
         <result property="remarks" column="remarks"/>
         <result property="dineInAvailable" column="dine_in_available"/>
         <result property="status" column="business_status"/>
+        <result property="operatingStatus" column="operating_status"/>
         <result property="promotionThreshold" column="promotion_threshold"/>
         <result property="promotionDiscount" column="promotion_discount"/>
         <result property="creator" column="business_creator"/>
@@ -56,6 +57,7 @@
         b.remarks,
         b.dine_in_available,
         b.status as business_status,
+        b.operating_status,
         b.promotion_threshold,
         b.promotion_discount,
         b.creator as business_creator,
@@ -113,6 +115,9 @@
             <if test="updateDto.promotionDiscount != null">
                 promotion_discount = #{updateDto.promotionDiscount},
             </if>
+            <if test="updateDto.operatingStatus != null">
+                operating_status = #{updateDto.operatingStatus},
+            </if>
             <if test="updateDto.updater != null">
                 updater = #{updateDto.updater},
             </if>
@@ -136,6 +141,7 @@
             b.remarks,
             b.dine_in_available,
             b.status as business_status,
+            b.operating_status,
             b.promotion_threshold,
             b.promotion_discount,
             b.creator as business_creator,
@@ -253,7 +259,13 @@
         dine_in_available as dineInAvailable,
         promotion_threshold as promotionThreshold,
         promotion_discount as promotionDiscount,
-        demo_rating as score,
+        operating_status as operatingStatus,
+        COALESCE(
+            (SELECT ROUND(AVG(r.rating), 2)
+               FROM review r
+              WHERE r.business_id = b.id AND r.is_hidden = 0),
+            demo_rating
+        ) as score,
         demo_sales_count as salesCount,
         create_time as createTime,
         (SELECT COALESCE(AVG(o.order_total), b.start_price)

@@ -162,7 +162,7 @@
 
     <insert id="insertFood" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO food (create_time, creator, is_deleted, update_time, updater, food_explain, food_img, food_name, food_price, remarks, business_id, stock, category, purchase_limit)
-        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{foodExplain}, #{foodImg}, #{foodName}, #{foodPrice}, #{remarks}, #{businessId}, COALESCE(#{stock}, 100), COALESCE(NULLIF(#{category}, ''), '招牌推荐'), #{purchaseLimit})
+        VALUES (#{createTime}, #{creator}, #{isDeleted}, #{updateTime}, #{updater}, #{foodExplain}, #{foodImg}, #{foodName}, #{foodPrice}, #{remarks}, #{businessId}, COALESCE(#{stock}, 100), COALESCE(NULLIF(#{category}, ''), '其他'), #{purchaseLimit})
     </insert>
 
 

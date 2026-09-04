@@ -61,7 +61,7 @@ router.beforeEach((to, from, next) => {
   };
 
   // 四个工作台必须与账号身份匹配。角色入口集中在这里，页面不再各写一套判断。
-  const roleArea = to.path.startsWith('/merchant/') ? { authority: 'BUSINESS', loginRole: 'merchant', denied: '/myInformation' }
+  const roleArea = to.path.startsWith('/merchant/') && to.path !== '/merchant/apply' ? { authority: 'BUSINESS', loginRole: 'merchant', denied: '/myInformation' }
     : to.path.startsWith('/admin/') ? { authority: 'ADMIN', loginRole: 'admin', denied: '/myInformation' }
       : to.path.startsWith('/rider/dashboard') ? { authority: 'RIDER', loginRole: 'rider', denied: '/rider/apply' }
         : null;
@@ -76,7 +76,7 @@ router.beforeEach((to, from, next) => {
 
   
   // 浏览商家和登录注册可匿名访问，其余功能都需要登录。
-  const publicRouteNames = new Set(['Home', 'Index', 'BusinessList', 'BusinessInfo', 'Search', 'Login', 'Register']);
+  const publicRouteNames = new Set(['Home', 'Index', 'BusinessList', 'BusinessInfo', 'Search', 'Login', 'Register', 'AiChat']);
   if (!publicRouteNames.has(to.name) && !user && !businessUser) {
     return next({ path: '/login', query: { redirect: to.fullPath } });
   }

@@ -88,4 +88,7 @@ public class Business {
     @Schema(description = "商铺状态，0待审核，1已通过，2已拒绝")
     private Integer status;
 
+    @Schema(description = "营业状态：true营业中，false休息中")
+    private Boolean operatingStatus;
+
 }

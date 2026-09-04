@@ -30,6 +30,7 @@ import MerchantBusiness from '../views/MerchantBusiness.vue'
 import MerchantBusinessInfo from '@/views/MerchantBusinessInfo.vue' 
 import MerchantOrders from '../views/MerchantOrders.vue'
 import MerchantReviews from '../views/MerchantReviews.vue'
+import MerchantApply from '../views/MerchantApply.vue'
 
 //管理端路由配置
 import AdminHome from '../views/AdminHome.vue';
@@ -160,6 +161,12 @@ const routes = [
   //   name:'BusinessOrderManage',
   //   component:BusinessOrderManage
   // },
+  {
+    path: '/merchant/apply',
+    name: 'MerchantApply',
+    component: MerchantApply,
+    meta: { title: '申请成为商家' }
+  },
   {
     path: '/merchant/profile',
     name: 'MerchantProfile',

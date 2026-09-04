@@ -20,11 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @Slf4j
@@ -115,29 +112,6 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
 //        }
 //    }
 
-    private BigDecimal calculateRating(Map<String, Object> interactionCounts) {
-        try {
-            int likeCount = getCount(interactionCounts.get("likeCount"));
-            int collectCount = getCount(interactionCounts.get("collectCount"));
-
-            double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            return BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP);
-        } catch (Exception e) {
-            log.error("计算评分失败", e);
-            return BigDecimal.ZERO;
-        }
-    }
-
-    private int getCount(Object countObj) {
-        if (countObj instanceof BigDecimal) {
-            return ((BigDecimal) countObj).intValue();
-        } else if (countObj instanceof Long) {
-            return ((Long) countObj).intValue();
-        } else if (countObj instanceof Integer) {
-            return (Integer) countObj;
-        }
-        return 0;
-    }
     @Override
     public List<BusinessSearchVO> getUserCollections(Long userId) {
         User currentUser = currentUser();
@@ -156,16 +130,15 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
 
             int salesCount = businessMapper.getSalesCount(businessId);
 
-            Integer likeCount = interactionMapper.countLikesByMerchantId(businessId);
-            Integer collectCount = interactionMapper.countCollectionsByMerchantId(businessId);
-
-
-            // 计算评分 (点赞权重0.6，收藏权重0.4，归一化到1-5分)
-            double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            BigDecimal rating = BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP);
-            businessSearchVO.setScore(rating);
+            businessSearchVO.setScore(businessMapper.getDisplayRating(businessId));
             businessSearchVO.setSalesCount(salesCount);
-            businessSearchVOS.add(new BusinessSearchVO(businessVO.getId(),businessVO.getBusinessName(),businessVO.getBusinessImg(),businessVO.getStartPrice(),businessVO.getDeliveryPrice(),businessSearchVO.getScore(),businessSearchVO.getSalesCount()));
+            businessSearchVO.setId(businessVO.getId());
+            businessSearchVO.setBusinessName(businessVO.getBusinessName());
+            businessSearchVO.setBusinessImg(businessVO.getBusinessImg());
+            businessSearchVO.setStartPrice(businessVO.getStartPrice());
+            businessSearchVO.setDeliveryPrice(businessVO.getDeliveryPrice());
+            businessSearchVO.setOperatingStatus(businessVO.getOperatingStatus());
+            businessSearchVOS.add(businessSearchVO);
 
 
         }
@@ -187,9 +160,7 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
             Integer likeCount = interactionMapper.countLikesByMerchantId(merchantId);
             Integer collectCount = interactionMapper.countCollectionsByMerchantId(merchantId);
             String merchantName = interactionMapper.selectMerNameById(merchantId);
-            // 计算评分 (点赞权重0.6，收藏权重0.4，归一化到1-5分)
-            double normalizedRating = 1 + 4 * (0.6 * likeCount / (likeCount + 10.0) + 0.4 * collectCount / (collectCount + 10.0));
-            BigDecimal rating = BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal rating = businessMapper.getDisplayRating(merchantId);
 
             MerchantStatsVO stats = new MerchantStatsVO();
             stats.setMerchantId(merchantId);
