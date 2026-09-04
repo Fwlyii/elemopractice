@@ -6,7 +6,7 @@ import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.HttpResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,13 +24,11 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @PreAuthorize("hasAuthority('ADMIN')")
 @Tag(name = "管理端数据看板", description = "管理端数据看板")
+@RequiredArgsConstructor
 public class AdminController {
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private BusinessMapper businessMapper;
-    @Autowired
-    private OrdersMapper ordersMapper;
+    private final UserMapper userMapper;
+    private final BusinessMapper businessMapper;
+    private final OrdersMapper ordersMapper;
 
     @GetMapping("/countUser")
     @Operation(summary = "获取总用户数", description = "获取总用户数")

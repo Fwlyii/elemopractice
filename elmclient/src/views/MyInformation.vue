@@ -191,7 +191,8 @@ import request from '../utils/request';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '../utils/endpoints';
-import { hasAuthority } from '../utils/roles';
+import { getRoleDefinition, hasAuthority, roleCanEnter } from '../utils/roles';
+import { clearAuth, getToken, updateStoredUser } from '../utils/auth';
 
 export default {
   name: 'MyApplication',
@@ -222,10 +223,6 @@ export default {
       phone: '',
       email: ''
     });
-
-    const getToken = () => {
-      return localStorage.getItem('token') || sessionStorage.getItem('token');
-    };
 
     const formattedPhone = computed(() => {
       if (!userInfo.value.phone) return '未绑定手机';
@@ -300,10 +297,7 @@ export default {
           const hasBusinessAuth = hasAuthority(userInfo.value, 'BUSINESS');
           if (!hasBusinessAuth) {
             userInfo.value.authorities.push({ name: 'BUSINESS' });
-            const tokenFromLocal = localStorage.getItem('token');
-            const tokenFromSession = sessionStorage.getItem('token');
-            const storage = tokenFromLocal ? localStorage : (tokenFromSession ? sessionStorage : null);
-            storage.setItem('userInfo', JSON.stringify(userInfo.value));
+            updateStoredUser(userInfo.value);
           }
         }
       }
@@ -371,7 +365,7 @@ export default {
           });
           if (updateResponse && updateResponse.success) {
             userInfo.value.photo = uploadResponse.data;
-            sessionStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+            updateStoredUser(userInfo.value);
             toast.success('头像更新成功！');
           } else {
             toast.error('头像更新失败！');
@@ -404,17 +398,14 @@ export default {
         });
         if (response) {
           userInfo.value = response;
-          sessionStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+          updateStoredUser(userInfo.value);
           console.log('用户信息加载成功:', userInfo.value);
         }
       } catch (error) {
         console.error('获取用户信息失败:', error);
         if (error.response && error.response.status === 401) {
           toast.error('登录已过期，请重新登录！');
-          localStorage.removeItem('token');
-          sessionStorage.removeItem('token');
-          localStorage.removeItem('userInfo');
-          sessionStorage.removeItem('userInfo');
+          clearAuth();
           router.push({ path: '/login' });
         } else {
           errorMessage.value = '获取用户信息失败，请重试！';
@@ -425,10 +416,7 @@ export default {
       }
     };
     const logout = () => {
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
-      localStorage.removeItem('userInfo');
-      sessionStorage.removeItem('userInfo');
+      clearAuth();
       router.push({ path: '/index' });
     };
     const backToRiderDashboard = () => {
@@ -438,10 +426,10 @@ export default {
       router.push({ path: '/rider/dashboard', query: { tab } });
     };
     const goToRole = (role) => {
-      if (role === 'user') return router.push('/index');
-      if (role === 'admin') return hasAdmin.value ? router.push('/admin/home') : toast.warning('当前账号没有管理员权限');
-      if (role === 'merchant') return hasBusiness.value ? router.push('/merchant/business') : router.push('/merchant/apply');
-      if (role === 'rider') return hasRider.value ? router.push('/rider/dashboard?tab=available') : router.push('/rider/apply');
+      const definition = getRoleDefinition(role);
+      if (!definition.authority || roleCanEnter(userInfo.value, role)) return router.push(definition.target);
+      if (definition.applyTarget) return router.push(definition.applyTarget);
+      toast.warning(`当前账号没有${definition.label}权限`);
     };
     const openEditModal = () => {
       if (userInfo.value) {
@@ -479,7 +467,7 @@ export default {
           userInfo.value.lastName = editFormData.value.lastName;
           userInfo.value.email = editFormData.value.email;
           userInfo.value.phone = editFormData.value.phone;
-          sessionStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+          updateStoredUser(userInfo.value);
           toast.success('个人信息修改成功！');
           closeEditModal();
         } else {

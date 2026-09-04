@@ -1,7 +1,8 @@
 package com.tju.elm_bk.service.impl;
 
-import com.alibaba.fastjson.JSONObject;
+import com.tju.elm_bk.constant.AuthorityName;
 import com.tju.elm_bk.constant.DeliveryTaskStatus;
+import com.tju.elm_bk.constant.FulfillmentMode;
 import com.tju.elm_bk.constant.OrderStatus;
 import com.tju.elm_bk.constant.RiderAuditStatus;
 import com.tju.elm_bk.dto.DeliveryExceptionCreateDTO;
@@ -10,57 +11,33 @@ import com.tju.elm_bk.entity.*;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.*;
 import com.tju.elm_bk.service.DeliveryService;
-import com.tju.elm_bk.service.AssetService;
-import com.tju.elm_bk.utils.SecurityUtils;
+import com.tju.elm_bk.service.CurrentUserService;
+import com.tju.elm_bk.service.DeliveryNotificationService;
+import com.tju.elm_bk.service.OrderSettlementService;
+import com.tju.elm_bk.service.OrderStateTransitionService;
 import com.tju.elm_bk.vo.DeliveryExceptionVO;
 import com.tju.elm_bk.vo.DeliveryTaskVO;
-import com.tju.elm_bk.websocket.WebSocketServer;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
 @Service
+@RequiredArgsConstructor
 public class DeliveryServiceImpl implements DeliveryService {
     private final DeliveryTaskMapper deliveryTaskMapper;
     private final RiderMapper riderMapper;
     private final OrdersMapper ordersMapper;
     private final OrderStatusHistoryMapper historyMapper;
-    private final UserMapper userMapper;
     private final BusinessMapper businessMapper;
-    private final NotificationMapper notificationMapper;
-    private final WebSocketServer webSocketServer;
-    private final AssetMapper assetMapper;
-    private final FoodMapper foodMapper;
-    private final AssetService assetService;
-
-    public DeliveryServiceImpl(DeliveryTaskMapper deliveryTaskMapper,
-                               RiderMapper riderMapper,
-                               OrdersMapper ordersMapper,
-                               OrderStatusHistoryMapper historyMapper,
-                               UserMapper userMapper,
-                               BusinessMapper businessMapper,
-                               NotificationMapper notificationMapper,
-                               WebSocketServer webSocketServer,
-                               AssetMapper assetMapper,
-                               FoodMapper foodMapper,
-                               AssetService assetService) {
-        this.deliveryTaskMapper = deliveryTaskMapper;
-        this.riderMapper = riderMapper;
-        this.ordersMapper = ordersMapper;
-        this.historyMapper = historyMapper;
-        this.userMapper = userMapper;
-        this.businessMapper = businessMapper;
-        this.notificationMapper = notificationMapper;
-        this.webSocketServer = webSocketServer;
-        this.assetMapper = assetMapper;
-        this.foodMapper = foodMapper;
-        this.assetService = assetService;
-    }
+    private final CurrentUserService currentUserService;
+    private final OrderStateTransitionService orderStateTransitionService;
+    private final OrderSettlementService orderSettlementService;
+    private final DeliveryNotificationService notificationService;
 
     @Override
     public List<DeliveryTaskVO> listAvailableTasks() {
@@ -104,7 +81,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         requireBusinessOwner(merchant.getId(), order.getBusinessId());
         changeOrderState(orderId, OrderStatus.WAITING_MERCHANT_ACCEPT, OrderStatus.WAITING_DISPATCH,
                 merchant.getId(), "商家接单，进入制作中");
-        notifyUser(order.getCustomerId(), "商家已接单，正在制作餐品", orderId);
+        notificationService.notifyUser(order.getCustomerId(), "商家已接单，正在制作餐品", orderId);
         return null;
     }
 
@@ -114,11 +91,11 @@ public class DeliveryServiceImpl implements DeliveryService {
         User merchant = currentUser();
         Order order = requireOrder(orderId);
         requireBusinessOwner(merchant.getId(), order.getBusinessId());
-        if ("PICKUP".equalsIgnoreCase(order.getServiceMode())) {
+        if (FulfillmentMode.PICKUP.name().equalsIgnoreCase(order.getServiceMode())) {
             // 自取单不进入骑手配送域；商家确认出餐后直接进入“待自取”。
             changeOrderState(orderId, OrderStatus.WAITING_DISPATCH, OrderStatus.WAITING_PICKUP,
                     merchant.getId(), "商家确认出餐，等待顾客到店自取");
-            notifyUser(order.getCustomerId(), "餐品已备好，请到店取餐", orderId);
+            notificationService.notifyUser(order.getCustomerId(), "餐品已备好，请到店取餐", orderId);
             return null;
         }
         if (deliveryTaskMapper.selectByOrderId(orderId) != null) throw new APIException("该订单已经生成配送任务");
@@ -127,8 +104,8 @@ public class DeliveryServiceImpl implements DeliveryService {
         DeliveryTask task = new DeliveryTask(); task.setOrderId(orderId); task.setTaskStatus(DeliveryTaskStatus.WAITING_RIDER.name());
         task.setDistanceKm(estimateDistance(orderId)); task.setRiderFee(order.getDeliveryPrice() == null ? BigDecimal.ZERO : order.getDeliveryPrice());
         deliveryTaskMapper.insertTask(task);
-        notifyUser(order.getCustomerId(), "餐品已出餐，正在等待骑手接单", orderId);
-        notifyDeliveryAudience("RIDER", "新配送任务 #" + task.getId() + " 等待骑手接单", orderId);
+        notificationService.notifyUser(order.getCustomerId(), "餐品已出餐，正在等待骑手接单", orderId);
+        notificationService.notifyAudience(AuthorityName.RIDER, "新配送任务 #" + task.getId() + " 等待骑手接单", orderId);
         return deliveryTaskMapper.selectViewById(task.getId());
     }
 
@@ -140,14 +117,8 @@ public class DeliveryServiceImpl implements DeliveryService {
         requireBusinessOwner(merchant.getId(), order.getBusinessId());
         changeOrderState(orderId, OrderStatus.WAITING_MERCHANT_ACCEPT, OrderStatus.CANCELLED,
                 merchant.getId(), "商家拒绝订单");
-        foodMapper.restoreStockByOrder(orderId);
-        assetMapper.releaseCouponByOrder(orderId);
-        ordersMapper.updatePaymentStatus(orderId, "REFUNDED");
-        if (Boolean.TRUE.equals(order.getWalletPaid()) || (order.getPointsUsed() != null && order.getPointsUsed() > 0)) {
-            assetService.refundOrderAssets(orderId, order.getCustomerId(), order.getPointsUsed(),
-                    Boolean.TRUE.equals(order.getWalletPaid()) ? order.getOrderTotal() : BigDecimal.ZERO);
-        }
-        notifyUser(order.getCustomerId(), "商家未接受订单，订单已取消", orderId);
+        orderSettlementService.cancelOrder(order, true);
+        notificationService.notifyUser(order.getCustomerId(), "商家未接受订单，订单已取消", orderId);
     }
 
     @Override
@@ -162,7 +133,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         changeOrderState(task.getOrderId(), OrderStatus.WAITING_RIDER_ACCEPT, OrderStatus.WAITING_PICKUP,
                 rider.getId(), "骑手已接单");
         Order order = requireOrder(task.getOrderId());
-        notifyOrderParties(order, rider.getId(), "骑手已接单，正在前往商家", task.getOrderId());
+        notificationService.notifyOrderParties(order, rider.getId(), "骑手已接单，正在前往商家");
         return deliveryTaskMapper.selectViewById(taskId);
     }
 
@@ -176,7 +147,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             throw new APIException("只有已接单任务才能确认到店");
         }
         Order order = requireOrder(task.getOrderId());
-        notifyOrderParties(order, rider.getId(), "骑手已到店，正在等待取餐", task.getOrderId());
+        notificationService.notifyOrderParties(order, rider.getId(), "骑手已到店，正在等待取餐");
         return deliveryTaskMapper.selectViewById(taskId);
     }
 
@@ -192,7 +163,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         changeOrderState(task.getOrderId(), OrderStatus.WAITING_PICKUP, OrderStatus.DELIVERING,
                 rider.getId(), "骑手已取餐，开始配送");
         Order order = requireOrder(task.getOrderId());
-        notifyOrderParties(order, rider.getId(), "骑手已取餐，餐品正在配送中", task.getOrderId());
+        notificationService.notifyOrderParties(order, rider.getId(), "骑手已取餐，餐品正在配送中");
         return deliveryTaskMapper.selectViewById(taskId);
     }
 
@@ -208,7 +179,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         changeOrderState(task.getOrderId(), OrderStatus.DELIVERING, OrderStatus.DELIVERED,
                 rider.getId(), "骑手已送达，等待顾客确认");
         Order order = requireOrder(task.getOrderId());
-        notifyOrderParties(order, rider.getId(), "餐品已送达，请顾客确认收货", task.getOrderId());
+        notificationService.notifyOrderParties(order, rider.getId(), "餐品已送达，请顾客确认收货");
         return deliveryTaskMapper.selectViewById(taskId);
     }
 
@@ -220,14 +191,14 @@ public class DeliveryServiceImpl implements DeliveryService {
         if (!Objects.equals(order.getCustomerId(), customer.getId())) {
             throw new APIException("只有下单顾客可以确认收货");
         }
-        if ("PICKUP".equalsIgnoreCase(order.getServiceMode())) {
+        if (FulfillmentMode.PICKUP.name().equalsIgnoreCase(order.getServiceMode())) {
             if (!Objects.equals(order.getOrderState(), OrderStatus.WAITING_PICKUP.getCode())) {
                 throw new APIException("商家尚未确认出餐，暂不能确认取餐");
             }
             changeOrderState(orderId, OrderStatus.WAITING_PICKUP, OrderStatus.COMPLETED,
                     customer.getId(), "顾客到店取餐并确认完成");
-            awardCustomerPoints(order, customer.getId());
-            notifyMerchant(order, "顾客已到店取餐，订单完成", orderId);
+            orderSettlementService.awardCompletionPoints(order, customer.getId());
+            notificationService.notifyMerchant(order, "顾客已到店取餐，订单完成");
             return null;
         }
         DeliveryTask task = deliveryTaskMapper.selectByOrderId(orderId);
@@ -240,9 +211,9 @@ public class DeliveryServiceImpl implements DeliveryService {
         changeOrderState(orderId, OrderStatus.DELIVERED, OrderStatus.COMPLETED,
                 customer.getId(), "顾客确认收货");
         riderMapper.addCompletedStats(task.getRiderUserId(), safe(task.getDistanceKm()), safe(task.getRiderFee()));
-        awardCustomerPoints(order, customer.getId());
-        notifyUser(task.getRiderUserId(), "订单 #" + orderId + " 已完成，配送收入已计入", orderId);
-        notifyMerchant(order, "顾客已确认收货，订单完成", orderId);
+        orderSettlementService.awardCompletionPoints(order, customer.getId());
+        notificationService.notifyUser(task.getRiderUserId(), "订单 #" + orderId + " 已完成，配送收入已计入", orderId);
+        notificationService.notifyMerchant(order, "顾客已确认收货，订单完成");
         return deliveryTaskMapper.selectViewById(task.getId());
     }
 
@@ -273,8 +244,8 @@ public class DeliveryServiceImpl implements DeliveryService {
         OrderStatus previousOrderStatus = OrderStatus.fromCode(order.getOrderState());
         changeOrderState(task.getOrderId(), previousOrderStatus, OrderStatus.DELIVERY_EXCEPTION,
                 rider.getId(), "骑手上报异常：" + dto.getExceptionType());
-        notifyOrderParties(order, rider.getId(), "配送出现异常，管理员正在处理", task.getOrderId());
-        notifyDeliveryAudience("ADMIN", "配送任务 #" + taskId + " 出现异常", task.getOrderId());
+        notificationService.notifyOrderParties(order, rider.getId(), "配送出现异常，管理员正在处理");
+        notificationService.notifyAudience(AuthorityName.ADMIN, "配送任务 #" + taskId + " 出现异常", task.getOrderId());
         return deliveryException;
     }
 
@@ -318,13 +289,7 @@ public class DeliveryServiceImpl implements DeliveryService {
                     throw new APIException("取消配送失败");
                 }
                 targetOrderStatus = OrderStatus.CANCELLED;
-                foodMapper.restoreStockByOrder(task.getOrderId());
-                assetMapper.releaseCouponByOrder(task.getOrderId());
-                ordersMapper.updatePaymentStatus(task.getOrderId(), "REFUNDED");
-                if (Boolean.TRUE.equals(order.getWalletPaid()) || (order.getPointsUsed() != null && order.getPointsUsed() > 0)) {
-                    assetService.refundOrderAssets(task.getOrderId(), order.getCustomerId(), order.getPointsUsed(),
-                            Boolean.TRUE.equals(order.getWalletPaid()) ? order.getOrderTotal() : BigDecimal.ZERO);
-                }
+                orderSettlementService.cancelOrder(order, true);
             }
             default -> throw new APIException("不支持的异常处理动作");
         }
@@ -339,7 +304,7 @@ public class DeliveryServiceImpl implements DeliveryService {
             case "REASSIGN" -> "配送任务已重新派单";
             default -> "配送异常已处理，订单已取消";
         };
-        notifyOrderParties(order, task.getRiderUserId(), content, task.getOrderId());
+        notificationService.notifyOrderParties(order, task.getRiderUserId(), content);
         return deliveryTaskMapper.selectViewById(task.getId());
     }
 
@@ -353,13 +318,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     private User currentUser() {
-        String username = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户"));
-        User user = userMapper.findByUsernameWithAuthorities(username);
-        if (user == null) {
-            throw new APIException("当前用户不存在");
-        }
-        return user;
+        return currentUserService.requireUser();
     }
 
     private User requireApprovedRider(boolean mustBeOnline) {
@@ -417,17 +376,7 @@ public class DeliveryServiceImpl implements DeliveryService {
                                   OrderStatus target,
                                   Long operatorUserId,
                                   String reason) {
-        int changed = ordersMapper.updateOrderStateIfCurrent(orderId, expected.getCode(), target.getCode(), operatorUserId);
-        if (changed != 1) {
-            throw new APIException("订单状态已变化，请刷新后重试");
-        }
-        OrderStatusHistory history = new OrderStatusHistory();
-        history.setOrderId(orderId);
-        history.setFromStatus(expected.getCode());
-        history.setToStatus(target.getCode());
-        history.setOperatorUserId(operatorUserId);
-        history.setReason(reason);
-        historyMapper.insert(history);
+        orderStateTransitionService.transition(orderId, expected, target, operatorUserId, reason);
     }
 
     private void assertTaskVisibleTo(User user, DeliveryTask task) {
@@ -436,7 +385,7 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     private void assertOrderVisibleTo(User user, Order order, DeliveryTask task) {
-        boolean admin = hasAuthority(user, "ADMIN");
+        boolean admin = currentUserService.isAdmin(user);
         boolean customer = Objects.equals(order.getCustomerId(), user.getId());
         Business business = businessMapper.selectBusinessById(order.getBusinessId());
         boolean merchant = business != null && Objects.equals(business.getUserId(), user.getId());
@@ -444,11 +393,6 @@ public class DeliveryServiceImpl implements DeliveryService {
         if (!admin && !customer && !merchant && !rider) {
             throw new APIException("无权查看该订单的配送信息");
         }
-    }
-
-    private boolean hasAuthority(User user, String authority) {
-        return user.getAuthorities() != null
-                && user.getAuthorities().stream().anyMatch(item -> authority.equals(item.getName()));
     }
 
     private void hideCustomerPrivacyBeforeAccept(DeliveryTaskVO task) {
@@ -481,55 +425,4 @@ public class DeliveryServiceImpl implements DeliveryService {
         return value == null ? BigDecimal.ZERO : value;
     }
 
-    private void notifyOrderParties(Order order, Long riderUserId, String content, Long orderId) {
-        notifyUser(order.getCustomerId(), content, orderId);
-        notifyMerchant(order, content, orderId);
-        if (riderUserId != null) {
-            notifyUser(riderUserId, content, orderId);
-        }
-    }
-
-    private void notifyMerchant(Order order, String content, Long orderId) {
-        Business business = businessMapper.selectBusinessById(order.getBusinessId());
-        if (business != null) {
-            notifyUser(business.getUserId(), content, orderId);
-        }
-    }
-
-    private void awardCustomerPoints(Order order, Long customerId) {
-        assetMapper.ensure(customerId);
-        int earnedPoints = order.getOrderTotal() == null ? 0 : order.getOrderTotal().setScale(0, RoundingMode.FLOOR).intValue();
-        if (earnedPoints <= 0) return;
-        assetMapper.addPoints(customerId, earnedPoints);
-        assetMapper.insertLedger(customerId, "POINT_EARN", BigDecimal.ZERO, earnedPoints, "完成订单奖励积分", order.getId());
-    }
-
-    private void notifyUser(Long userId, String content, Long orderId) {
-        if (userId == null) {
-            return;
-        }
-        Notification notification = new Notification();
-        notification.setUserId(userId);
-        notification.setNotificationType(3);
-        notification.setNotificationContent(content + "（订单 #" + orderId + "）");
-        notification.setAuditResult(0);
-        notification.setIsRead(0);
-        notification.setCreateTime(LocalDateTime.now());
-        notification.setIsDeleted(0);
-        notificationMapper.insert(notification);
-
-        JSONObject message = new JSONObject();
-        message.put("type", "delivery_update");
-        message.put("orderId", orderId);
-        message.put("content", content);
-        webSocketServer.sendToClient(userId.toString(), message.toJSONString());
-    }
-
-    private void notifyDeliveryAudience(String authority, String content, Long orderId) {
-        JSONObject message = new JSONObject();
-        message.put("type", "delivery_update");
-        message.put("orderId", orderId);
-        message.put("content", content);
-        webSocketServer.sendToAuthority(authority, message.toJSONString());
-    }
 }

@@ -9,9 +9,10 @@ import com.tju.elm_bk.entity.RiderProfile;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.*;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.RiderService;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.websocket.WebSocketServer;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,30 +20,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class RiderServiceImpl implements RiderService {
     private final RiderMapper riderMapper;
-    private final UserMapper userMapper;
     private final AuthorityMapper authorityMapper;
     private final UserAuthorityMapper userAuthorityMapper;
     private final DeliveryTaskMapper deliveryTaskMapper;
     private final NotificationMapper notificationMapper;
     private final WebSocketServer webSocketServer;
-
-    public RiderServiceImpl(RiderMapper riderMapper,
-                            UserMapper userMapper,
-                            AuthorityMapper authorityMapper,
-                            UserAuthorityMapper userAuthorityMapper,
-                            DeliveryTaskMapper deliveryTaskMapper,
-                            NotificationMapper notificationMapper,
-                            WebSocketServer webSocketServer) {
-        this.riderMapper = riderMapper;
-        this.userMapper = userMapper;
-        this.authorityMapper = authorityMapper;
-        this.userAuthorityMapper = userAuthorityMapper;
-        this.deliveryTaskMapper = deliveryTaskMapper;
-        this.notificationMapper = notificationMapper;
-        this.webSocketServer = webSocketServer;
-    }
+    private final CurrentUserService currentUserService;
 
     @Override
     @Transactional
@@ -136,13 +122,7 @@ public class RiderServiceImpl implements RiderService {
     }
 
     private User currentUser() {
-        String username = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户"));
-        User user = userMapper.findByUsernameWithAuthorities(username);
-        if (user == null) {
-            throw new APIException("当前用户不存在");
-        }
-        return user;
+        return currentUserService.requireUser();
     }
 
     private void sendAuditNotification(Long userId, boolean approved, String reason) {

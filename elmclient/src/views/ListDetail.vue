@@ -115,6 +115,8 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
+import { orderStatusText } from '../utils/orderPresentation';
+import { formatDateTime } from '../utils/formatters';
 
 export default {
 	name: 'ListDetail',
@@ -131,9 +133,6 @@ export default {
 		const reviewSubmitting = ref(false);
 		const reviewSection = ref(null);
 		
-		// 配送费（这里假设固定值，实际应该从API获取）
-		const deliveryPrice = ref(5);
-
 		// 获取订单详情
 		const fetchOrderDetail = async () => {
 			loading.value = true;
@@ -179,12 +178,7 @@ export default {
 
 		// 获取状态文本
 		const getStatusText = (state) => {
-			const statusMap = {
-				0: "待支付", 1: "待商家接单", 2: "制作中", 3: "待骑手接单",
-				4: orderDetail.value.serviceMode === 'PICKUP' ? "待到店自取" : "待骑手取餐",
-				5: "配送中", 6: "已送达·待确认", 7: "已完成", 8: "已取消", 9: "配送异常"
-			};
-			return statusMap[state] || "未知状态";
+			return orderStatusText(state, orderDetail.value, 'customer');
 		};
 
 		// 获取状态样式类
@@ -217,13 +211,7 @@ export default {
 
 		// 格式化时间
 		const formatTime = (timeString) => {
-			if (!timeString) return "-";
-			try {
-				const date = new Date(timeString);
-				return date.toLocaleString('zh-CN');
-			} catch (e) {
-				return timeString;
-			}
+			return formatDateTime(timeString);
 		};
 
 		// 计算商品总金额
@@ -282,7 +270,6 @@ export default {
 			orderDetail,
 			loading,
 			error,
-			deliveryPrice,
 			itemsTotal,
 			fetchOrderDetail,
 			retry,

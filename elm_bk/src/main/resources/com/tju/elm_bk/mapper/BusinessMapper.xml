@@ -247,37 +247,63 @@
         )
     </insert>
 
-    <select id="searchBusinesses" resultType="com.tju.elm_bk.vo.BusinessSearchVO">
-        SELECT
-        id,
-        business_name as businessName,
-        business_img as businessImg,
-        business_address as businessAddress,
-        order_type_id as orderTypeId,
-        start_price as startPrice,
-        delivery_price as deliveryPrice,
-        dine_in_available as dineInAvailable,
-        promotion_threshold as promotionThreshold,
-        promotion_discount as promotionDiscount,
-        operating_status as operatingStatus,
+    <!-- 商家展示指标的唯一 SQL 口径：首页、搜索、收藏和商家统计都复用它。 -->
+    <sql id="BusinessSearchColumns">
+        b.id,
+        b.business_name as businessName,
+        b.business_img as businessImg,
+        b.business_address as businessAddress,
+        b.order_type_id as orderTypeId,
+        b.start_price as startPrice,
+        b.delivery_price as deliveryPrice,
+        b.dine_in_available as dineInAvailable,
+        b.promotion_threshold as promotionThreshold,
+        b.promotion_discount as promotionDiscount,
+        b.operating_status as operatingStatus,
         COALESCE(
             (SELECT ROUND(AVG(r.rating), 2)
                FROM review r
               WHERE r.business_id = b.id AND r.is_hidden = 0),
-            demo_rating
+            b.demo_rating
         ) as score,
-        demo_sales_count as salesCount,
-        create_time as createTime,
+        (COALESCE(b.demo_sales_count, 0) +
+            (SELECT COUNT(*)
+               FROM orders completed_order
+              WHERE completed_order.business_id = b.id
+                AND completed_order.order_state = 7
+                AND completed_order.is_deleted = 0)) as salesCount,
+        b.create_time as createTime,
         (SELECT COALESCE(AVG(o.order_total), b.start_price)
            FROM orders o
           WHERE o.business_id = b.id AND o.order_state = 7 AND o.is_deleted = 0) as averagePrice
+    </sql>
+
+    <select id="searchBusinesses" resultType="com.tju.elm_bk.vo.BusinessSearchVO">
+        SELECT <include refid="BusinessSearchColumns" />
         FROM business b
-        WHERE is_deleted = 0 AND status = 1
+        WHERE b.is_deleted = 0 AND b.status = 1
         <if test="keyword != null and keyword != ''">
-            AND (business_name LIKE CONCAT('%', #{keyword}, '%')
-            OR business_explain LIKE CONCAT('%', #{keyword}, '%')
-            OR business_address LIKE CONCAT('%', #{keyword}, '%'))
+            AND (b.business_name LIKE CONCAT('%', #{keyword}, '%')
+            OR b.business_explain LIKE CONCAT('%', #{keyword}, '%')
+            OR b.business_address LIKE CONCAT('%', #{keyword}, '%'))
         </if>
+    </select>
+
+    <select id="getBusinessSummaryById" resultType="com.tju.elm_bk.vo.BusinessSearchVO">
+        SELECT <include refid="BusinessSearchColumns" />
+        FROM business b
+        WHERE b.id = #{businessId} AND b.is_deleted = 0
+    </select>
+
+    <select id="selectCollectedBusinesses" resultType="com.tju.elm_bk.vo.BusinessSearchVO">
+        SELECT <include refid="BusinessSearchColumns" />
+        FROM merchant_interaction mi
+        JOIN business b ON b.id = mi.merchant_id
+        WHERE mi.user_id = #{userId}
+          AND mi.collected = 1
+          AND b.is_deleted = 0
+          AND b.status = 1
+        ORDER BY mi.update_time DESC, mi.create_time DESC
     </select>
 
 

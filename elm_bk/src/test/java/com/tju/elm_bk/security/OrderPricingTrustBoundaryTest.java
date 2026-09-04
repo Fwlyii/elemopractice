@@ -6,6 +6,7 @@ import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.DeliveryAddress;
 import com.tju.elm_bk.entity.Order;
 import com.tju.elm_bk.entity.OrderDetailet;
+import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.mapper.AssetMapper;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.CartMapper;
@@ -16,6 +17,12 @@ import com.tju.elm_bk.mapper.OrderStatusHistoryMapper;
 import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.service.AssetService;
+import com.tju.elm_bk.service.BusinessPricingPolicy;
+import com.tju.elm_bk.service.CurrentUserService;
+import com.tju.elm_bk.service.OrderPricingService;
+import com.tju.elm_bk.service.OrderSettlementService;
+import com.tju.elm_bk.service.OrderStateTransitionService;
+import com.tju.elm_bk.service.OrderSubmissionService;
 import com.tju.elm_bk.service.impl.OrderServiceImpl;
 import com.tju.elm_bk.vo.AddressVO;
 import com.tju.elm_bk.vo.BusinessVO;
@@ -28,7 +35,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -59,23 +65,28 @@ class OrderPricingTrustBoundaryTest {
         DeliveryAddressMapper addressMapper = mock(DeliveryAddressMapper.class);
         CartMapper cartMapper = mock(CartMapper.class);
         AssetMapper assetMapper = mock(AssetMapper.class);
+        OrderStatusHistoryMapper historyMapper = mock(OrderStatusHistoryMapper.class);
 
-        OrderServiceImpl service = new OrderServiceImpl();
-        ReflectionTestUtils.setField(service, "ordersMapper", ordersMapper);
-        ReflectionTestUtils.setField(service, "userMapper", userMapper);
-        ReflectionTestUtils.setField(service, "businessMapper", businessMapper);
-        ReflectionTestUtils.setField(service, "foodMapper", foodMapper);
-        ReflectionTestUtils.setField(service, "orderDetailetMapper", detailMapper);
-        ReflectionTestUtils.setField(service, "deliveryAddressMapper", addressMapper);
-        ReflectionTestUtils.setField(service, "cartMapper", cartMapper);
-        ReflectionTestUtils.setField(service, "assetMapper", assetMapper);
-        ReflectionTestUtils.setField(service, "assetService", mock(AssetService.class));
-        ReflectionTestUtils.setField(service, "webSocketServer", mock(WebSocketServer.class));
-        ReflectionTestUtils.setField(service, "orderStatusHistoryMapper", mock(OrderStatusHistoryMapper.class));
+        CurrentUserService currentUserService = new CurrentUserService(userMapper);
+        OrderPricingService pricingService = new OrderPricingService(new BusinessPricingPolicy());
+        OrderStateTransitionService stateTransitionService =
+                new OrderStateTransitionService(ordersMapper, historyMapper);
+        OrderSubmissionService submissionService = new OrderSubmissionService(
+                ordersMapper, businessMapper, addressMapper, cartMapper, foodMapper, detailMapper,
+                assetMapper, currentUserService, pricingService, stateTransitionService);
+        OrderSettlementService settlementService = new OrderSettlementService(
+                assetMapper, ordersMapper, foodMapper, mock(AssetService.class));
+        OrderServiceImpl service = new OrderServiceImpl(
+                ordersMapper, businessMapper, detailMapper, mock(WebSocketServer.class),
+                currentUserService, stateTransitionService, submissionService, settlementService);
 
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("demo_user", "unused"));
-        when(userMapper.getUserIdByUsername("demo_user")).thenReturn(11L);
+        User currentUser = new User();
+        currentUser.setId(11L);
+        currentUser.setUsername("demo_user");
+        currentUser.setIsDeleted(false);
+        when(userMapper.findByUsernameWithAuthorities("demo_user")).thenReturn(currentUser);
 
         Business business = new Business();
         business.setId(1L);

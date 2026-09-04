@@ -48,6 +48,8 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from '@/utils/toast';
 import request from '@/utils/request';
+import { getStoredUser } from '@/utils/auth';
+import { formatRating } from '@/utils/formatters';
 export default {
   name: 'Favorites',
   setup() {
@@ -60,9 +62,7 @@ export default {
       loading.value = true;
       errorMessage.value = '';
       try {
-        const cached = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-        let userInfo = null;
-        try { userInfo = cached ? JSON.parse(cached) : null; } catch (_) { userInfo = null; }
+        const userInfo = getStoredUser();
         if (!userInfo || !userInfo.id) {
           toast.warning('请先登录以查看收藏列表！');
           router.replace({ path: '/login', query: { role: 'user', redirect: '/favorites' } });
@@ -77,7 +77,7 @@ export default {
           businessId: business.id,
           businessName: business.businessName,
           businessImg: business.businessImg,
-          starRating: business.score == null ? null : Number(business.score).toFixed(1),
+          starRating: formatRating(business.score),
           salesVolume: business.salesCount || 0,
           deliveryFee: Number(business.deliveryPrice) || 0,
           startPrice: Number(business.startPrice) || 0,

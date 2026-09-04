@@ -23,14 +23,14 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
+import { isAuthenticated } from '../utils/auth';
 
 const router = useRouter();
 const submitting = ref(false);
 const submitted = ref(false);
 
 onMounted(() => {
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-  if (!token) router.replace({ path: '/login', query: { role: 'user', redirect: '/merchant/apply' } });
+  if (!isAuthenticated()) router.replace({ path: '/login', query: { role: 'user', redirect: '/merchant/apply' } });
 });
 
 const submit = async () => {

@@ -10,7 +10,7 @@ import com.tju.elm_bk.vo.FoodItemVO;
 import com.tju.elm_bk.vo.FoodVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,10 +19,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/foods")
 @Tag(name="管理商品")
+@RequiredArgsConstructor
 public class FoodController {
-
-    @Autowired
-    private FoodService foodService;
+    private final FoodService foodService;
 
     @GetMapping
     @Operation(summary = "根据商家或订单获取商品列表",description = "老师测试用")

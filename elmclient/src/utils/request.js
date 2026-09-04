@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { apiBaseUrl } from './endpoints';
+import { clearAuth, getToken } from './auth';
 
 // 1. 创建 Axios 实例
 const request = axios.create({
@@ -22,7 +23,7 @@ request.interceptors.request.use(
     const excludePaths = ['/api/auth', '/api/register'];
     if (!excludePaths.includes(targetUrl.pathname)) {
       // 从 localStorage/sessionStorage 获取 token
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const token = getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`; // 拼接 Bearer 格式
         // 临时注释掉token头，避免CORS问题
@@ -59,13 +60,9 @@ request.interceptors.response.use(
   (error) => {
     // 只有“原本携带了登录态”的 401 才表示会话过期。游客请求公开页面时即使某个
     // 可选接口返回 401，也不能被全局拦截器强行踢到登录页，否则退出登录后会形成跳转循环。
-    const hadToken = Boolean(localStorage.getItem('token') || sessionStorage.getItem('token'));
+    const hadToken = Boolean(getToken());
     if (error.response?.status === 401 && hadToken && !error.config?.skipAuthRedirect) {
-      // 清除存储的 token 和用户信息
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
-      localStorage.removeItem('userInfo');
-      sessionStorage.removeItem('userInfo');
+      clearAuth();
       const currentPath = `${window.location.pathname}${window.location.search}`;
       const redirect = currentPath.startsWith('/login') ? '' : `?redirect=${encodeURIComponent(currentPath)}`;
       window.location.assign(`/login${redirect}`);

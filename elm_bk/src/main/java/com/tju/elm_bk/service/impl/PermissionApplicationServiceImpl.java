@@ -9,16 +9,16 @@ import com.tju.elm_bk.entity.PermissionApplication;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.*;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.PermissionApplicationService;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.BusinessPermissionVO;
 import com.tju.elm_bk.vo.BusinessVO;
 import com.tju.elm_bk.vo.MerchantApplicationsVO;
 import com.tju.elm_bk.websocket.WebSocketServer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.codehaus.jettison.json.JSONException;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,27 +30,16 @@ import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class PermissionApplicationServiceImpl implements PermissionApplicationService {
-    @Autowired
-    private PermissionApplicationMapper applicationMapper;
-
-    @Autowired
-    private UserMapper userMapper;
-
-    @Autowired
-    private WebSocketServer webSocketServer; // 注入WebSocket服务
-
-    @Autowired
-    private AuthorityMapper authorityMapper;
-
-    @Autowired
-    private UserAuthorityMapper userAuthorityMapper;
-
-    @Autowired
-    private BusinessMapper businessMapper;
-
-    @Autowired
-    private NotificationMapper notificationMapper;
+    private final PermissionApplicationMapper applicationMapper;
+    private final UserMapper userMapper;
+    private final WebSocketServer webSocketServer;
+    private final AuthorityMapper authorityMapper;
+    private final UserAuthorityMapper userAuthorityMapper;
+    private final BusinessMapper businessMapper;
+    private final NotificationMapper notificationMapper;
+    private final CurrentUserService currentUserService;
 
     /**
      * 顾客申请成为商家
@@ -59,9 +48,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
     @Transactional(rollbackFor = Exception.class)
     public PermissionApplication applyMerchant() {
         // 1. 获取当前登录用户ID
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
+        Long currentUserId = currentUserService.requireUserId();
         log.info("当前用户ID: {}", currentUserId);
 
         // 2. 校验用户是否存在
@@ -108,9 +95,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
             throw new APIException("审核结果只能是通过或拒绝");
         }
 
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
+        Long currentUserId = currentUserService.requireUserId();
 
         // 2. 查询申请记录是否存在
         PermissionApplication application = applicationMapper.selectById(auditDTO.getId());
@@ -150,9 +135,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
     @Transactional(rollbackFor = Exception.class)
     public BusinessPermissionVO applyShop(BusinessPermissionDTO businessPermissionDTO) {
         validateShopApplication(businessPermissionDTO);
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
+        Long currentUserId = currentUserService.requireUserId();
         log.info("当前用户ID: {}", currentUserId);
 
         User currentUser = userMapper.findById(currentUserId);
@@ -183,9 +166,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
                 || (businessPermissionDTO.getStatus() != 1 && businessPermissionDTO.getStatus() != 2)) {
             throw new APIException("审核状态只能是通过或拒绝");
         }
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
+        Long currentUserId = currentUserService.requireUserId();
         businessPermissionDTO.setUpdater(currentUserId);
         businessPermissionDTO.setUpdateTime(LocalDateTime.now());
         com.tju.elm_bk.entity.Business application = businessMapper.selectBusinessById(businessPermissionDTO.getId());

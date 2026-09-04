@@ -114,6 +114,8 @@ import { ref, onMounted, computed, watch, onErrorCaptured } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import request from "@/utils/request";
 import { toast } from '@/utils/toast';
+import { formatDate, formatMoney } from '@/utils/formatters';
+import { getToken, updateStoredUser } from '@/utils/auth';
 export default {
     name: "BusinessInfo",
     setup() {
@@ -155,8 +157,6 @@ export default {
             router.push({ path: '/login', query: { role: 'user', redirect: route.fullPath } });
         };
 
-        const formatMoney = (value) => Number(value || 0).toFixed(2);
-        const formatDate = (value) => value ? new Date(value).toLocaleDateString('zh-CN') : '';
         const reviewStars = (rating) => {
             const score = Math.max(0, Math.min(5, Number(rating || 0)));
             return '★'.repeat(score) + '☆'.repeat(5 - score);
@@ -218,17 +218,14 @@ export default {
         };
 
         const fetchUserInfo = async () => {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            if (!token) return;
+            if (!getToken()) return;
 
             try {
                 const res = await request.get('/api/user');
                 if (res) {
                     userInfo.value = res;
                     console.log(userInfo.value);
-                    // 保存用户信息到存储
-                    const storage = localStorage.getItem('token') ? localStorage : sessionStorage;
-                    storage.setItem('userInfo', JSON.stringify(res));
+                    updateStoredUser(res);
                 } else {
                     console.error('获取用户信息失败');
                     userInfo.value = null;

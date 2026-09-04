@@ -13,7 +13,7 @@ import com.tju.elm_bk.vo.MerchantApplicationsVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,9 +22,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/permission")
 @Tag(name = "权限申请管理", description = "顾客申请成为商家与商家申请开店")
+@RequiredArgsConstructor
 public class PermissionApplicationController {
-    @Autowired
-    private PermissionApplicationService permissionApplicationService;
+    private final PermissionApplicationService permissionApplicationService;
     /**
      * 顾客申请成为商家
      */

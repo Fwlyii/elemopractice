@@ -117,6 +117,8 @@ import { useRouter } from "vue-router";
 import request from "../utils/request";
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '../utils/endpoints';
+import { orderStatusText } from '../utils/orderPresentation';
+import { formatDateTime } from '../utils/formatters';
 
 export default {
   name: "OrderList",
@@ -246,13 +248,7 @@ export default {
 
     // 获取状态文本
     const getStatusText = (state, order = {}) => {
-      const statusMap = {
-        0: "待支付",
-        1: "待商家接单", 2: "正在派单", 3: "待骑手接单",
-        4: order.serviceMode === 'PICKUP' ? "待到店自取" : "骑手待取餐", 5: "配送中", 6: "已送达·待确认",
-        7: "已完成", 8: "已取消", 9: "配送异常"
-      };
-      return statusMap[state] || "未知状态";
+      return orderStatusText(state, order, 'customer');
     };
 
     // 获取状态样式类
@@ -268,9 +264,7 @@ export default {
 
     // 格式化时间
     const formatTime = (timeString) => {
-      if (!timeString) return "";
-      const date = new Date(timeString);
-      return date.toLocaleString();
+      return formatDateTime(timeString, '');
     };
 
     // 取消订单

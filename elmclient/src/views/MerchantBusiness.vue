@@ -65,6 +65,7 @@ import { ref, onMounted, computed } from 'vue';
 import request from '../utils/request';
 import { useRouter } from 'vue-router';
 import { toast } from '../utils/toast';
+import { clearAuth, getToken } from '../utils/auth';
 
 export default {
   name: 'MyApplication',
@@ -81,10 +82,6 @@ export default {
       { status: 1, label: '已上线' },
       { status: 2, label: '未通过' }
     ];
-
-    const getToken = () => {
-      return localStorage.getItem('token') || sessionStorage.getItem('token');
-    };
 
     const getStatusText = (status) => {
       switch (status) {
@@ -154,8 +151,7 @@ export default {
         console.error('获取商铺列表失败:', error);
         if (error.response && error.response.status === 401) {
           toast.error('登录已过期，请重新登录！');
-          localStorage.removeItem('token');
-          sessionStorage.removeItem('token');
+          clearAuth();
           router.push({ path: '/login' });
         } else {
           errorMessage.value = '获取商铺列表失败，请重试！';

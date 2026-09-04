@@ -8,12 +8,12 @@ import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.PersonMapper;
 import com.tju.elm_bk.mapper.UserMapper;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.PersonService;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.PersonVO;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,11 +23,11 @@ import java.util.Objects;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class PersonServiceImpl implements PersonService {
-    @Autowired
-    private PersonMapper personMapper;
-    @Autowired
-    private UserMapper userMapper;
+    private final PersonMapper personMapper;
+    private final UserMapper userMapper;
+    private final CurrentUserService currentUserService;
     @Override
     public Person getPersonByUserId(Long id) {
         return personMapper.getPersonByUserId(id);
@@ -40,15 +40,9 @@ public class PersonServiceImpl implements PersonService {
 
     @Override
     public Person updatePerson(PersonUpdateDTO updateDTO) {
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("当前用户未登录"));
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        if (currentUser == null) {
-            throw new APIException("当前用户不存在");
-        }
+        User currentUser = currentUserService.requireUser();
         Long currentUserId = currentUser.getId();
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
         if (Objects.equals(currentUserId, updateDTO.getId()) || isAdmin){
             if (personMapper.getPersonByUserId(updateDTO.getId()) == null) {
                 throw new APIException("该用户信息不存在！");

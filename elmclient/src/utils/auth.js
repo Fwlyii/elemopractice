@@ -1,25 +1,42 @@
-/**
- * Basic authentication utility functions
- */
+const TOKEN_KEY = 'token';
+const USER_KEY = 'userInfo';
 
-// 这个文件应该只包含纯函数，用于操作 Token（存储、读取、删除）。它不应该包含任何 axios 或业务逻辑。
+const parseJson = (storage, key) => {
+  try {
+    const value = storage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  } catch (_) {
+    storage.removeItem(key);
+    return null;
+  }
+};
 
-// Check if user is authenticated
-export function isAuthenticated() {
-    return !!localStorage.getItem('authToken');
-}
+/** 登录态的唯一读写入口，避免页面各自猜 local/sessionStorage。 */
+export const getToken = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 
-// Save authentication token
-export function setAuthToken(token) {
-    localStorage.setItem('authToken', token);
-}
+export const getStoredUser = () => parseJson(localStorage, USER_KEY) || parseJson(sessionStorage, USER_KEY);
 
-// Remove authentication token
-export function clearAuthToken() {
-    localStorage.removeItem('authToken');
-}
+export const isAuthenticated = () => Boolean(getToken());
 
-// Get authentication token
-export function getAuthToken() {
-    return localStorage.getItem('authToken');
-}
+export const authStorage = (rememberMe = false) => rememberMe ? localStorage : sessionStorage;
+
+export const saveAuth = (token, user, rememberMe = false) => {
+  clearAuth();
+  const storage = authStorage(rememberMe);
+  storage.setItem(TOKEN_KEY, token);
+  storage.setItem(USER_KEY, JSON.stringify(user));
+};
+
+export const updateStoredUser = (user) => {
+  const storage = localStorage.getItem(TOKEN_KEY) ? localStorage
+    : (sessionStorage.getItem(TOKEN_KEY) ? sessionStorage : null);
+  if (storage) storage.setItem(USER_KEY, JSON.stringify(user));
+};
+
+export const clearAuth = () => {
+  [localStorage, sessionStorage].forEach(storage => {
+    storage.removeItem(TOKEN_KEY);
+    storage.removeItem(USER_KEY);
+  });
+  sessionStorage.removeItem('businessUser');
+};

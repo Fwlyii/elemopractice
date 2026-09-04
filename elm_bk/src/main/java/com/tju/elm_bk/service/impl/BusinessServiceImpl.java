@@ -3,6 +3,7 @@ package com.tju.elm_bk.service.impl;
 import com.tju.elm_bk.dto.BusinessDTO;
 import com.tju.elm_bk.dto.BusinessInfoDTO;
 import com.tju.elm_bk.dto.BusinessUpdateDTO;
+import com.tju.elm_bk.constant.AuthorityName;
 import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
@@ -11,27 +12,24 @@ import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.ResultCodeEnum;
 import com.tju.elm_bk.service.BusinessService;
-import com.tju.elm_bk.service.UserService;
-import com.tju.elm_bk.utils.SecurityUtils;
+import com.tju.elm_bk.service.BusinessPricingPolicy;
+import com.tju.elm_bk.service.BusinessRecommendationPolicy;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.vo.BusinessSearchVO;
 import com.tju.elm_bk.vo.BusinessVO;
 import com.tju.elm_bk.vo.MerchantStatsVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,25 +37,20 @@ import java.util.stream.Collectors;
 public class BusinessServiceImpl implements BusinessService {
 
 
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private OrdersMapper ordersMapper;
-    @Autowired
+    private final UserMapper userMapper;
+    private final OrdersMapper ordersMapper;
     private final BusinessMapper businessMapper;
-//    private final BusinessVoMapper businessVoMapper; // 注入MapStruct Mapper
+    private final CurrentUserService currentUserService;
+    private final BusinessPricingPolicy businessPricingPolicy;
+    private final BusinessRecommendationPolicy recommendationPolicy;
 
     @Override
     public BusinessVO getBusinessById(Long id) {
         Business business = businessMapper.selectBusinessById(id);
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         if (!Objects.equals(business.getStatus(), 1)) {
-            User user = userMapper.findByUsernameWithAuthorities(
-                    SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-            );
-            boolean admin = user != null && user.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
+            User user = currentUserService.requireUser();
+            boolean admin = currentUserService.isAdmin(user);
             if (!admin && (user == null || !Objects.equals(business.getUserId(), user.getId()))) {
                 throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
             }
@@ -68,20 +61,9 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public BusinessVO updateBusiness(Long id, BusinessUpdateDTO updateDto) {
         validateUpdateRequest(id, updateDto);
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-        );
-
-        // 添加 null 检查
-        if (currentUser == null) {
-            throw new APIException(ResultCodeEnum.NOT_FOUND);
-        }
-
-        // 权限判断 - 检查用户是否有 BUSINESS 或 ADMIN 权限
-        boolean hasBusinessPermission = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "BUSINESS".equals(auth.getName()));
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
 
         // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
         if (!hasBusinessPermission && !isAdmin) {
@@ -120,20 +102,9 @@ public class BusinessServiceImpl implements BusinessService {
     }
     @Override
     public BusinessVO deleteBusiness(Long id) {
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-        );
-
-        // 添加 null 检查
-        if (currentUser == null) {
-            throw new APIException(ResultCodeEnum.USER_MISSED);//用户不存在
-        }
-
-        // 权限判断 - 检查用户是否有 BUSINESS 或 ADMIN 权限
-        boolean hasBusinessPermission = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "BUSINESS".equals(auth.getName()));
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
 
 
         // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
@@ -166,20 +137,9 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public BusinessVO patchBusiness(Long id, BusinessUpdateDTO updateDto) {
         validateUpdateRequest(id, updateDto);
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.USER_MISSED))
-        );
-
-        // 添加 null 检查
-        if (currentUser == null) {
-            throw new APIException(ResultCodeEnum.USER_MISSED);
-        }
-
-        // 权限判断 - 检查用户是否有 BUSINESS 或 ADMIN 权限
-        boolean hasBusinessPermission = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "BUSINESS".equals(auth.getName()));
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
 
         // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
         if (!hasBusinessPermission && !isAdmin) {
@@ -225,20 +185,9 @@ public class BusinessServiceImpl implements BusinessService {
         }
         validateBusinessCreation(businessDTO);
         //先查id是否在users表里面
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.USER_MISSED))
-        );
-
-        // 添加 null 检查
-        if (currentUser == null) {
-            throw new APIException(ResultCodeEnum.USER_MISSED);
-        }
-
-        // 权限判断 - 检查用户是否有 BUSINESS 或 ADMIN 权限
-        boolean hasBusinessPermission = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "BUSINESS".equals(auth.getName()));
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
 
         // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
         if (!hasBusinessPermission && !isAdmin) {
@@ -280,18 +229,7 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public List<BusinessSearchVO> getBusinessesBySearch(String keyword, boolean isScore ,boolean isSales) {
         List<BusinessSearchVO> businesses = businessMapper.searchBusinesses(keyword);
-        Set<Long> recentPurchaseIds = getRecentPurchaseIds();
-        // 为每个店铺计算评分与销量
-        for (BusinessSearchVO business : businesses) {
-            int salesCount = business.getSalesCount() == null
-                    ? businessMapper.getSalesCount(business.getId())
-                    : business.getSalesCount();
-            if (business.getScore() != null) {
-                business.setScore(business.getScore().setScale(2, RoundingMode.HALF_UP));
-            }
-            business.setSalesCount(salesCount);
-            populateRecommendationMetadata(business, recentPurchaseIds);
-        }
+        enrichBusinessPresentations(businesses);
 
         // 使用 Comparator 进行排序
         Comparator<BusinessSearchVO> comparator = null;
@@ -320,18 +258,7 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public List<BusinessSearchVO> getBusinessesInCarousel() {
         List<BusinessSearchVO> businesses = businessMapper.searchBusinesses(null);
-        Set<Long> recentPurchaseIds = getRecentPurchaseIds();
-        // 为每个店铺计算评分与销量
-        for (BusinessSearchVO business : businesses) {
-            int salesCount = business.getSalesCount() == null
-                    ? businessMapper.getSalesCount(business.getId())
-                    : business.getSalesCount();
-            if (business.getScore() != null) {
-                business.setScore(business.getScore().setScale(2, RoundingMode.HALF_UP));
-            }
-            business.setSalesCount(salesCount);
-            populateRecommendationMetadata(business, recentPurchaseIds);
-        }
+        enrichBusinessPresentations(businesses);
 
         // 使用 Comparator 进行排序
         Comparator<BusinessSearchVO> comparator = null;
@@ -345,81 +272,22 @@ public class BusinessServiceImpl implements BusinessService {
         return businesses.subList(0, Math.min(3, businesses.size()));
     }
 
-    private static final int MAX_RECOMMENDATION_TAGS = 3;
-    private static final int RECENT_PURCHASE_DAYS = 30;
-    private static final BigDecimal GOOD_REVIEW_SCORE = new BigDecimal("4.7");
-    private static final int GOOD_REVIEW_MIN_SALES = 200;
-    private static final int LOVED_MIN_SALES = 500;
-    private static final int POPULAR_MIN_SALES = 800;
-
-    /**
-     * 首页标签与综合排序统一在后端计算。这样规则只维护一份，
-     * 换 Web/小程序前端时也不会出现不同门槛、不同排序的结果。
-     */
-    private void populateRecommendationMetadata(BusinessSearchVO business, Set<Long> recentPurchaseIds) {
-        int sales = business.getSalesCount() == null ? 0 : business.getSalesCount();
-        BigDecimal score = business.getScore() == null ? BigDecimal.ZERO : business.getScore();
-        List<RecommendationTag> candidates = new ArrayList<>();
-        if (recentPurchaseIds.contains(business.getId())) {
-            candidates.add(new RecommendationTag("上次买过", 120));
+    private void enrichBusinessPresentations(List<BusinessSearchVO> businesses) {
+        Set<Long> recentPurchaseIds = getRecentPurchaseIds();
+        for (BusinessSearchVO business : businesses) {
+            if (business.getScore() != null) {
+                business.setScore(business.getScore().setScale(2, RoundingMode.HALF_UP));
+            }
+            recommendationPolicy.enrich(business, recentPurchaseIds.contains(business.getId()));
         }
-        BigDecimal threshold = business.getPromotionThreshold();
-        BigDecimal discount = business.getPromotionDiscount();
-        boolean validPromotion = threshold != null && discount != null
-                && threshold.compareTo(BigDecimal.ONE) >= 0
-                && discount.compareTo(BigDecimal.ZERO) > 0
-                && discount.compareTo(threshold) < 0;
-        if (validPromotion) {
-            candidates.add(new RecommendationTag("满" + moneyText(threshold) + "减" + moneyText(discount), 105));
-        }
-        boolean newBusiness = false;
-        if (business.getCreateTime() != null) {
-            long age = ChronoUnit.DAYS.between(business.getCreateTime(), LocalDateTime.now());
-            newBusiness = age >= 0 && age <= RECENT_PURCHASE_DAYS;
-            if (newBusiness) candidates.add(new RecommendationTag("新店开业", 95));
-        }
-        // 口碑标签必须同时满足评分与样本量门槛，避免十几、几十单的小店被称为“好评如潮”。
-        // “爱不释手”和“好评如潮”语义相近，只展示资格更高的一项，减少标签堆叠。
-        boolean lovedByCustomers = score.compareTo(GOOD_REVIEW_SCORE) >= 0 && sales >= LOVED_MIN_SALES;
-        if (lovedByCustomers) {
-            candidates.add(new RecommendationTag(formatCount(sales) + "人爱不释手", 88));
-        } else if (score.compareTo(GOOD_REVIEW_SCORE) >= 0 && sales >= GOOD_REVIEW_MIN_SALES) {
-            candidates.add(new RecommendationTag("好评如潮", 85));
-        }
-        if (!lovedByCustomers && sales >= POPULAR_MIN_SALES) {
-            candidates.add(new RecommendationTag(formatCount(sales) + "人购买", 75));
-        }
-        if (Boolean.TRUE.equals(business.getDineInAvailable())) {
-            candidates.add(new RecommendationTag("堂食店", 65));
-        }
-        if (business.getDeliveryPrice() == null || business.getDeliveryPrice().compareTo(BigDecimal.ZERO) == 0) {
-            candidates.add(new RecommendationTag("免配送费", 55));
-        }
-        if (business.getStartPrice() != null && business.getStartPrice().compareTo(new BigDecimal("20")) <= 0) {
-            candidates.add(new RecommendationTag("低价起送", 35));
-        }
-        candidates.sort(Comparator.comparingInt(RecommendationTag::priority).reversed());
-        business.setRecommendationTags(candidates.stream().limit(MAX_RECOMMENDATION_TAGS)
-                .map(RecommendationTag::label).collect(Collectors.toList()));
-
-        double recommendation = (recentPurchaseIds.contains(business.getId()) ? 120 : 0)
-                + (newBusiness ? 28 : 0)
-                + (validPromotion ? Math.min(24, discount.doubleValue() * 3) : 0)
-                + (score.doubleValue() - 3) * 16
-                + Math.min(sales, 200) * 0.08
-                + (Boolean.TRUE.equals(business.getDineInAvailable()) ? 5 : 0)
-                + ((business.getDeliveryPrice() == null || business.getDeliveryPrice().compareTo(BigDecimal.ZERO) == 0) ? 3 : 0)
-                // 休息中的店铺仍允许浏览，但默认排在可下单店铺之后。
-                - (Boolean.FALSE.equals(business.getOperatingStatus()) ? 1000 : 0);
-        business.setRecommendationScore(BigDecimal.valueOf(Math.max(0, recommendation)).setScale(2, RoundingMode.HALF_UP));
     }
+
+    private static final int RECENT_PURCHASE_DAYS = 30;
 
     private Set<Long> getRecentPurchaseIds() {
         Set<Long> ids = new HashSet<>();
         try {
-            String username = SecurityUtils.getCurrentUsername().orElse(null);
-            if (username == null || "anonymousUser".equals(username)) return ids;
-            Long userId = userMapper.getUserIdByUsername(username);
+            Long userId = currentUserService.optionalUser().map(User::getId).orElse(null);
             if (userId == null) return ids;
             LocalDateTime cutoff = LocalDateTime.now().minusDays(RECENT_PURCHASE_DAYS);
             List<com.tju.elm_bk.entity.Order> orders = ordersMapper.selectRecentOrdersByUserId(userId, 100);
@@ -435,43 +303,16 @@ public class BusinessServiceImpl implements BusinessService {
         return ids;
     }
 
-    private String moneyText(BigDecimal value) {
-        return value.stripTrailingZeros().toPlainString();
-    }
-
-    private String formatCount(int count) {
-        return count >= 1000 ? String.format("%.1fk", count / 1000.0) : String.valueOf(count);
-    }
-
-    private record RecommendationTag(String label, int priority) { }
-
-    private User getCurrentUser() {
-        String username = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
-        return userService.getUserWithAuthorities(username);
-    }
-
     @Override
     public Integer applyForAddBusiness(Business business) {
         if (business == null || business.getBusinessName() == null || business.getBusinessName().isBlank()) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
-        validateBusinessPricing(business.getStartPrice(), business.getDeliveryPrice(),
+        businessPricingPolicy.validate(business.getStartPrice(), business.getDeliveryPrice(),
                 business.getPromotionThreshold(), business.getPromotionDiscount());
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-        );
-
-        // 添加 null 检查
-        if (currentUser == null) {
-            throw new APIException(ResultCodeEnum.NOT_FOUND);
-        }
-
-        // 权限判断 - 检查用户是否有 BUSINESS 或 ADMIN 权限
-        boolean hasBusinessPermission = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "BUSINESS".equals(auth.getName()));
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
 
         // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
         if (!hasBusinessPermission && !isAdmin) {
@@ -522,11 +363,8 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Override
     public List<Business> getMerchantBusinesses(Long userId, Integer status) {
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-        );
-        if (currentUser == null) throw new APIException(ResultCodeEnum.USER_MISSED);
-        boolean admin = currentUser.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean admin = currentUserService.isAdmin(currentUser);
         Long targetUserId = userId == null ? currentUser.getId() : userId;
         if (!admin && !Objects.equals(targetUserId, currentUser.getId())) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
@@ -541,30 +379,15 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Override
     public List<MerchantStatsVO> getBusinessIdList() {
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-        );
-
-        return businessMapper.selectBusinessIdListByUserId(currentUser.getId());
+        return businessMapper.selectBusinessIdListByUserId(currentUserService.requireUserId());
     }
 
     @Override
     public BusinessVO patchBusinessOwn(Long id, BusinessUpdateDTO updateDto) {
         validateUpdateRequest(id, updateDto);
-        User currentUser = userMapper.findByUsernameWithAuthorities(
-                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
-        );
-
-        // 添加 null 检查
-        if (currentUser == null) {
-            throw new RuntimeException("无法获取当前用户信息");
-        }
-
-        // 权限判断 - 检查用户是否有 BUSINESS 或 ADMIN 权限
-        boolean hasBusinessPermission = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "BUSINESS".equals(auth.getName()));
-        boolean isAdmin = currentUser.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        User currentUser = currentUserService.requireUser();
+        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
 
         // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
         if (!hasBusinessPermission && !isAdmin) {
@@ -603,7 +426,7 @@ public class BusinessServiceImpl implements BusinessService {
         BigDecimal discount = updateDto.getPromotionDiscount() == null
                 ? existing.getPromotionDiscount()
                 : updateDto.getPromotionDiscount();
-        validateBusinessPricing(startPrice, deliveryPrice, threshold, discount);
+        businessPricingPolicy.validate(startPrice, deliveryPrice, threshold, discount);
     }
 
     private void validateBusinessCreation(BusinessDTO dto) {
@@ -614,27 +437,7 @@ public class BusinessServiceImpl implements BusinessService {
                 || dto.getOrderTypeId() == null || dto.getOrderTypeId() <= 0) {
             throw new APIException("店铺名称、地址和经营类型不能为空且必须合法");
         }
-        validateBusinessPricing(dto.getStartPrice(), dto.getDeliveryPrice(), dto.getPromotionThreshold(), dto.getPromotionDiscount());
-    }
-
-    private void validateBusinessPricing(java.math.BigDecimal startPrice, java.math.BigDecimal deliveryPrice,
-                                         java.math.BigDecimal threshold, java.math.BigDecimal discount) {
-        BigDecimal start = startPrice == null ? BigDecimal.ZERO : startPrice;
-        BigDecimal delivery = deliveryPrice == null ? BigDecimal.ZERO : deliveryPrice;
-        if (start.compareTo(BigDecimal.ZERO) < 0 || start.compareTo(new BigDecimal("100000")) > 0
-                || delivery.compareTo(BigDecimal.ZERO) < 0 || delivery.compareTo(new BigDecimal("10000")) > 0) {
-            throw new APIException("起送价和配送费必须为合理的非负数字");
-        }
-        if (threshold != null || discount != null) {
-            BigDecimal min = threshold == null ? BigDecimal.ZERO : threshold;
-            BigDecimal off = discount == null ? BigDecimal.ZERO : discount;
-            if (min.compareTo(BigDecimal.ZERO) < 0 || min.compareTo(new BigDecimal("100000")) > 0
-                    || off.compareTo(BigDecimal.ZERO) < 0 || off.compareTo(new BigDecimal("100000")) > 0
-                    || (min.compareTo(BigDecimal.ZERO) == 0 && off.compareTo(BigDecimal.ZERO) > 0)
-                    || (min.compareTo(BigDecimal.ZERO) > 0 && off.compareTo(min) >= 0)) {
-                throw new APIException("满减优惠配置不合法：优惠金额必须小于门槛");
-            }
-        }
+        businessPricingPolicy.validate(dto.getStartPrice(), dto.getDeliveryPrice(), dto.getPromotionThreshold(), dto.getPromotionDiscount());
     }
 
     private void validateUpdateRequest(Long id, BusinessUpdateDTO updateDto) {
@@ -662,8 +465,8 @@ public class BusinessServiceImpl implements BusinessService {
 
     private void ensureEligibleBusinessOwner(Long ownerId) {
         User owner = userMapper.findByUserIdWithAuthorities(ownerId);
-        if (owner == null || !Boolean.TRUE.equals(owner.getActivated()) || owner.getAuthorities() == null
-                || owner.getAuthorities().stream().noneMatch(auth -> "BUSINESS".equals(auth.getName()) || "ADMIN".equals(auth.getName()))) {
+        if (owner == null || !Boolean.TRUE.equals(owner.getActivated())
+                || (!AuthorityName.BUSINESS.isGrantedTo(owner) && !AuthorityName.ADMIN.isGrantedTo(owner))) {
             throw new APIException("店铺所有者必须是已启用的商家或管理员账号");
         }
     }

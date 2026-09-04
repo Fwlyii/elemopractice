@@ -104,6 +104,7 @@ import { useRoute, useRouter } from 'vue-router';
 import request from '@/utils/request';
 import { toast } from '@/utils/toast';
 import { getWebSocketUrl } from '@/utils/endpoints';
+import { taskStatusText } from '@/utils/orderPresentation';
 
 const route = useRoute();
 const router = useRouter();
@@ -133,7 +134,7 @@ const visibleTabs = computed(() => activeTab.value === 'available'
   ? [{ key: 'available', label: '附近订单', icon: 'fas fa-compass' }]
   : tabs.filter(tab => tab.key !== 'available'));
 const number = (value, digits) => Number(value || 0).toFixed(digits);
-const taskStatus = value => ({WAITING_RIDER:'待接单',ACCEPTED:'前往商家',ARRIVED_STORE:'已到店',DELIVERING:'配送中',DELIVERED:'已送达',COMPLETED:'已完成',EXCEPTION:'异常处理中',CANCELLED:'已取消'}[value] || value);
+const taskStatus = taskStatusText;
 const formatTime = value => new Date(value).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const selectTab = tab => {
   activeTab.value = tab;

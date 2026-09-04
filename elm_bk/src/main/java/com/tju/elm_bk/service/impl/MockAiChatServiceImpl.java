@@ -8,10 +8,9 @@ import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.Food;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.mapper.AiChatHistoryMapper;
-import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.service.AiChatService;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.utils.AiKnowledgeBaseUtil;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.AiChatHistoryVO;
 import com.tju.elm_bk.vo.AiChatResponseVO;
 import lombok.RequiredArgsConstructor;
@@ -34,24 +33,14 @@ public class MockAiChatServiceImpl implements AiChatService {
     
     private final AiKnowledgeBaseUtil knowledgeBaseUtil;
     private final AiChatHistoryMapper chatHistoryMapper;
-    private final UserMapper userMapper;
+    private final CurrentUserService currentUserService;
     private final ObjectMapper objectMapper;
     
     /**
      * 获取当前用户ID的辅助方法
      */
     private Long getCurrentUserId() {
-        try {
-            String username = SecurityUtils.getCurrentUsername()
-                    .orElse(null);
-            if (username == null) return null;
-            
-            User currentUser = userMapper.findByUsername(username);
-            return currentUser != null ? currentUser.getId() : null;
-        } catch (Exception e) {
-            log.warn("获取当前用户ID失败: {}", e.getMessage());
-            return null;
-        }
+        return currentUserService.optionalUser().map(User::getId).orElse(null);
     }
     
     @Override

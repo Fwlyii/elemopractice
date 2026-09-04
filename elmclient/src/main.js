@@ -8,7 +8,8 @@ import 'font-awesome/css/font-awesome.min.css';
 import './assets/styles/global.css';
 import qs from 'qs';
 import request from './utils/request';
-import { hasAuthority as userHasAuthority } from './utils/roles';
+import { getRoleDefinition, roleCanEnter } from './utils/roles';
+import { getStoredUser } from './utils/auth';
 import {
   getCurDate,
   setSessionStorage,
@@ -41,43 +42,23 @@ app.config.globalProperties.$toast = toast;
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  const parseStoredUser = (storage, key) => {
-    try {
-      const value = storage.getItem(key);
-      return value ? JSON.parse(value) : null;
-    } catch (_) {
-      storage.removeItem(key);
-      return null;
-    }
-  };
-  const businessUser = parseStoredUser(sessionStorage, 'businessUser');
-  const userFromLocal = parseStoredUser(localStorage, 'userInfo');
-  const userFromSession = parseStoredUser(sessionStorage, 'userInfo');
-  const user = userFromLocal || userFromSession;
+  const user = getStoredUser();
 
-  const hasRoleAuthority = (authority) => {
-    if (authority === 'BUSINESS' && businessUser?.isBusiness) return true;
-    return userHasAuthority(user, authority);
-  };
-
-  // 四个工作台必须与账号身份匹配。角色入口集中在这里，页面不再各写一套判断。
-  const roleArea = to.path.startsWith('/merchant/') && to.path !== '/merchant/apply' ? { authority: 'BUSINESS', loginRole: 'merchant', denied: '/myInformation' }
-    : to.path.startsWith('/admin/') ? { authority: 'ADMIN', loginRole: 'admin', denied: '/myInformation' }
-      : to.path.startsWith('/rider/dashboard') ? { authority: 'RIDER', loginRole: 'rider', denied: '/rider/apply' }
-        : null;
-  if (roleArea) {
-    if (!user && !businessUser) return next(`/login?role=${roleArea.loginRole}`);
-    if (!hasRoleAuthority(roleArea.authority)) return next(roleArea.denied);
+  // 路由自己声明所需角色；新增工作台页只需配置 meta，不再修改守卫分支。
+  const roleKey = typeof to.meta.role === 'string' ? to.meta.role : null;
+  if (roleKey) {
+    const role = getRoleDefinition(roleKey);
+    if (!user) return next(`/login?role=${roleKey}`);
+    if (!roleCanEnter(user, roleKey)) return next(role.applyTarget || '/myInformation');
   }
   if (to.path === '/myInformation' && to.query.role === 'rider') {
     if (!user) return next('/login?role=rider');
-    if (!hasRoleAuthority('RIDER')) return next('/rider/apply');
+    if (!roleCanEnter(user, 'rider')) return next('/rider/apply');
   }
 
   
   // 浏览商家和登录注册可匿名访问，其余功能都需要登录。
-  const publicRouteNames = new Set(['Home', 'Index', 'BusinessList', 'BusinessInfo', 'Search', 'Login', 'Register', 'AiChat']);
-  if (!publicRouteNames.has(to.name) && !user && !businessUser) {
+  if (!to.meta.public && !user) {
     return next({ path: '/login', query: { redirect: to.fullPath } });
   }
   next();

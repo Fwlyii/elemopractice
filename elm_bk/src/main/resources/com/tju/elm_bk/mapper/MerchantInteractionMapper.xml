@@ -16,14 +16,6 @@
         <result column="update_time" property="updateTime" />
     </resultMap>
 
-    <resultMap id="UserCollectionsResultMap" type="com.tju.elm_bk.vo.MerchantInteractionVO">
-        <result column="merchant_id" property="merchantId" />
-        <result column="merchant_name" property="merchantName" />
-        <result column="liked" property="liked" />
-        <result column="collected" property="collected" />
-        <result column="create_time" property="createTime" />
-    </resultMap>
-
     <!-- 插入互动记录 -->
     <insert id="insert" parameterType="com.tju.elm_bk.entity.MerchantInteraction" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO merchant_interaction (user_id, merchant_id, liked, collected, create_time, update_time)
@@ -44,45 +36,6 @@
         LIMIT 1
     </select>
 
-    <!-- 获取用户收藏列表 -->
-<!--    <select id="selectUserCollections" resultMap="UserCollectionsResultMap">-->
-<!--        SELECT-->
-<!--        mi.merchant_id,-->
-<!--        b.business_name as merchant_name,-->
-<!--        mi.liked,-->
-<!--        mi.collected,-->
-<!--        mi.create_time-->
-<!--        FROM merchant_interaction mi-->
-<!--        LEFT JOIN business b ON mi.merchant_id = b.id-->
-<!--        WHERE mi.user_id = #{userId} AND mi.collected = true-->
-<!--        ORDER BY mi.create_time DESC-->
-<!--    </select>-->
-
-    <!-- 获取用户收藏列表（返回BusinessSearchVO）已废弃 -->
-    <select id="selectUserCollections" resultType="com.tju.elm_bk.vo.BusinessSearchVO">
-        SELECT
-        b.id,
-        b.business_name as businessName,
-        b.business_img as businessImg,
-        b.start_price as startPrice,
-        b.delivery_price as deliveryPrice,
-        COALESCE((
-        SELECT AVG(score)
-        FROM orders
-        WHERE business_id = b.id AND score IS NOT NULL
-        ), 0) as score,
-        COALESCE((
-        SELECT COUNT(*)
-        FROM orders
-        WHERE business_id = b.id AND order_state = 7 AND is_deleted = 0
-        ), 0) as salesCount
-        FROM merchant_interaction mi
-        LEFT JOIN business b ON mi.merchant_id = b.id
-        WHERE mi.user_id = #{userId}
-        AND mi.collected = true
-        AND b.is_deleted = 0
-        ORDER BY mi.create_time DESC
-    </select>
     <!-- 统计商铺的点赞数 -->
     <select id="countLikesByMerchantId" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM merchant_interaction

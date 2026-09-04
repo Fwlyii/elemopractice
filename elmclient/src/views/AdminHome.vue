@@ -218,6 +218,7 @@ import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '@/utils/endpoints';
+import { clearAuth, getStoredUser, updateStoredUser } from '@/utils/auth';
 
 // 路由实例
 const router = useRouter();
@@ -296,16 +297,15 @@ onUnmounted(() => {
  */
 const getCurrentUserInfo = async () => {
   try {
-    const storage = localStorage.getItem('token') ? localStorage : sessionStorage;
-    const savedUser = storage.getItem('userInfo');
+    const savedUser = getStoredUser();
     if (savedUser) {
-      currentUser.value = JSON.parse(savedUser);
+      currentUser.value = savedUser;
     } else {
-      // 本地无数据时从接口获取
       const res = await request.get('/api/user');
-      if (res.success && res.data) {
-        currentUser.value = res.data;
-        storage.setItem('userInfo', JSON.stringify(res.data));
+      const user = res?.success ? res.data : res;
+      if (user?.id) {
+        currentUser.value = user;
+        updateStoredUser(user);
       }
     }
   } catch (error) {
@@ -571,11 +571,7 @@ const closeModal = () => {
  * 退出登录
  */
 const logout = () => {
-  // 清除存储的登录信息
-  localStorage.removeItem('token');
-  sessionStorage.removeItem('token');
-  localStorage.removeItem('userInfo');
-  sessionStorage.removeItem('userInfo');
+  clearAuth();
   // 关闭WebSocket连接
   if (webSocket.value) {
     webSocket.value.close();

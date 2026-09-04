@@ -3,11 +3,10 @@ package com.tju.elm_bk.controller;
 import com.tju.elm_bk.dto.AiChatRequestDTO;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
-import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.HttpResult;
 import com.tju.elm_bk.result.ResultCodeEnum;
 import com.tju.elm_bk.service.AiChatService;
-import com.tju.elm_bk.utils.SecurityUtils;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.vo.AiChatHistoryVO;
 import com.tju.elm_bk.vo.AiChatResponseVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,7 +38,7 @@ import java.util.ArrayList;
 public class AiChatController {
     
     private final AiChatService aiChatService;
-    private final UserMapper userMapper;
+    private final CurrentUserService currentUserService;
     private final FoodMapper foodMapper;
     private final BusinessMapper businessMapper;
     private final PreferenceMapper preferenceMapper;
@@ -49,15 +48,7 @@ public class AiChatController {
      * 获取当前用户ID的辅助方法
      */
     private Long getCurrentUserId() {
-        try {
-            String username = SecurityUtils.getCurrentUsername()
-                    .orElseThrow(() -> new APIException(ResultCodeEnum.UNAUTHORIZED));
-            User currentUser = userMapper.findByUsername(username);
-            return currentUser != null ? currentUser.getId() : null;
-        } catch (Exception e) {
-            log.warn("获取当前用户ID失败: {}", e.getMessage());
-            return null;
-        }
+        return currentUserService.optionalUser().map(User::getId).orElse(null);
     }
     
     /**
@@ -273,15 +264,12 @@ public class AiChatController {
     }
 
     private boolean isAdmin() {
-        try {
-            User u = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElse(""));
-            return u != null && u.getAuthorities() != null
-                    && u.getAuthorities().stream().anyMatch(a -> "ADMIN".equals(a.getName()));
-        } catch (Exception ignored) { return false; }
+        return currentUserService.optionalUser()
+                .map(currentUserService::isAdmin)
+                .orElse(false);
     }
 
     private User currentUserOrNull() {
-        try { return userMapper.findByUsername(SecurityUtils.getCurrentUsername().orElse("")); }
-        catch (Exception ignored) { return null; }
+        return currentUserService.optionalUser().orElse(null);
     }
 }

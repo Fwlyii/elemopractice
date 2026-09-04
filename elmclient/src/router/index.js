@@ -1,69 +1,71 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Index from '../views/Index.vue'
-import BusinessList from '../views/BusinessList.vue'
-import BusinessInfo from '../views/BusinessInfo.vue'
-import Login from '../views/Login.vue'
-import UserAddress from '../views/UserAddress.vue'
-import Payment from '../views/Payment.vue'
-import OrderList from '../views/OrderList.vue'
-import ListDetail from '../views/ListDetail.vue'
-import AddUserAddress from '../views/AddUserAddress.vue'
-import EditUserAddress from '../views/EditUserAddress.vue'
-import Register from '../views/Register.vue'
-import SuccessfulPayment from '../views/SuccessfulPayment.vue'
-import MyInformation from '@/views/MyInformation.vue'
-import Favorites from '@/views/Favorites.vue'
-import Notifications from '@/views/Notifications.vue'
-import Assets from '@/views/Assets.vue'
-import Preferences from '@/views/Preferences.vue'
-import AdminUser from '@/views/AdminUser.vue'
-import Search from '@/views/Search.vue'
-import Cart from '@/views/Cart.vue'
-import AiChat from '@/views/AiChat.vue'
-import RiderApply from '@/views/RiderApply.vue'
-import RiderDashboard from '@/views/RiderDashboard.vue'
-import AdminRiders from '@/views/AdminRiders.vue'
 
-//商家端路由配置
-import MerchantProfile from '../views/MerchantProfile.vue';
-import MerchantBusiness from '../views/MerchantBusiness.vue'
-import MerchantBusinessInfo from '@/views/MerchantBusinessInfo.vue' 
-import MerchantOrders from '../views/MerchantOrders.vue'
-import MerchantReviews from '../views/MerchantReviews.vue'
-import MerchantApply from '../views/MerchantApply.vue'
-
-//管理端路由配置
-import AdminHome from '../views/AdminHome.vue';
-import AdminBusiness from '@/views/AdminBusiness.vue'
-import AdminShop from '@/views/AdminShop.vue'
-//import { pa } from 'element-plus/es/locale'
+// 首页以外按路由懒加载，顾客不需为商家/骑手/管理端下载代码。
+const BusinessList = () => import('../views/BusinessList.vue')
+const BusinessInfo = () => import('../views/BusinessInfo.vue')
+const Login = () => import('../views/Login.vue')
+const UserAddress = () => import('../views/UserAddress.vue')
+const Payment = () => import('../views/Payment.vue')
+const OrderList = () => import('../views/OrderList.vue')
+const ListDetail = () => import('../views/ListDetail.vue')
+const AddUserAddress = () => import('../views/AddUserAddress.vue')
+const EditUserAddress = () => import('../views/EditUserAddress.vue')
+const Register = () => import('../views/Register.vue')
+const SuccessfulPayment = () => import('../views/SuccessfulPayment.vue')
+const MyInformation = () => import('../views/MyInformation.vue')
+const Favorites = () => import('../views/Favorites.vue')
+const Notifications = () => import('../views/Notifications.vue')
+const Assets = () => import('../views/Assets.vue')
+const Preferences = () => import('../views/Preferences.vue')
+const Search = () => import('../views/Search.vue')
+const Cart = () => import('../views/Cart.vue')
+const AiChat = () => import('../views/AiChat.vue')
+const RiderApply = () => import('../views/RiderApply.vue')
+const RiderDashboard = () => import('../views/RiderDashboard.vue')
+const MerchantProfile = () => import('../views/MerchantProfile.vue')
+const MerchantBusiness = () => import('../views/MerchantBusiness.vue')
+const MerchantBusinessInfo = () => import('../views/MerchantBusinessInfo.vue')
+const MerchantOrders = () => import('../views/MerchantOrders.vue')
+const MerchantReviews = () => import('../views/MerchantReviews.vue')
+const MerchantApply = () => import('../views/MerchantApply.vue')
+const AdminHome = () => import('../views/AdminHome.vue')
+const AdminUser = () => import('../views/AdminUser.vue')
+const AdminBusiness = () => import('../views/AdminBusiness.vue')
+const AdminShop = () => import('../views/AdminShop.vue')
+const AdminRiders = () => import('../views/AdminRiders.vue')
 
 // 定义路由
 const routes = [
   {
     path: '/',
     name: 'Home',
-    component: Index
+    component: Index,
+    meta: { public: true }
   },
   {
     path: '/Index',
     name: 'Index',
-    component: Index
+    component: Index,
+    meta: { public: true }
   },
   {
     path: '/businessList',
     name: 'BusinessList',
-    component: BusinessList
+    component: BusinessList,
+    meta: { public: true }
   },
   {
     path: '/businessInfo',
     name: 'BusinessInfo',
-    component: BusinessInfo
+    component: BusinessInfo,
+    meta: { public: true }
   },
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: { public: true }
   },
   {
     path: '/orders',
@@ -102,7 +104,8 @@ const routes = [
   {
     path: '/register',
     name: 'Register',
-    component: Register
+    component: Register,
+    meta: { public: true }
   },
   {
     path: '/successfulPayment',
@@ -138,7 +141,8 @@ const routes = [
   {
     path: '/search',
     name: 'Search',
-    component: Search
+    component: Search,
+    meta: { public: true }
   },
   {
     path: '/search-test',
@@ -171,30 +175,33 @@ const routes = [
     path: '/merchant/profile',
     name: 'MerchantProfile',
     component: MerchantProfile,
-    meta: { title: '商家信息' }
+    meta: { title: '商家信息', role: 'merchant' }
   },
   {
     path: '/merchant/business',
     name: 'MerchantBusiness',
-    component: MerchantBusiness
+    component: MerchantBusiness,
+    meta: { role: 'merchant' }
   },
   {
     path: '/merchant/businessInfo',
     name: 'MerchantBusinessInfo',
-    component: MerchantBusinessInfo
+    component: MerchantBusinessInfo,
+    meta: { role: 'merchant' }
   },
   {
     path: '/merchant/orders',
     name: 'MerchantOrders',
-    component: MerchantOrders
+    component: MerchantOrders,
+    meta: { role: 'merchant' }
   },
-  { path: '/merchant/reviews', name: 'MerchantReviews', component: MerchantReviews },
+  { path: '/merchant/reviews', name: 'MerchantReviews', component: MerchantReviews, meta: { role: 'merchant' } },
   { path:'/submitItems', redirect:'/merchant/business' },
   {
     path: '/ai-chat',
     name: 'AiChat',
     component: AiChat,
-    meta: { title: 'AI智能客服' }
+    meta: { title: 'AI智能客服', public: true }
   },
   {
     path: '/rider/apply',
@@ -206,34 +213,39 @@ const routes = [
     path: '/rider/dashboard',
     name: 'RiderDashboard',
     component: RiderDashboard,
-    meta: { title: '骑手工作台' }
+    meta: { title: '骑手工作台', role: 'rider' }
   },
  //
 //管理端
   {
     path:'/admin/home',
     name:'AdminHome',
-    component:AdminHome
+    component:AdminHome,
+    meta: { role: 'admin' }
   },
   {
     path:'/admin/user',
     name:'AdminUser',
-    component:AdminUser
+    component:AdminUser,
+    meta: { role: 'admin' }
   },
   {
     path:'/admin/business',
     name:'AdminBusiness',
-    component:AdminBusiness
+    component:AdminBusiness,
+    meta: { role: 'admin' }
   },
   {
     path:'/admin/shop',
     name:'AdminShop',
-    component:AdminShop
+    component:AdminShop,
+    meta: { role: 'admin' }
   },
   {
     path:'/admin/riders',
     name:'AdminRiders',
-    component:AdminRiders
+    component:AdminRiders,
+    meta: { role: 'admin' }
   },
   { path: '/:pathMatch(.*)*', redirect: '/index' }
   //

@@ -1,5 +1,4 @@
 package com.tju.elm_bk.mapper;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -60,18 +59,11 @@ public interface BusinessMapper {
 
     Integer applyForAddBusiness(Business  business);
 
-    // 统计已完成的订单数量（订单状态 7）。首页销量标签、商家经营数据统一使用这一口径。
-    @Select("SELECT COUNT(*) FROM `orders` WHERE business_id = #{businessId} AND order_state = 7 AND is_deleted = 0")
-    Integer getSalesCount(@Param("businessId") Long businessId);
+    /** 与首页完全相同的商家展示口径（评分、销量、人均等）。 */
+    BusinessSearchVO getBusinessSummaryById(@Param("businessId") Long businessId);
 
-    /**
-     * 统一展示评分：优先取未隐藏评价的实时均值，没有评价时才使用演示快照。
-     * 点赞与收藏是互动指标，不参与星级计算。
-     */
-    @Select("SELECT COALESCE(ROUND((SELECT AVG(r.rating) FROM review r " +
-            "WHERE r.business_id = b.id AND r.is_hidden = 0), 2), b.demo_rating) " +
-            "FROM business b WHERE b.id = #{businessId} AND b.is_deleted = 0")
-    BigDecimal getDisplayRating(@Param("businessId") Long businessId);
+    /** 收藏页与首页共用同一组展示列，避免各算一套。 */
+    List<BusinessSearchVO> selectCollectedBusinesses(@Param("userId") Long userId);
 
     /**
      * 根据用户ID查询对应的所有商铺ID

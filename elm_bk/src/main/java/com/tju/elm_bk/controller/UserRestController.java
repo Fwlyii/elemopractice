@@ -17,9 +17,9 @@ import com.tju.elm_bk.vo.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,21 +37,15 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 @Tag(name = "用户管理", description = "提供用户的增删改查操作")
 @Slf4j
+@RequiredArgsConstructor
 public class UserRestController {
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private AuthorityMapper authorityMapper;
-    @Autowired
-    private UserModelDetailsService userModelDetailsService;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    @Autowired
-    private PersonService personService;
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private PersonMapper personMapper;
+    private final UserMapper userMapper;
+    private final AuthorityMapper authorityMapper;
+    private final UserModelDetailsService userModelDetailsService;
+    private final PasswordEncoder passwordEncoder;
+    private final PersonService personService;
+    private final UserService userService;
+    private final PersonMapper personMapper;
 
     @PostMapping("/users")
     @Operation(summary = "新增用户(仅登录账号)", description = "创建一个新的用户")

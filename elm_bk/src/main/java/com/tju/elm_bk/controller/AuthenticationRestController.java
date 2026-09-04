@@ -8,7 +8,7 @@ import com.tju.elm_bk.security.TokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,12 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 @Tag(name = "认证管理", description = "提供JWT认证相关接口")
+@RequiredArgsConstructor
 public class AuthenticationRestController {
-
-    @Autowired
-    private TokenProvider tokenProvider;
-    @Autowired
-    private AuthenticationManagerBuilder authenticationManagerBuilder;
+    private final TokenProvider tokenProvider;
+    private final AuthenticationManagerBuilder authenticationManagerBuilder;
 
     @PostMapping("/auth")
     @Operation(description = "身份认证成功后获取令牌")

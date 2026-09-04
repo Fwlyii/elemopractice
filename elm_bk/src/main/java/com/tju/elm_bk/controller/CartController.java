@@ -7,7 +7,7 @@ import com.tju.elm_bk.vo.CartItemVO;
 import com.tju.elm_bk.vo.CartVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,9 +15,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/carts")
 @Tag(name="管理购物车")
+@RequiredArgsConstructor
 public class CartController {
-    @Autowired
-    private CartService cartService;
+    private final CartService cartService;
 
     @PostMapping
     @Operation(summary = "向购物车添加商品",description = "老师测试用")

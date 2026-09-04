@@ -5,8 +5,6 @@ import com.tju.elm_bk.mapper.DeliveryTaskMapper;
 import com.tju.elm_bk.mapper.OrderStatusHistoryMapper;
 import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.NotificationMapper;
-import com.tju.elm_bk.mapper.FoodMapper;
-import com.tju.elm_bk.mapper.AssetMapper;
 import com.tju.elm_bk.mapper.RiderMapper;
 import com.tju.elm_bk.entity.DeliveryTask;
 import com.tju.elm_bk.entity.Order;
@@ -20,7 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Component
@@ -31,16 +29,20 @@ public class OrderTimeoutScheduler {
     private final DeliveryTaskMapper deliveryTaskMapper;
     private final OrderStatusHistoryMapper historyMapper;
     private final NotificationMapper notificationMapper;
-    private final FoodMapper foodMapper;
-    private final AssetMapper assetMapper;
     private final RiderMapper riderMapper;
+    private final OrderSettlementService orderSettlementService;
 
     /** 每分钟扫描一次：待支付15分钟自动取消，已送达24小时自动完成。条件更新保证幂等。 */
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void closeExpiredOrders() {
         for (Long id : ordersMapper.findExpiredWaitingPaymentIds()) {
-            if (ordersMapper.cancelExpiredWaitingPayment(id) == 1) { foodMapper.restoreStockByOrder(id); assetMapper.releaseCouponByOrder(id); ordersMapper.updatePaymentStatus(id, "CANCELLED"); record(id, OrderStatus.WAITING_PAYMENT.getCode(), OrderStatus.CANCELLED.getCode(), "支付超时自动取消"); notifyCustomer(id, "订单支付超时，系统已自动取消"); }
+            Order order = ordersMapper.getOrderById(id);
+            if (order != null && ordersMapper.cancelExpiredWaitingPayment(id) == 1) {
+                orderSettlementService.cancelOrder(order, false);
+                record(id, OrderStatus.WAITING_PAYMENT.getCode(), OrderStatus.CANCELLED.getCode(), "支付超时自动取消");
+                notifyCustomer(id, "订单支付超时，系统已自动取消");
+            }
         }
         for (Long id : ordersMapper.findExpiredDeliveredIds()) {
             Order order = ordersMapper.getOrderById(id);
@@ -51,22 +53,11 @@ public class OrderTimeoutScheduler {
                     riderMapper.addCompletedStats(task.getRiderUserId(), safe(task.getDistanceKm()), safe(task.getRiderFee()));
                 }
                 if (order != null && order.getCustomerId() != null) {
-                    awardCustomerPoints(order);
+                    orderSettlementService.awardCompletionPoints(order, order.getCustomerId());
                 }
                 record(id, OrderStatus.DELIVERED.getCode(), OrderStatus.COMPLETED.getCode(), "送达超过24小时自动确认");
                 notifyCustomer(id, "订单已送达超过24小时，系统已自动确认收货");
             }
-        }
-    }
-
-    private void awardCustomerPoints(Order order) {
-        assetMapper.ensure(order.getCustomerId());
-        int points = order.getOrderTotal() == null
-                ? 0 : order.getOrderTotal().setScale(0, RoundingMode.FLOOR).intValue();
-        if (points > 0) {
-            assetMapper.addPoints(order.getCustomerId(), points);
-            assetMapper.insertLedger(order.getCustomerId(), "POINT_EARN", BigDecimal.ZERO, points,
-                    "完成订单奖励积分", order.getId());
         }
     }
 
@@ -75,12 +66,27 @@ public class OrderTimeoutScheduler {
     }
 
     private void notifyCustomer(Long orderId, String content) {
-        var order = ordersMapper.getOrderById(orderId); if (order == null || order.getCustomerId() == null) return;
-        Notification n = new Notification(); n.setUserId(order.getCustomerId()); n.setNotificationType(2); n.setNotificationContent(content); n.setIsRead(0); n.setIsDeleted(0); n.setCreateTime(java.time.LocalDateTime.now()); notificationMapper.insert(n);
+        Order order = ordersMapper.getOrderById(orderId);
+        if (order == null || order.getCustomerId() == null) return;
+
+        Notification notification = new Notification();
+        notification.setUserId(order.getCustomerId());
+        notification.setNotificationType(2);
+        notification.setNotificationContent(content);
+        notification.setIsRead(0);
+        notification.setIsDeleted(0);
+        notification.setCreateTime(LocalDateTime.now());
+        notificationMapper.insert(notification);
     }
 
     private void record(Long orderId, Integer from, Integer to, String reason) {
-        OrderStatusHistory h = new OrderStatusHistory(); h.setOrderId(orderId); h.setFromStatus(from); h.setToStatus(to); h.setOperatorUserId(null); h.setReason(reason); historyMapper.insert(h);
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setOrderId(orderId);
+        history.setFromStatus(from);
+        history.setToStatus(to);
+        history.setOperatorUserId(null);
+        history.setReason(reason);
+        historyMapper.insert(history);
         log.info("订单{}状态自动更新为{}", orderId, to);
     }
 }

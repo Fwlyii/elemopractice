@@ -10,11 +10,11 @@ import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.HttpResult;
 import com.tju.elm_bk.result.ResultCodeEnum;
 import com.tju.elm_bk.service.AddressService;
-import com.tju.elm_bk.utils.SecurityUtils;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.vo.AddressVO;
 import com.tju.elm_bk.vo.UserVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -22,11 +22,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AddressServiceImpl implements AddressService {
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private DeliveryAddressMapper deliveryAddressMapper;
+    private final UserMapper userMapper;
+    private final DeliveryAddressMapper deliveryAddressMapper;
+    private final CurrentUserService currentUserService;
     @Override
     public HttpResult<AddressVO> addDeliveryAddress(AddressCreateDTO createDTO) {
         if (createDTO == null || createDTO.getCustomer() == null
@@ -40,14 +40,9 @@ public class AddressServiceImpl implements AddressService {
                 || (createDTO.getContactSex() != 0 && createDTO.getContactSex() != 1)) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("当前用户未登录"));
         User targetUser = userMapper.findByUsernameWithAuthorities(createDTO.getCustomer().getUsername());
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        if (currentUser == null) {
-            throw new APIException("当前用户不存在");
-        }
-        boolean isAdmin = isAdmin(currentUser);
+        User currentUser = currentUserService.requireUser();
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
         if (targetUser == null) {
             throw  new APIException("目标用户不存在");
         }
@@ -82,14 +77,9 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public HttpResult<List<DeliveryAddress>> listDeliveryAddressByUserId(Long userId) {
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("当前用户未登录"));
         User targetUser = userMapper.findByUserIdWithAuthorities(userId);
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        if (currentUser == null) {
-            throw new APIException("当前用户不存在");
-        }
-        boolean isAdmin = isAdmin(currentUser);
+        User currentUser = currentUserService.requireUser();
+        boolean isAdmin = currentUserService.isAdmin(currentUser);
         if (targetUser == null) {
             throw  new APIException("目标用户不存在");
         }
@@ -151,16 +141,7 @@ public class AddressServiceImpl implements AddressService {
     }
 
     private User currentUser() {
-        String username = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("当前用户未登录"));
-        User user = userMapper.findByUsernameWithAuthorities(username);
-        if (user == null) throw new APIException("当前用户不存在");
-        return user;
-    }
-
-    private boolean isAdmin(User user) {
-        return user.getAuthorities() != null && user.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        return currentUserService.requireUser();
     }
 
     private void assertAddressOwner(DeliveryAddress address) {
@@ -171,7 +152,8 @@ public class AddressServiceImpl implements AddressService {
         if (address == null || Boolean.TRUE.equals(address.getIsDeleted())) {
             throw new APIException("地址不存在");
         }
-        if (!isAdmin(currentUser) && !java.util.Objects.equals(address.getUserId(), currentUser.getId())) {
+        if (!currentUserService.isAdmin(currentUser)
+                && !java.util.Objects.equals(address.getUserId(), currentUser.getId())) {
             throw new APIException(ResultCodeEnum.ADDRESS_PERMISSION_DENIED);
         }
     }

@@ -6,7 +6,7 @@ import com.tju.elm_bk.controller.UserRestController;
 import com.tju.elm_bk.dto.FoodCreateDTO;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.AssetMapper;
-import com.tju.elm_bk.mapper.UserMapper;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.impl.AssetServiceImpl;
 import com.tju.elm_bk.websocket.WebSocketServer;
 import jakarta.websocket.Session;
@@ -70,7 +70,8 @@ class SecurityHardeningTest {
 
     @Test
     void demoMoneyCreationIsDisabledByDefault() {
-        AssetServiceImpl service = new AssetServiceImpl(mock(AssetMapper.class), mock(UserMapper.class));
+        AssetServiceImpl service = new AssetServiceImpl(
+                mock(AssetMapper.class), mock(CurrentUserService.class));
         ReflectionTestUtils.setField(service, "demoEnabled", false);
 
         assertThrows(APIException.class, () -> service.recharge(BigDecimal.TEN));

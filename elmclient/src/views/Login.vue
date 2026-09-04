@@ -56,16 +56,12 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
-import { hasAuthority as userHasAuthority } from '../utils/roles';
+import { ROLE_DEFINITIONS, roleCanEnter } from '../utils/roles';
+import { clearAuth, saveAuth, updateStoredUser } from '../utils/auth';
 
 const router = useRouter();
 const route = useRoute();
-const roleMap = {
-  user: { key: 'user', label: '用户', title: '用户登录', subtitle: '欢迎回来', button: '登录', icon: 'fas fa-user', target: '/index' },
-  merchant: { key: 'merchant', label: '商家', title: '商家登录', subtitle: '管理店铺和订单', button: '登录', icon: 'fas fa-store', target: '/merchant/business', authority: 'BUSINESS' },
-  rider: { key: 'rider', label: '骑手', title: '骑手登录', subtitle: '开始今天的配送', button: '登录', icon: 'fas fa-motorcycle', target: '/rider/dashboard', authority: 'RIDER' },
-  admin: { key: 'admin', label: '管理员', title: '管理员登录', subtitle: '平台管理', button: '登录', icon: 'fas fa-shield-alt', target: '/admin/home', authority: 'ADMIN' }
-};
+const roleMap = ROLE_DEFINITIONS;
 const roleOptions = Object.values(roleMap);
 const queryRole = typeof route.query.role === 'string' && roleMap[route.query.role] ? route.query.role : 'user';
 const selectedRole = ref(queryRole);
@@ -86,12 +82,6 @@ const selectRole = (key) => {
   router.replace({ query: { ...route.query, role: key } });
 };
 
-const storageFor = () => rememberMe.value ? localStorage : sessionStorage;
-const clearAuth = () => {
-  localStorage.removeItem('token'); localStorage.removeItem('userInfo');
-  sessionStorage.removeItem('token'); sessionStorage.removeItem('userInfo');
-};
-
 const login = async () => {
   if (!userName.value) return toast.error('请输入用户名');
   if (!password.value) return toast.error('请输入密码');
@@ -101,21 +91,17 @@ const login = async () => {
     if (!auth?.id_token) return toast.error(auth?.message || '登录失败');
     // 登录身份切换时先清掉上一个账号的认证信息，避免路由守卫读到旧的 localStorage。
     // 这对“记住我”后再切换用户/商家/骑手尤其重要。
-    clearAuth();
-    sessionStorage.removeItem('businessUser');
-    const storage = storageFor();
-    storage.setItem('token', auth.id_token);
+    saveAuth(auth.id_token, null, rememberMe.value);
     const userRes = await request.get('/api/user');
-    storage.setItem('userInfo', JSON.stringify(userRes));
+    updateStoredUser(userRes);
     if (rememberMe.value) localStorage.setItem('savedUserName', userName.value);
     else localStorage.removeItem('savedUserName');
 
-    const roleAllowed = !activeRole.value.authority || userHasAuthority(userRes, activeRole.value.authority);
+    const roleAllowed = roleCanEnter(userRes, selectedRole.value);
     if (!roleAllowed) {
       const roleName = activeRole.value.label;
       toast.warning(`当前账号没有${roleName}权限，请切换身份或先完成申请`);
-      if (selectedRole.value === 'rider') router.push('/rider/apply');
-      else if (selectedRole.value === 'merchant') router.push('/merchant/apply');
+      if (activeRole.value.applyTarget) router.push(activeRole.value.applyTarget);
       return;
     }
 	    toast.success(`已进入${activeRole.value.label}端`);

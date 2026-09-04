@@ -4,24 +4,23 @@ package com.tju.elm_bk.service.impl;
 
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.UserMapper;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.UserService;
 import com.tju.elm_bk.entity.User;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.UserVO;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
+    private final CurrentUserService currentUserService;
 
 
     public User getUserWithAuthorities(String username) {
@@ -46,9 +45,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserVO changeUserStatus(String username) {
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
+        User currentUser = currentUserService.requireUser();
         User targetUser = userMapper.findByUsernameWithAuthorities(username);
         if (targetUser == null) {
             throw new APIException("目标用户不存在");
@@ -68,16 +65,14 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(String username) {
         User targetUser = userMapper.findByUsernameWithAuthorities(username);
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
+        User currentUser = currentUserService.requireUser();
         if (targetUser == null) {
             throw new APIException("目标用户不存在");
         }
         if (targetUser.getIsDeleted()) {
             throw new APIException("用户已被删除");
         }
-        if (currentUsername.equals(username)) {
+        if (currentUser.getUsername().equals(username)) {
             throw new APIException("不能删除当前登录的管理员账号");
         }
 
@@ -92,15 +87,11 @@ public class UserServiceImpl implements UserService {
         if (username == null || username.isBlank() || activated == null) {
             throw new APIException("用户名和账号状态不能为空");
         }
-        String currentUsername = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
-        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        boolean isAdmin = currentUser != null && currentUser.getAuthorities() != null
-                && currentUser.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
-        if (!isAdmin) {
+        User currentUser = currentUserService.requireUser();
+        if (!currentUserService.isAdmin(currentUser)) {
             throw new APIException("只有管理员可以启用或禁用账号");
         }
-        if (currentUsername.equals(username)) {
+        if (currentUser.getUsername().equals(username)) {
             throw new APIException("不能修改当前登录管理员自己的启用状态");
         }
         User user = userMapper.findByUsername(username.trim());

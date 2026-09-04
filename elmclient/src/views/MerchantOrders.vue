@@ -159,6 +159,9 @@ import { useRouter, useRoute } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '../utils/endpoints';
+import { orderStatusText } from '../utils/orderPresentation';
+import { formatDateTime } from '../utils/formatters';
+import { getStoredUser } from '../utils/auth';
 
 export default {
   name: 'BusinessOrderManage',
@@ -183,20 +186,6 @@ export default {
     const showRejectModal = ref(false);
     const showCompleteModal = ref(false);
     const selectId = ref(0);
-
-    // 订单状态映射
-    const statusMap = {
-      0: "待支付",
-      1: "待商家接单",
-      2: "制作中",
-      3: "待骑手接单",
-      4: "骑手待取餐",
-      5: "配送中",
-      6: "已送达",
-      7: "已完成",
-      8: "已取消",
-      9: "配送异常"
-    };
 
     // --- WebSocket 相关 ---
     const socket = ref(null);
@@ -293,8 +282,7 @@ export default {
 
     // 获取状态文本
     const getStatusText = (state, order = {}) => {
-      if (state === 4 && order.serviceMode === 'PICKUP') return '待顾客自取';
-      return statusMap[state] || "未知状态";
+      return orderStatusText(state, order, 'merchant');
     };
 
     // 获取状态样式类
@@ -310,13 +298,7 @@ export default {
 
     // 格式化时间
     const formatTime = (timeString) => {
-      if (!timeString) return "-";
-      try {
-        const date = new Date(timeString);
-        return date.toLocaleString('zh-CN');
-      } catch (e) {
-        return timeString;
-      }
+      return formatDateTime(timeString);
     };
 
     // 接单
@@ -416,7 +398,7 @@ export default {
       selectId.value = 0;
     };
 
-    // 查看订单详情
+    // 预留订单详情入口，当前卡片操作不调用。
     const goDetail = (order) => {
       router.push({
         path: '/orderDetail',
@@ -427,16 +409,8 @@ export default {
     // 初始化WebSocket
     const initWebSocket = () => {
       if (socketStopped) return;
-      const tokenFromLocal = localStorage.getItem('token');
-      const tokenFromSession = sessionStorage.getItem('token');
-      const storage = tokenFromLocal ? localStorage : (tokenFromSession ? sessionStorage : null);
-      if (!storage) return;
-      // 从sessionStorage获取商家用户ID（需确保登录后存储了userId）
-      const userData = storage.getItem("userInfo");
-      if (userData) {
-        const user = JSON.parse(userData);
-        userId.value = user.id;
-      }
+      const user = getStoredUser();
+      userId.value = user?.id || null;
       if (!userId.value) return;
 
       socket.value = new WebSocket(getWebSocketUrl(`/ws/${userId.value}`));
@@ -504,7 +478,6 @@ export default {
       acceptOrder,
       rejectOrder,
       completeOrder,
-      goDetail,
       showAcceptModal,
       showRejectModal,
       showCompleteModal,
@@ -513,7 +486,8 @@ export default {
       confirmReject,
       confirmComplete,
       fulfillmentTip,
-      readyOrder
+      readyOrder,
+      goDetail
     };
   }
 };

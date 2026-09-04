@@ -10,8 +10,8 @@ import com.tju.elm_bk.vo.MerchantStatsVO;
 import com.tju.elm_bk.result.HttpResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,10 +23,9 @@ import java.util.List;
 @RequestMapping("/api/merchant/interaction")
 @Validated
 @Tag(name="商铺点赞收藏等一系列")
+@RequiredArgsConstructor
 public class MerchantInteractionController {
-
-    @Autowired
-    private MerchantInteractionService interactionService;
+    private final MerchantInteractionService interactionService;
 
     @PostMapping("/update")
     @Operation(summary = "更新商铺点赞收藏等信息")

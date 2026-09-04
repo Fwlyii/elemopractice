@@ -3,23 +3,21 @@ package com.tju.elm_bk.service.impl;
 import com.tju.elm_bk.dto.FoodCreateDTO;
 import com.tju.elm_bk.dto.FoodDTO;
 import com.tju.elm_bk.dto.FoodUpdateDTO;
-import com.tju.elm_bk.entity.Authority;
 import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.Food;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
-import com.tju.elm_bk.mapper.AuthorityMapper;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.FoodMapper;
-import com.tju.elm_bk.mapper.UserMapper;
+import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.result.ResultCodeEnum;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.FoodService;
 import com.tju.elm_bk.utils.ObjectCopyUtil;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.FoodItemVO;
 import com.tju.elm_bk.vo.FoodVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,15 +26,12 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
+@RequiredArgsConstructor
 public class FoodServiceImpl implements FoodService {
-    @Autowired
-    private FoodMapper foodMapper;
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private BusinessMapper businessMapper;
-    @Autowired
-    private com.tju.elm_bk.mapper.OrdersMapper ordersMapper;
+    private final FoodMapper foodMapper;
+    private final BusinessMapper businessMapper;
+    private final OrdersMapper ordersMapper;
+    private final CurrentUserService currentUserService;
 
     @Override
     public List<FoodVO> getFoodList(Integer business, Integer order) {
@@ -76,17 +71,11 @@ public class FoodServiceImpl implements FoodService {
         if(!foodDTO.verify()) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
         Business business = businessMapper.selectBusinessById(foodDTO.getBusiness().getId());
         if (business == null) {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
-        if (authorities.stream()
-                .noneMatch(auth -> "ADMIN".equals(auth.getName()))
-                && !Objects.equals(user.getId(), business.getUserId())) {
-            throw new APIException(ResultCodeEnum.UNAUTHORIZED);
-        }
+        User user = requireBusinessManager(business, ResultCodeEnum.UNAUTHORIZED);
 
         Food food = new Food();
         BeanUtils.copyProperties(foodDTO, food);
@@ -119,17 +108,11 @@ public class FoodServiceImpl implements FoodService {
             throw new APIException("商品所属商家与请求参数不一致");
         }
 
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
         if (business == null) {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
-        if (authorities.stream()
-                .noneMatch(auth -> "ADMIN".equals(auth.getName()))
-                && !Objects.equals(user.getId(), business.getUserId())) {
-            throw new APIException(ResultCodeEnum.UNAUTHORIZED);
-        }
+        User user = requireBusinessManager(business, ResultCodeEnum.UNAUTHORIZED);
 
         food.setFoodName(foodDTO.getFoodName() == null ? food.getFoodName() : foodDTO.getFoodName());
         food.setFoodExplain(foodDTO.getFoodExplain() == null ? food.getFoodExplain() : foodDTO.getFoodExplain());
@@ -149,10 +132,7 @@ public class FoodServiceImpl implements FoodService {
     public List<FoodItemVO> getFoodItemList(Long businessId, Integer shelveStatus) {
         Business business = businessMapper.selectBusinessById(businessId);
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        User user = SecurityUtils.getCurrentUsername()
-                .filter(username -> !"anonymousUser".equals(username))
-                .map(userMapper::findByUsernameWithAuthorities)
-                .orElse(null);
+        User user = currentUserService.optionalUser().orElse(null);
         boolean admin = user != null && isAdmin(user);
         boolean owner = user != null && Objects.equals(user.getId(), business.getUserId());
 
@@ -175,15 +155,7 @@ public class FoodServiceImpl implements FoodService {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
 
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
-
-        // 非管理员只能添加自己商铺的商品
-        if (authorities.stream()
-                .noneMatch(authority -> Objects.equals(authority.getName(), "ADMIN"))
-                && !Objects.equals(user.getId(), business.getUserId())) {
-            throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
-        }
+        User user = requireBusinessManager(business, ResultCodeEnum.NOT_ENOUGH_PERMISSION);
 
         Food food = new Food();
         BeanUtils.copyProperties(foodCreateDTO, food);
@@ -210,13 +182,7 @@ public class FoodServiceImpl implements FoodService {
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
 
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
-        if (authorities.stream()
-                .noneMatch(authority -> Objects.equals(authority.getName(), "ADMIN"))
-                && !Objects.equals(user.getId(), business.getUserId())) {
-            throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
-        }
+        requireBusinessManager(business, ResultCodeEnum.NOT_ENOUGH_PERMISSION);
 
         if (shelveStatus != 0 && shelveStatus != 1) {
             throw new APIException(ResultCodeEnum.FOOD_STATUS_SET_FAILED);
@@ -240,13 +206,7 @@ public class FoodServiceImpl implements FoodService {
 
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
-        if (authorities.stream()
-                .noneMatch(authority -> Objects.equals(authority.getName(), "ADMIN"))
-                && !Objects.equals(user.getId(), business.getUserId())) {
-            throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
-        }
+        User user = requireBusinessManager(business, ResultCodeEnum.NOT_ENOUGH_PERMISSION);
 
         ObjectCopyUtil.copyPropertiesIgnoreNull(foodUpdateDTO,food);
         validateFoodEntity(food);
@@ -267,13 +227,9 @@ public class FoodServiceImpl implements FoodService {
         }
         Food food = foodMapper.selectFoodById(foodUpdateDTO.getFoodId());
         if (food == null) throw new APIException(ResultCodeEnum.FOOD_MISSED);
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        boolean admin = user.getAuthorities().stream().anyMatch(a -> "ADMIN".equals(a.getName()));
-        if (!admin && (business == null || !Objects.equals(user.getId(), business.getUserId()))) {
-            throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
-        }
+        User user = requireBusinessManager(business, ResultCodeEnum.NOT_ENOUGH_PERMISSION);
         foodUpdateDTO.setFoodPrice(food.getFoodPrice());
         foodUpdateDTO.setFoodName(food.getFoodName());
         foodUpdateDTO.setFoodExplain(food.getFoodExplain());
@@ -294,13 +250,7 @@ public class FoodServiceImpl implements FoodService {
         }
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
-        if (authorities.stream()
-                .noneMatch(authority -> Objects.equals(authority.getName(), "ADMIN"))
-                && !Objects.equals(user.getId(), business.getUserId())) {
-            throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
-        }
+        requireBusinessManager(business, ResultCodeEnum.NOT_ENOUGH_PERMISSION);
 
         foodMapper.deleteFood(foodId);
         return foodId;
@@ -319,16 +269,19 @@ public class FoodServiceImpl implements FoodService {
     }
 
     private User currentUser() {
-        String username = SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED));
-        User user = userMapper.findByUsernameWithAuthorities(username);
-        if (user == null) throw new APIException(ResultCodeEnum.USER_MISSED);
-        return user;
+        return currentUserService.requireUser();
     }
 
     private boolean isAdmin(User user) {
-        return user.getAuthorities() != null && user.getAuthorities().stream()
-                .anyMatch(authority -> "ADMIN".equals(authority.getName()));
+        return currentUserService.isAdmin(user);
+    }
+
+    private User requireBusinessManager(Business business, ResultCodeEnum deniedCode) {
+        User user = currentUser();
+        if (!isAdmin(user) && !Objects.equals(user.getId(), business.getUserId())) {
+            throw new APIException(deniedCode);
+        }
+        return user;
     }
 
     private void validateFoodUpdate(FoodDTO dto) {

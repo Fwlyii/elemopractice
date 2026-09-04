@@ -5,34 +5,32 @@ import com.tju.elm_bk.entity.MerchantInteraction;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.MerchantInteractionMapper;
-import com.tju.elm_bk.mapper.UserMapper;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.MerchantInteractionService;
 import com.tju.elm_bk.vo.BusinessSearchVO;
-import com.tju.elm_bk.vo.BusinessVO;
 import com.tju.elm_bk.vo.MerchantInteractionVO;
 import com.tju.elm_bk.vo.MerchantStatsVO;
 import com.tju.elm_bk.dto.MerchantInteractionDTO;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.result.ResultCodeEnum;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class MerchantInteractionServiceImpl implements MerchantInteractionService {
 
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private MerchantInteractionMapper interactionMapper;
-    @Autowired
-    private BusinessMapper businessMapper;
+    private final MerchantInteractionMapper interactionMapper;
+    private final BusinessMapper businessMapper;
+    private final CurrentUserService currentUserService;
 
     @Override
     @Transactional
@@ -48,10 +46,10 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
 
             User currentUser = currentUser();
             // userId 来自请求体只用于兼容旧前端，真正的身份必须来自 JWT。
-            if (!isAdmin(currentUser) && !java.util.Objects.equals(dto.getUserId(), currentUser.getId())) {
+            if (!currentUserService.isAdmin(currentUser) && !Objects.equals(dto.getUserId(), currentUser.getId())) {
                 throw new APIException(ResultCodeEnum.USER_UNMATCHED);
             }
-            Long operatorId = isAdmin(currentUser) ? dto.getUserId() : currentUser.getId();
+            Long operatorId = currentUserService.isAdmin(currentUser) ? dto.getUserId() : currentUser.getId();
             if (operatorId == null) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
 
             // 查询现有记录
@@ -88,67 +86,16 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
         }
     }
 
-//    @Override
-//    public List<BusinessSearchVO> getUserCollections(Long userId) {
-//        try {
-//            if (userId == null) {
-//                throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
-//            }
-//            // 检查用户是否存在
-//            if (!isUserExists(userId)) {
-//                throw new APIException(ResultCodeEnum.NOT_FOUND);
-//            }
-//
-//            List<BusinessSearchVO> collections = interactionMapper.selectUserCollections(userId);
-//            log.info("获取用户{}的收藏列表成功，共{}条记录", userId, collections.size());
-//            return collections;
-//
-//        } catch (APIException e) {
-//            log.warn("业务异常: {}", e.getMessage());
-//            throw e;
-//        } catch (Exception e) {
-//            log.error("获取用户收藏列表失败: userId={}", userId, e);
-//            throw new APIException(ResultCodeEnum.SERVER_ERROR);
-//        }
-//    }
-
     @Override
     public List<BusinessSearchVO> getUserCollections(Long userId) {
         User currentUser = currentUser();
-        if (!isAdmin(currentUser) && !java.util.Objects.equals(userId, currentUser.getId())) {
+        if (!currentUserService.isAdmin(currentUser) && !Objects.equals(userId, currentUser.getId())) {
             throw new APIException(ResultCodeEnum.USER_UNMATCHED);
         }
         if (userId == null) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
-        //先写一个通过用户id查询商铺id列表的方法
-        List< Long> businessIds = interactionMapper.selectUserCollectionIds(userId);
-        //通过商家id查询商铺信息 —— 只没有评分和销售量
-        List<BusinessSearchVO> businessSearchVOS=new ArrayList<>();
-        for(Long businessId:businessIds){
-            BusinessVO businessVO =businessMapper.getBusinessById(businessId);
-            BusinessSearchVO businessSearchVO=new BusinessSearchVO();
-              //计算每一个商铺的评分和销售量
-
-            int salesCount = businessMapper.getSalesCount(businessId);
-
-            businessSearchVO.setScore(businessMapper.getDisplayRating(businessId));
-            businessSearchVO.setSalesCount(salesCount);
-            businessSearchVO.setId(businessVO.getId());
-            businessSearchVO.setBusinessName(businessVO.getBusinessName());
-            businessSearchVO.setBusinessImg(businessVO.getBusinessImg());
-            businessSearchVO.setStartPrice(businessVO.getStartPrice());
-            businessSearchVO.setDeliveryPrice(businessVO.getDeliveryPrice());
-            businessSearchVO.setOperatingStatus(businessVO.getOperatingStatus());
-            businessSearchVOS.add(businessSearchVO);
-
-
-        }
-        return businessSearchVOS;
-
+        return businessMapper.selectCollectedBusinesses(userId);
     }
 
-    private boolean isUserExists(Long userId) {
-        Integer count = userMapper.countUserById(userId);
-        return count != null && count > 0; }
     @Override
     public MerchantStatsVO getMerchantStats(Long merchantId) {
         try {
@@ -160,7 +107,9 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
             Integer likeCount = interactionMapper.countLikesByMerchantId(merchantId);
             Integer collectCount = interactionMapper.countCollectionsByMerchantId(merchantId);
             String merchantName = interactionMapper.selectMerNameById(merchantId);
-            BigDecimal rating = businessMapper.getDisplayRating(merchantId);
+            BusinessSearchVO summary = businessMapper.getBusinessSummaryById(merchantId);
+            if (summary == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+            BigDecimal rating = summary.getScore();
 
             MerchantStatsVO stats = new MerchantStatsVO();
             stats.setMerchantId(merchantId);
@@ -189,8 +138,6 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
         for(Long businessId:businessIds){
             MerchantStatsVO merchantStatsVO=getMerchantStats(businessId);
             merchantStatsVOS.add(merchantStatsVO);
-//            log.info("获取商铺{}的统计信息成功: 点赞数={}, 收藏数={}, 评分={}", businessId, merchantStatsVO.getLikeCount(), merchantStatsVO.getCollectCount(), merchantStatsVO.getRating());
-
         }
         return merchantStatsVOS;
     }
@@ -206,7 +153,7 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
             }
 
             User currentUser = currentUser();
-            if (!isAdmin(currentUser) && !java.util.Objects.equals(userId, currentUser.getId())) {
+            if (!currentUserService.isAdmin(currentUser) && !Objects.equals(userId, currentUser.getId())) {
                 throw new APIException(ResultCodeEnum.USER_UNMATCHED);
             }
 
@@ -237,15 +184,6 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
     }
 
     private User currentUser() {
-        String username = com.tju.elm_bk.utils.SecurityUtils.getCurrentUsername()
-                .orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED));
-        User user = userMapper.findByUsernameWithAuthorities(username);
-        if (user == null) throw new APIException(ResultCodeEnum.USER_MISSED);
-        return user;
-    }
-
-    private boolean isAdmin(User user) {
-        return user.getAuthorities() != null && user.getAuthorities().stream()
-                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        return currentUserService.requireUser();
     }
 }

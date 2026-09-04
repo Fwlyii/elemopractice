@@ -293,13 +293,16 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import AiChatbot from '../components/AiChatbot.vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
 import request from '../utils/request';
-import AMapLoader from '@amap/amap-jsapi-loader';
-import { toast } from '../utils/toast';
-// 高德地图API key（请替换为你的实际key）
-const AMAP_KEY = '24cce1eb31aec79422f44af47428fc8a';
-
+import { formatMoney, formatRating } from '../utils/formatters';
+import { clearAuth, getStoredUser, getToken, updateStoredUser } from '../utils/auth';
+import { useLocationPicker } from '../composables/useLocationPicker';
+import {
+    getBusinessTags,
+    getRecommendationScore,
+    hasConfiguredPromotion,
+    supportsDineIn
+} from '../utils/businessPresentation';
 export default {
     name: 'Index',
     setup() {
@@ -310,134 +313,33 @@ export default {
         const originalBusinessList = ref([]); // 保存原始数据用于筛选和排序
         const currentPage = ref(1);
         const pageSize = 6;
-        const purchasedBusinessIds = ref(new Set());
         const suggestedBusinesses = computed(() => businessList.value.slice(0, 3));
         const visibleBusinessList = computed(() => businessList.value.slice(0, currentPage.value * pageSize));
         const hasMoreBusinesses = computed(() => visibleBusinessList.value.length < businessList.value.length);
-
-        // 首页标签规则（所有门槛和优先级集中维护，方便后续产品讨论时调整）：
-        // 先生成候选标签，再按优先级最多展示 maxVisibleTags 个，避免标签堆叠。
-        const TAG_RULES = Object.freeze({
-            maxVisibleTags: 3,
-            recentPurchaseDays: 30,
-            newBusinessDays: 30,
-            goodReviewScore: 4.7,
-            goodReviewMinSales: 200,
-            popularSales: 800,
-            lovedSales: 500,
-            promotionMinThreshold: 1,
-            promotionMaxDiscountRatio: 1,
-            priorities: Object.freeze({
-                recentPurchase: 120,
-                promotion: 105,
-                newBusiness: 95,
-                lovedByCustomers: 88,
-                goodReview: 85,
-                popularSales: 75,
-                dineIn: 65,
-                freeDelivery: 55,
-                lowStartPrice: 35
-            })
-        });
-
-        const formatMoney = (value) => Number(value || 0).toFixed(2);
-        const formatCount = (value) => {
-            const count = Number(value || 0);
-            return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
-        };
-        const isDineInAvailable = (business) => [true, 1, '1', 'true'].includes(business.dineInAvailable);
-        const hasRecentPurchase = (business) => purchasedBusinessIds.value.has(String(business.id || business.businessId));
-        const isNewBusiness = (business) => {
-            if (!business.createTime) return false;
-            const createdAt = new Date(business.createTime).getTime();
-            const age = Date.now() - createdAt;
-            return Number.isFinite(createdAt) && age >= 0 && age <= TAG_RULES.newBusinessDays * 24 * 60 * 60 * 1000;
-        };
-        const getPromotion = (business) => {
-            const threshold = Number(business.promotionThreshold);
-            const discount = Number(business.promotionDiscount);
-            if (!Number.isFinite(threshold) || !Number.isFinite(discount) || threshold < TAG_RULES.promotionMinThreshold || discount <= 0 || discount >= threshold * TAG_RULES.promotionMaxDiscountRatio) return null;
-            return { threshold, discount };
-        };
-        const tagTone = (label) => {
-            if (!label) return 'neutral';
-            if (label.includes('满') || label.includes('购买') || label.includes('爱不释手')) return 'orange';
-            if (label.includes('好评')) return 'gold';
-            if (label.includes('新店') || label.includes('堂食')) return 'green';
-            if (label.includes('买过') || label.includes('配送')) return 'blue';
-            return 'neutral';
-        };
-        const getBusinessTags = (business) => {
-            // 标签门槛和优先级由后端规则引擎计算，前端只负责呈现颜色与文案。
-            if (Array.isArray(business.recommendationTags) && business.recommendationTags.length) {
-                return business.recommendationTags.map(label => ({ label, tone: tagTone(label) }));
-            }
-            const score = numericBusinessRating(business.score);
-            const sales = Number(business.salesCount || 0);
-            const promotion = getPromotion(business);
-            const candidates = [];
-            if (hasRecentPurchase(business)) candidates.push({ label: '上次买过', priority: TAG_RULES.priorities.recentPurchase, tone: 'blue' });
-            if (promotion) candidates.push({ label: `满${formatMoney(promotion.threshold).replace('.00', '')}减${formatMoney(promotion.discount).replace('.00', '')}`, priority: TAG_RULES.priorities.promotion, tone: 'orange' });
-            if (isNewBusiness(business)) candidates.push({ label: '新店开业', priority: TAG_RULES.priorities.newBusiness, tone: 'green' });
-            // “xx人爱不释手”是组合标签：评分和已完成订单量必须同时达到门槛。
-            const lovedByCustomers = score >= TAG_RULES.goodReviewScore && sales >= TAG_RULES.lovedSales;
-            if (lovedByCustomers) {
-                candidates.push({ label: `${formatCount(sales)}人爱不释手`, priority: TAG_RULES.priorities.lovedByCustomers, tone: 'orange' });
-            } else if (score >= TAG_RULES.goodReviewScore && sales >= TAG_RULES.goodReviewMinSales) {
-                candidates.push({ label: '好评如潮', priority: TAG_RULES.priorities.goodReview, tone: 'gold' });
-            }
-            if (!lovedByCustomers && sales >= TAG_RULES.popularSales) candidates.push({ label: `${formatCount(sales)}人购买`, priority: TAG_RULES.priorities.popularSales, tone: 'orange' });
-            if (isDineInAvailable(business)) candidates.push({ label: '堂食店', priority: TAG_RULES.priorities.dineIn, tone: 'green' });
-            if (Number(business.deliveryPrice || 0) === 0) candidates.push({ label: '免配送费', priority: TAG_RULES.priorities.freeDelivery, tone: 'blue' });
-            if (Number(business.startPrice || 0) <= 20) candidates.push({ label: '低价起送', priority: TAG_RULES.priorities.lowStartPrice, tone: 'neutral' });
-            return candidates.sort((a, b) => b.priority - a.priority).slice(0, TAG_RULES.maxVisibleTags);
-        };
-        const getRecommendationScore = (business) => {
-            if (business.recommendationScore !== undefined && business.recommendationScore !== null) {
-                return Number(business.recommendationScore) || 0;
-            }
-            const score = numericBusinessRating(business.score);
-            const sales = Math.min(Number(business.salesCount || 0), 200);
-            const promotion = getPromotion(business);
-            return (hasRecentPurchase(business) ? 120 : 0)
-                + (isNewBusiness(business) ? 28 : 0)
-                + (promotion ? Math.min(24, promotion.discount * 3) : 0)
-                + Math.max(0, score - 3) * 16
-                + sales * 0.08
-                + (isDineInAvailable(business) ? 5 : 0)
-                + (Number(business.deliveryPrice || 0) === 0 ? 3 : 0);
-        };
-
-        const loadUserOrderHistory = async () => {
-            if (!userInfo.value?.id) return;
-            try {
-                const response = await request.get('/api/orders/list/user');
-                const orders = Array.isArray(response?.data) ? response.data : [];
-                const cutoff = Date.now() - TAG_RULES.recentPurchaseDays * 24 * 60 * 60 * 1000;
-                const recentOrders = orders.filter(order => {
-                    // 兼容旧版 4 和新版 8/9 的取消、异常状态；没有时间字段时保守保留。
-                    if ([4, 8, 9].includes(Number(order.orderState))) return false;
-                    const orderTime = new Date(order.orderDate || order.createTime).getTime();
-                    return !Number.isFinite(orderTime) || orderTime >= cutoff;
-                });
-                purchasedBusinessIds.value = new Set(recentOrders.map(order => String(order.businessId)));
-                if (originalBusinessList.value.length) applyFiltersAndSort();
-            } catch (error) {
-                // 未登录或订单接口不可用时，不影响首页浏览。
-                purchasedBusinessIds.value = new Set();
-            }
-        };
+        const {
+            displayLocation,
+            showPicker,
+            loading,
+            locationData,
+            currentLevel,
+            locationLevels,
+            selectedLocation,
+            showLocationPicker,
+            hideLocationPicker,
+            switchLevel,
+            selectLocation,
+            isSelected,
+            confirmLocation,
+            getDisplayText,
+            restoreSavedLocation
+        } = useLocationPicker();
 
         const scrollToRecommendations = () => {
             document.getElementById('recommendations')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
-        // 演示数据围绕天津大学校园构造。首次进入先显示校园配送范围，避免公网 IP
-        // 定位到代理出口城市；用户仍可通过位置选择器主动修改。
-        const currentLocation = ref('天津大学北洋园校区');
         const searchKeyword = ref('');
         const sortBy = ref('default');
-        const showPicker = ref(false);
         const showFilter = ref(false);
         const filters = ref({
             freeDelivery: false,
@@ -445,269 +347,19 @@ export default {
             promotionOnly: false,
             dineIn: false
         });
-        const loading = ref(false);
-        const locationData = ref([]);
-        const currentLevel = ref(0);
-        const selectedLocation = ref({
-            province: '',
-            city: '',
-            district: ''
-        });
-        const locationLevels = ref(['请选择省份', '请选择城市', '请选择区域']);
-        // 新增：临时存储选择过程中的地址，不直接影响显示
-        const tempSelectedLocation = ref({
-            province: '',
-            city: '',
-            district: ''
-        });
-
-        // 计算显示的位置文本
-        const displayLocation = computed(() => {
-            const { province, city, district } = selectedLocation.value;
-
-            // 如果有区级信息，显示完整省市区
-            if (district && province && city) {
-                // 如果是直辖市，省和市名相同，只显示一次省/市名
-                if (province === city) {
-                    return `${province} ${district}`;
-                }
-                return `${province} ${city} ${district}`;
-            }
-
-            // 只有省市信息
-            if (province && city) {
-                return `${province} ${city}`;
-            }
-
-            // 只有省信息
-            if (province) {
-                return province;
-            }
-
-            // 默认情况
-            return currentLocation.value;
-        });
-
-        // 获取当前位置
-        const getCurrentLocation = async () => {
-            try {
-                // 使用高德地图IP定位API
-                // 直接使用axios而不是request，避免拦截器干扰
-                const response = await axios.get(`https://restapi.amap.com/v3/ip?key=${AMAP_KEY}`);
-
-                // 高德地图API返回的数据在response.data中
-                if (response && response.data && response.data.status === '1' && response.data.city) {
-                    currentLocation.value = response.data.city;
-                    // 初始化选择位置
-                    selectedLocation.value = {
-                        province: response.data.province,
-                        city: response.data.city,
-                        district: ''
-                    };
-                } else {
-                    currentLocation.value = '天津大学北洋园校区';
-                }
-            } catch (error) {
-                console.error('❌ 获取位置失败:', error);
-                currentLocation.value = '天津大学北洋园校区';
-                // 设置默认位置信息
-                selectedLocation.value = {
-                    province: '天津市',
-                    city: '天津市',
-                    district: '津南区'
-                };
-            }
-        };
-
-        // 显示位置选择器
-        const showLocationPicker = () => {
-            showPicker.value = true;
-            loadProvinces();
-        };
-
-        // 隐藏位置选择器
-        const hideLocationPicker = () => {
-            showPicker.value = false;
-            // 重置临时变量：恢复为当前已确认的最终地址
-            tempSelectedLocation.value = { ...selectedLocation.value };
-        };
-
-        // 加载省份数据
-        const loadProvinces = async () => {
-            loading.value = true;
-            try {
-                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${AMAP_KEY}&keywords=中国&subdistrict=1`);
-                if (response.data.status === '1') {
-                    locationData.value = response.data.districts[0].districts;
-                    currentLevel.value = 0;
-                }
-            } catch (error) {
-                console.error('加载省份数据失败:', error);
-            } finally {
-                loading.value = false;
-            }
-        };
-
-        // 加载城市数据
-        const loadCities = async (provinceCode, provinceName) => {
-            loading.value = true;
-            try {
-                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${AMAP_KEY}&keywords=${provinceCode}&subdistrict=1`);
-                if (response.data.status === '1' && response.data.districts[0].districts) {
-                    locationData.value = response.data.districts[0].districts;
-                    currentLevel.value = 1;
-                    tempSelectedLocation.value.province = provinceName;
-                    // 重置临时变量的城市/区域（避免之前的残留值）
-                    tempSelectedLocation.value.city = '';
-                    tempSelectedLocation.value.district = '';
-                }
-            } catch (error) {
-                console.error('加载城市数据失败:', error);
-            } finally {
-                loading.value = false;
-            }
-        };
-
-        // 加载区域数据
-        const loadDistricts = async (cityCode, cityName) => {
-            loading.value = true;
-            try {
-                const response = await axios.get(`https://restapi.amap.com/v3/config/district?key=${AMAP_KEY}&keywords=${cityCode}&subdistrict=1`);
-                if (response.data.status === '1' && response.data.districts[0].districts) {
-                    locationData.value = response.data.districts[0].districts;
-                    currentLevel.value = 2;
-                    tempSelectedLocation.value.city = cityName;
-                    // 重置临时变量的区域
-                    tempSelectedLocation.value.district = '';
-                }
-            } catch (error) {
-                console.error('加载区域数据失败:', error);
-            } finally {
-                loading.value = false;
-            }
-        };
-
-        // 切换级别
-        const switchLevel = (level) => {
-            if (level < currentLevel.value) {
-                currentLevel.value = level;
-                if (level === 0) {
-                    // 切换回省份级：重置临时变量的城市/区域
-                    tempSelectedLocation.value.city = '';
-                    tempSelectedLocation.value.district = '';
-                    loadProvinces();
-                } else if (level === 1) {
-                    loadCities(tempSelectedLocation.value.province, tempSelectedLocation.value.province);
-                    // 切换回城市级：重置临时变量的区域
-                    tempSelectedLocation.value.district = '';
-                }
-            }
-        };
-
-        // 选择位置
-        const selectLocation = (item) => {
-            if (currentLevel.value === 0) {
-                loadCities(item.adcode, item.name);
-            } else if (currentLevel.value === 1) {
-                loadDistricts(item.adcode, item.name);
-            } else if (currentLevel.value === 2) {
-                tempSelectedLocation.value.district = item.name;
-            }
-        };
-
-        // 确认选择
-        const confirmLocation = () => {
-            const { province, city, district } = tempSelectedLocation.value; // 校验临时变量
-            // 1. 严格校验：必须完整选择省、市、区
-            if (!province) {
-                toast.error("请先选择省份");
-                return;
-            }
-            if (!city) {
-                toast.error("请先选择城市");
-                return;
-            }
-            if (!district) {
-                toast.error("请先选择区域");
-                return;
-            }
-
-            // 2. 校验通过：同步临时变量到最终变量
-            selectedLocation.value = { ...tempSelectedLocation.value };
-            // 3. 保存到本地存储
-            localStorage.setItem('userLocation', JSON.stringify(selectedLocation.value));
-            const displayText = getDisplayText(selectedLocation.value);
-            localStorage.setItem('userLocationDisplay', displayText);
-            localStorage.setItem('userLocationSource', 'manual');
-            localStorage.setItem('userLocationVersion', '2');
-
-            // 4. 关闭弹窗
-            hideLocationPicker();
-        };
-        // 新增一个方法来生成显示文本
-        const getDisplayText = (location) => {
-            const { province, city, district } = location;
-            if (district && province && city) {
-                if (province === city) {
-                    return `${province} ${district}`;
-                }
-                return `${province} ${city} ${district}`;
-            }
-            if (province && city) {
-                return `${province} ${city}`;
-            }
-            if (province) {
-                return province;
-            }
-            return '未知位置';
-        };
-
-        // 检查是否选中
-        const isSelected = (item) => {
-            const { province, city, district } = tempSelectedLocation.value; // 关键：用临时变量
-            if (currentLevel.value === 0) {
-                return province === item.name;
-            } else if (currentLevel.value === 1) {
-                return city === item.name;
-            } else if (currentLevel.value === 2) {
-                return district === item.name;
-            }
-            return false;
-        };
-
-
         const fetchUserInfo = async () => {
-
-            const tokenFromLocal = localStorage.getItem('token');
-            const tokenFromSession = sessionStorage.getItem('token');
-            const storage = tokenFromLocal ? localStorage : (tokenFromSession ? sessionStorage : null);
-
-            if (storage) {
-                const savedUserInfo = storage.getItem('userInfo');
-                if (savedUserInfo) {
-                    try {
-                        const parsedUserInfo = JSON.parse(savedUserInfo);
-                        // 校验用户信息是否完整（避免存储的是无效数据）
-                        if (parsedUserInfo.id && parsedUserInfo.username) { // 假设用户信息必须包含id和username
-                            userInfo.value = parsedUserInfo;
-                            return; // 读取到有效信息，直接返回，不发请求
-                        }
-                    } catch (e) {
-                        console.error('解析本地用户信息失败:', e);
-                        storage.removeItem('userInfo'); // 删除损坏的存储数据
-                    }
-                }
+            const storedUser = getStoredUser();
+            if (storedUser?.id && storedUser?.username) {
+                userInfo.value = storedUser;
+                return;
             }
-
-            const token = tokenFromLocal || tokenFromSession;
-            if (!token) return;
+            if (!getToken()) return;
 
             try {
                 const res = await request.get('/api/user');
-                if (res && res.id && res.username) { // 校验接口返回的用户信息完整性
+                if (res && res.id && res.username) {
                     userInfo.value = res;
-                    // 同步到本地存储（和token位置一致）
-                    storage?.setItem('userInfo', JSON.stringify(res));
+                    updateStoredUser(res);
                 } else {
                     console.error('获取用户信息失败：接口返回数据不完整');
                     userInfo.value = null;
@@ -715,24 +367,13 @@ export default {
             } catch (error) {
                 console.error('获取用户信息异常:', error);
                 userInfo.value = null;
-                if (error.response?.status === 401) {
-                    localStorage.removeItem('token');
-                    sessionStorage.removeItem('token');
-                    localStorage.removeItem('userInfo');
-                    sessionStorage.removeItem('userInfo');
-                }
+                if (error.response?.status === 401) clearAuth();
             }
         };
 
-        const hasBusinessRating = (score) => {
-            const value = Number(score);
-            return score !== null && score !== undefined
-                && Number.isFinite(value) && value >= 1 && value <= 5;
-        };
-        const numericBusinessRating = (score) => hasBusinessRating(score) ? Number(score) : 0;
-        const formatBusinessRating = (score) => hasBusinessRating(score)
-            ? `${Number(score).toFixed(1)}分`
-            : '暂无评分';
+        const hasBusinessRating = (score) => formatRating(score) !== null;
+        const numericBusinessRating = (score) => Number(formatRating(score) || 0);
+        const formatBusinessRating = (score) => formatRating(score) ? `${formatRating(score)}分` : '暂无评分';
 
         // 排序商家列表
         const sortBusinessList = (list, sortType) => {
@@ -800,28 +441,9 @@ export default {
             }
         };
         onMounted(() => {
-            // 先从localStorage获取保存的位置
-            const savedLocation = localStorage.getItem('userLocationSource') === 'manual'
-                && localStorage.getItem('userLocationVersion') === '2'
-                ? localStorage.getItem('userLocation')
-                : null;
-            if (savedLocation) {
-                try {
-                    const location = JSON.parse(savedLocation);
-                    selectedLocation.value = location;
-                    tempSelectedLocation.value = { ...location };
-
-                    // 如果有保存的显示文本，直接使用
-                    const savedDisplay = localStorage.getItem('userLocationDisplay');
-                    if (savedDisplay) {
-                        currentLocation.value = savedDisplay;
-                    }
-                } catch (e) {
-                    getCurrentLocation();
-                }
-            }
+            restoreSavedLocation();
             // 加载用户信息
-            fetchUserInfo().then(loadUserOrderHistory);
+            fetchUserInfo();
 
             window.addEventListener('scroll', handleScroll);
 
@@ -943,11 +565,11 @@ export default {
             }
 
             if (filters.value.promotionOnly) {
-                filteredList = filteredList.filter(business => getPromotion(business) !== null);
+                filteredList = filteredList.filter(hasConfiguredPromotion);
             }
 
             if (filters.value.dineIn) {
-                filteredList = filteredList.filter(business => isDineInAvailable(business));
+                filteredList = filteredList.filter(supportsDineIn);
             }
 
             // 起送价筛选

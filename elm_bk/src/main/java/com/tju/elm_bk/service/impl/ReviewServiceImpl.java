@@ -10,9 +10,8 @@ import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.ReviewMapper;
-import com.tju.elm_bk.mapper.UserMapper;
+import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.ReviewService;
-import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.ReviewVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,13 +26,10 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewMapper reviewMapper;
     private final OrdersMapper ordersMapper;
     private final BusinessMapper businessMapper;
-    private final UserMapper userMapper;
+    private final CurrentUserService currentUserService;
 
     private User currentUser() {
-        String username = SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException("请先登录"));
-        User user = userMapper.findByUsernameWithAuthorities(username);
-        if (user == null) throw new APIException("当前用户不存在");
-        return user;
+        return currentUserService.requireUser();
     }
 
     @Override
