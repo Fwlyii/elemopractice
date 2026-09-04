@@ -4,6 +4,7 @@ import com.tju.elm_bk.dto.BusinessDTO;
 import com.tju.elm_bk.dto.BusinessInfoDTO;
 import com.tju.elm_bk.dto.BusinessUpdateDTO;
 import com.tju.elm_bk.constant.AuthorityName;
+import com.tju.elm_bk.constant.OrderStatus;
 import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
@@ -60,46 +61,9 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Override
     public BusinessVO updateBusiness(Long id, BusinessUpdateDTO updateDto) {
-        validateUpdateRequest(id, updateDto);
-        User currentUser = currentUserService.requireUser();
-        boolean hasBusinessPermission = AuthorityName.BUSINESS.isGrantedTo(currentUser);
-        boolean isAdmin = currentUserService.isAdmin(currentUser);
-
-        // 如果没有 BUSINESS 权限且不是 ADMIN，则抛出权限异常
-        if (!hasBusinessPermission && !isAdmin) {
-            throw new APIException(ResultCodeEnum.UNAUTHORIZED);
-        }
-        //如果是不是管理员，且传入的商铺id不是自己的 isSelf
-        boolean isSelf=isIdPresent(businessMapper.getBusinessIdsByUserId(currentUser.getId()),id);
-        if(!isSelf&&!isAdmin){
-            throw new APIException(ResultCodeEnum.USER_DENIED);
-        }
-        Business existing = businessMapper.selectBusinessById(id);
-        if (existing == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        validateBusinessPricing(updateDto, existing);
-        updateDto.setUpdater(currentUser.getId());
-        //如果不是管理员，且传入的businessOwner的username对应的user_id不是自己的--USER_DENIED
-        Long ownerId = resolveRequestedOwnerId(updateDto);
-        if (ownerId != null && !isAdmin && !Objects.equals(ownerId, currentUser.getId())) {
-            throw new APIException(ResultCodeEnum.USER_DENIED);
-        }
-        if (ownerId != null) ensureEligibleBusinessOwner(ownerId);
-        //执行更新操作（部分更新）
-        int result = businessMapper.patchBusiness(id, updateDto);
-        //如果是管理员，需要将传入的username对应的user_id传入business表的user_id
-        if(isAdmin && ownerId != null){
-            if (businessMapper.updateUserIdById(ownerId, id, currentUser.getId()) != 1) {
-                throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-            }
-        }
-        if (result == 0) {
-            throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        }
-
-
-        // 3. 重新查询完整的商户信息并返回
-        return businessMapper.getBusinessById(id);
+        return patchBusiness(id, updateDto);
     }
+
     @Override
     public BusinessVO deleteBusiness(Long id) {
         User currentUser = currentUserService.requireUser();
@@ -210,7 +174,7 @@ public class BusinessServiceImpl implements BusinessService {
         businessDTO.setDeleted(false);
 
         int result =businessMapper.insertBusiness(businessDTO);
-        if (result == 0) {//这不对吧..
+        if (result == 0) {
             throw new APIException(ResultCodeEnum.NOT_FOUND);
         }
         return businessMapper.getBusinessById(businessDTO.getId());
@@ -294,7 +258,9 @@ public class BusinessServiceImpl implements BusinessService {
             if (orders == null) return ids;
             orders.stream()
                     .filter(order -> order.getBusinessId() != null)
-                    .filter(order -> order.getOrderState() == null || !Set.of(8, 9).contains(order.getOrderState()))
+                    .filter(order -> order.getOrderState() == null || !Set.of(
+                            OrderStatus.CANCELLED.getCode(),
+                            OrderStatus.DELIVERY_EXCEPTION.getCode()).contains(order.getOrderState()))
                     .filter(order -> order.getOrderDate() == null || !order.getOrderDate().isBefore(cutoff))
                     .forEach(order -> ids.add(order.getBusinessId()));
         } catch (Exception ignored) {

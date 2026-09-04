@@ -83,11 +83,7 @@ onUnmounted(() => {
  */
 const fetchHistoryMessages = async () => {
   try {
-    const res = await request.get('/api/notifications', {
-      params: {
-        userId: currentUserId // 假设 currentUserId 是当前用户的 ID
-      }
-    });
+    const res = await request.get('/api/notifications');
     if (res.success) {
       messages.value = res.data.map(msg => ({
         ...msg,

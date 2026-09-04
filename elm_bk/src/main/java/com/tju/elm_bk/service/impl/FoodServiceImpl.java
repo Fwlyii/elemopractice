@@ -1,5 +1,6 @@
 package com.tju.elm_bk.service.impl;
 
+import com.tju.elm_bk.constant.PurchaseRules;
 import com.tju.elm_bk.dto.FoodCreateDTO;
 import com.tju.elm_bk.dto.FoodDTO;
 import com.tju.elm_bk.dto.FoodUpdateDTO;
@@ -209,9 +210,19 @@ public class FoodServiceImpl implements FoodService {
         User user = requireBusinessManager(business, ResultCodeEnum.NOT_ENOUGH_PERMISSION);
 
         ObjectCopyUtil.copyPropertiesIgnoreNull(foodUpdateDTO,food);
-        validateFoodEntity(food);
         if (foodUpdateDTO.getCategory() != null) food.setCategory(normalizeCategory(foodUpdateDTO.getCategory()));
-        if (foodUpdateDTO.getPurchaseLimit() != null) food.setPurchaseLimit(normalizePurchaseLimit(foodUpdateDTO.getPurchaseLimit()));
+        if (Boolean.FALSE.equals(foodUpdateDTO.getPurchaseLimitEnabled())) {
+            food.setPurchaseLimit(null);
+        } else if (Boolean.TRUE.equals(foodUpdateDTO.getPurchaseLimitEnabled())) {
+            if (foodUpdateDTO.getPurchaseLimit() == null) {
+                throw new APIException("请选择每单限购数量");
+            }
+            food.setPurchaseLimit(normalizePurchaseLimit(foodUpdateDTO.getPurchaseLimit()));
+        } else if (foodUpdateDTO.getPurchaseLimit() != null) {
+            // 兼容尚未发送 purchaseLimitEnabled 的旧客户端。
+            food.setPurchaseLimit(normalizePurchaseLimit(foodUpdateDTO.getPurchaseLimit()));
+        }
+        validateFoodEntity(food);
         food.setUpdater(user.getId());
         food.setUpdateTime(LocalDateTime.now());
         foodMapper.updateFoodMessage(food);
@@ -264,8 +275,10 @@ public class FoodServiceImpl implements FoodService {
 
     private Integer normalizePurchaseLimit(Integer purchaseLimit) {
         if (purchaseLimit == null) return null;
-        if (purchaseLimit <= 0) throw new APIException("单笔限购数量必须大于0");
-        return Math.min(purchaseLimit, 999);
+        if (purchaseLimit <= 0 || purchaseLimit > PurchaseRules.MAX_QUANTITY_PER_ITEM) {
+            throw new APIException("每单限购数量必须在1到" + PurchaseRules.MAX_QUANTITY_PER_ITEM + "之间");
+        }
+        return purchaseLimit;
     }
 
     private User currentUser() {
@@ -295,8 +308,9 @@ public class FoodServiceImpl implements FoodService {
         if (dto.getStock() != null && (dto.getStock() < 0 || dto.getStock() > 1_000_000)) {
             throw new APIException("库存必须在0到1000000之间");
         }
-        if (dto.getPurchaseLimit() != null && dto.getPurchaseLimit() <= 0) {
-            throw new APIException("单笔限购数量必须大于0");
+        if (dto.getPurchaseLimit() != null && (dto.getPurchaseLimit() <= 0
+                || dto.getPurchaseLimit() > PurchaseRules.MAX_QUANTITY_PER_ITEM)) {
+            throw new APIException("每单限购数量必须在1到" + PurchaseRules.MAX_QUANTITY_PER_ITEM + "之间");
         }
     }
 
@@ -304,7 +318,9 @@ public class FoodServiceImpl implements FoodService {
         if (food.getFoodName() == null || food.getFoodName().trim().isEmpty() || food.getFoodName().trim().length() > 100
                 || food.getFoodPrice() == null || food.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) <= 0
                 || food.getFoodPrice().compareTo(new java.math.BigDecimal("100000")) > 0
-                || (food.getStock() != null && (food.getStock() < 0 || food.getStock() > 1_000_000))) {
+                || (food.getStock() != null && (food.getStock() < 0 || food.getStock() > 1_000_000))
+                || (food.getPurchaseLimit() != null && (food.getPurchaseLimit() <= 0
+                    || food.getPurchaseLimit() > PurchaseRules.MAX_QUANTITY_PER_ITEM))) {
             throw new APIException("商品信息不合法");
         }
     }

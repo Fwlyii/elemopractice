@@ -160,11 +160,7 @@ const routes = [
   { path:'/merchantBusinessInfo', redirect:'/merchant/businessInfo' },
   { path:'/businessInformation', redirect:'/merchant/profile' },
   { path:'/businessView', redirect:'/merchant/business' },
-  // {
-  //   path:'/businessOrderManage',
-  //   name:'BusinessOrderManage',
-  //   component:BusinessOrderManage
-  // },
+  { path:'/businessOrderManage', redirect:'/merchant/orders' },
   {
     path: '/merchant/apply',
     name: 'MerchantApply',

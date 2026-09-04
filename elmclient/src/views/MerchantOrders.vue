@@ -86,11 +86,11 @@
 
         <div class="actions">
           <!-- 待接单：拒单 + 接单 -->
-          <template v-if="order.orderState === 1">
+          <template v-if="order.orderState === ORDER_STATUS.WAITING_MERCHANT_ACCEPT">
             <button class="cancel-btn" @click.stop="rejectOrder(order.id)">拒单</button>
             <button class="confirm-btn" @click.stop="acceptOrder(order.id)">接单</button>
           </template>
-          <template v-else-if="order.orderState === 2">
+          <template v-else-if="order.orderState === ORDER_STATUS.WAITING_DISPATCH">
             <button class="confirm-btn" @click.stop="readyOrder(order.id)">确认出餐</button>
           </template>
 
@@ -134,22 +134,6 @@
       </div>
     </div>
 
-    <!-- 完成订单确认弹窗 -->
-    <div v-if="showCompleteModal" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>确认操作</h3>
-          <span class="close-btn" @click="closeModal">&times;</span>
-        </div>
-        <div class="modal-body">
-          <p>确定要完成订单吗？</p>
-        </div>
-        <div class="modal-footer">
-          <button class="modal-btn confirm-btn" @click="confirmComplete">确认</button>
-          <button class="modal-btn cancel-btn" @click="closeModal">取消</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -159,7 +143,7 @@ import { useRouter, useRoute } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '../utils/endpoints';
-import { orderStatusText } from '../utils/orderPresentation';
+import { MERCHANT_ORDER_GROUPS, ORDER_STATUS, orderStatusClass, orderStatusText } from '../utils/orderPresentation';
 import { formatDateTime } from '../utils/formatters';
 import { getStoredUser } from '../utils/auth';
 
@@ -184,7 +168,6 @@ export default {
     // 弹窗相关状态
     const showAcceptModal = ref(false);
     const showRejectModal = ref(false);
-    const showCompleteModal = ref(false);
     const selectId = ref(0);
 
     // --- WebSocket 相关 ---
@@ -256,11 +239,11 @@ export default {
 
       orders.value.forEach(order => {
         counts[0]++; // 全部
-        if (order.orderState === 1) counts[1]++;
-        else if ([2, 3].includes(order.orderState)) counts[2]++;
-        else if ([4, 5, 6, 9].includes(order.orderState)) counts[3]++;
-        else if (order.orderState === 7) counts[4]++;
-        else if (order.orderState === 8) counts[5]++;
+        if (MERCHANT_ORDER_GROUPS.waitingAccept.includes(order.orderState)) counts[1]++;
+        else if (MERCHANT_ORDER_GROUPS.waitingRider.includes(order.orderState)) counts[2]++;
+        else if (MERCHANT_ORDER_GROUPS.fulfilling.includes(order.orderState)) counts[3]++;
+        else if (MERCHANT_ORDER_GROUPS.completed.includes(order.orderState)) counts[4]++;
+        else if (MERCHANT_ORDER_GROUPS.cancelled.includes(order.orderState)) counts[5]++;
       });
 
       return counts;
@@ -271,11 +254,11 @@ export default {
       if (activeStatusTab.value === 0) return orders.value; // 全部
 
       const groups = {
-        1: [1],
-        2: [2, 3],
-        3: [4, 5, 6, 9],
-        4: [7],
-        5: [8]
+        1: MERCHANT_ORDER_GROUPS.waitingAccept,
+        2: MERCHANT_ORDER_GROUPS.waitingRider,
+        3: MERCHANT_ORDER_GROUPS.fulfilling,
+        4: MERCHANT_ORDER_GROUPS.completed,
+        5: MERCHANT_ORDER_GROUPS.cancelled
       };
       return orders.value.filter(order => groups[activeStatusTab.value].includes(order.orderState));
     });
@@ -287,13 +270,7 @@ export default {
 
     // 获取状态样式类
     const getStatusClass = (state) => {
-      const classMap = {
-        0: "unpaid",
-        1: "pending",
-        2: "accepted", 3: "accepted", 4: "accepted", 5: "accepted", 6: "accepted",
-        7: "done", 8: "canceled", 9: "unpaid"
-      };
-      return classMap[state] || "";
+      return orderStatusClass(state);
     };
 
     // 格式化时间
@@ -359,42 +336,26 @@ export default {
       }
     };
 
-    // 完成订单
-    const completeOrder = (id) => {
-      selectId.value = id;
-      showCompleteModal.value = true;
-    };
-
-    // 确认完成订单
-    const confirmComplete = async () => {
-      if (selectId.value === 0) return;
-
-      try {
-        const response = await request.put("/api/orders/status?orderState=3&orderId=" + selectId.value);
-        if (response.success) {
-          toast.success("确认成功");
-          fetchOrders();
-        } else {
-          toast.error(response.message);
-        }
-      } catch (error) {
-        toast.error("确认失败,请稍后重试");
-      } finally {
-        closeModal();
-      }
-    };
-
     const orderById = id => orders.value.find(item => item.id === id);
+    const fulfillmentTips = {
+      [ORDER_STATUS.WAITING_DISPATCH]: '餐品制作中，完成后请确认出餐',
+      [ORDER_STATUS.WAITING_RIDER_ACCEPT]: '任务已进入骑手大厅',
+      [ORDER_STATUS.WAITING_PICKUP]: '骑手正在前往商家',
+      [ORDER_STATUS.DELIVERING]: '骑手配送中',
+      [ORDER_STATUS.DELIVERED]: '等待顾客确认',
+      [ORDER_STATUS.COMPLETED]: '订单已闭环',
+      [ORDER_STATUS.CANCELLED]: '订单已取消',
+      [ORDER_STATUS.DELIVERY_EXCEPTION]: '调度员正在处理'
+    };
     const fulfillmentTip = (state, order = {}) => {
-      if (state === 4 && order.serviceMode === 'PICKUP') return '等待顾客到店取餐';
-      return ({ 2: '餐品制作中，完成后请确认出餐', 3: '任务已进入骑手大厅', 4: '骑手正在前往商家', 5: '骑手配送中', 6: '等待顾客确认', 7: '订单已闭环', 8: '订单已取消', 9: '调度员正在处理' }[state] || '履约中');
+      if (state === ORDER_STATUS.WAITING_PICKUP && order.serviceMode === 'PICKUP') return '等待顾客到店取餐';
+      return fulfillmentTips[state] || '履约中';
     };
 
     // 关闭弹窗
     const closeModal = () => {
       showAcceptModal.value = false;
       showRejectModal.value = false;
-      showCompleteModal.value = false;
       selectId.value = 0;
     };
 
@@ -477,14 +438,12 @@ export default {
       formatTime,
       acceptOrder,
       rejectOrder,
-      completeOrder,
       showAcceptModal,
       showRejectModal,
-      showCompleteModal,
       closeModal,
       confirmAccept,
       confirmReject,
-      confirmComplete,
+      ORDER_STATUS,
       fulfillmentTip,
       readyOrder,
       goDetail

@@ -207,6 +207,7 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import aiChatService from '../services/aiChatService'
+import { addCartItem } from '../services/cartService'
 import request from '../utils/request'
 import { formatSafeMessage } from '../utils/safeMessage'
 
@@ -344,7 +345,7 @@ export default {
       smartLoading.value = true
       try { const result = await request.get('/api/ai/chat/recommendations', { params: { query: smartQuery.value, budget: smartBudget.value || undefined } }); if (result.success) smartFoods.value = result.data || []; if (!smartFoods.value.length) messages.value.push({ type:'ai', content:'暂时没有符合条件的在售菜品，可以换个口味或提高预算试试。', timestamp:new Date() }) } catch (e) { messages.value.push({type:'ai',content:'智能点餐暂时不可用，请稍后再试。',timestamp:new Date()}) } finally { smartLoading.value = false }
     }
-    const addSmartToCart = async (food) => { try { const result = await request.get('/api/carts/add', { params: { foodId: food.foodId, quantity: 1 } }); if (result.success) messages.value.push({type:'ai',content:`已将${food.foodName}加入购物车，可前往购物车确认。`,timestamp:new Date()}) } catch (e) { messages.value.push({type:'ai',content:'加入购物车失败，请先登录或刷新重试。',timestamp:new Date()}) } }
+    const addSmartToCart = async (food) => { try { await addCartItem(food.foodId, 1); messages.value.push({type:'ai',content:`已将${food.foodName}加入购物车，可前往购物车确认。`,timestamp:new Date()}) } catch (e) { messages.value.push({type:'ai',content:e?.response?.data?.message || e?.message || '加入购物车失败，请先登录或刷新重试。',timestamp:new Date()}) } }
 
     // 获取AI回复
     const getAIResponse = async (userInput) => {

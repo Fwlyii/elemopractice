@@ -1,5 +1,6 @@
 package com.tju.elm_bk.controller;
 
+import com.tju.elm_bk.dto.CartItemAddDTO;
 import com.tju.elm_bk.dto.CartItemCreateDTO;
 import com.tju.elm_bk.result.HttpResult;
 import com.tju.elm_bk.service.CartService;
@@ -8,6 +9,7 @@ import com.tju.elm_bk.vo.CartVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,8 +27,11 @@ public class CartController {
         return HttpResult.success(cartService.addCart(cartItemCreateDTO));
     }
 
-
-
+    @PostMapping("/items")
+    @Operation(summary = "向当前用户购物车添加商品")
+    public HttpResult<Long> addItem(@Valid @RequestBody CartItemAddDTO request) {
+        return HttpResult.success(cartService.addItem(request.getFoodId(), request.getQuantity()));
+    }
 
     @GetMapping("/list")
     @Operation(summary = "获取用户在指定商家的购物车商品列表")
@@ -35,13 +40,13 @@ public class CartController {
     }
 
     @GetMapping("/add")
-    @Operation(summary = "(前端用这个)向购物车添加商品")
+    @Operation(summary = "向购物车添加商品（兼容旧版客户端）")
     public HttpResult<Long> addCartItem(@RequestParam Long foodId, @RequestParam Integer quantity) {
         return HttpResult.success(cartService.addItem(foodId, quantity));
     }
 
     @GetMapping("/quantity")
-    @Operation(summary = "修改购物车指定商品数量",description = "quantity传0时移除该条记录")
+    @Operation(summary = "修改购物车指定商品数量（兼容旧版客户端）",description = "quantity传0时移除该条记录")
     public HttpResult<Long> updateItemQuantity(@RequestParam Long cartId, @RequestParam Integer quantity) {
         return HttpResult.success(cartService.updateItem(cartId,quantity));
     }

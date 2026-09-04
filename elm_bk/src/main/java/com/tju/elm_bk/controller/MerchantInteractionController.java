@@ -41,6 +41,12 @@ public class MerchantInteractionController {
         return HttpResult.success(collections);
     }
 
+    @GetMapping("/collections/me")
+    @Operation(summary = "获取当前用户的收藏列表")
+    public HttpResult<List<BusinessSearchVO>> getCurrentUserCollections() {
+        return HttpResult.success(interactionService.getUserCollections(null));
+    }
+
     @GetMapping("/stats/{merchantId}")
     @Operation(summary = "获取某商铺点赞收藏总数")
     public HttpResult<MerchantStatsVO> getMerchantStats(@PathVariable Long merchantId) {
@@ -61,5 +67,11 @@ public class MerchantInteractionController {
             @RequestParam Long merchantId) {
         MerchantInteractionVO status = interactionService.getUserMerchantInteraction(userId, merchantId);
         return HttpResult.success(status);
+    }
+
+    @GetMapping("/status/me")
+    @Operation(summary = "获取当前用户的商家互动状态")
+    public HttpResult<MerchantInteractionVO> getCurrentUserMerchantInteraction(@RequestParam Long merchantId) {
+        return HttpResult.success(interactionService.getUserMerchantInteraction(null, merchantId));
     }
 }

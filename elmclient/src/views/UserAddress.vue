@@ -67,6 +67,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
+import { listMyAddresses, removeMyAddress } from '../services/addressService';
 export default {
 	name: 'UserAddress',
 	setup() {
@@ -100,10 +101,8 @@ export default {
 				return;
 			}
 			// 查询送货地址
-			request.get('/api/addresses/listDeliveryAddressByUserId', {
-				params: { userId: user.value.id }
-			}).then(response => {
-				deliveryAddressArr.value = Array.isArray(response.data) ? response.data : [];
+			listMyAddresses().then(addresses => {
+				deliveryAddressArr.value = Array.isArray(addresses) ? addresses : [];
 				try {
 					const saved = JSON.parse(localStorage.getItem(String(user.value.id)) || 'null');
 					const savedId = saved?.id || saved?.daId;
@@ -201,11 +200,7 @@ export default {
 		const confirmDelete = () => {
 			if (addressDeleteSelectId.value === 0) return;
 
-			request.put('/api/addresses/removeDeliveryAddress', {
-				id: addressDeleteSelectId.value
-			}).then(response => {
-				console.log(response.data);
-				if (response.success) {
+			removeMyAddress(addressDeleteSelectId.value).then(() => {
 					// 修复：使用 addressDeleteSelectId.value 而不是未定义的 id
 					let deliveryAddress = null;
 					try { deliveryAddress = JSON.parse(localStorage.getItem(String(user.value.id)) || 'null'); } catch (_) { /* 忽略损坏的本地地址缓存 */ }
@@ -214,9 +209,6 @@ export default {
 					}
 					toast.success("删除地址成功");
 					listDeliveryAddressByUserId();
-				} else {
-					toast.error("删除地址失败！");
-				}
 			}).catch(error => {
 				console.error(error);
 				toast.error("删除地址失败！");

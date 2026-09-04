@@ -61,6 +61,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from '../utils/toast'; 
 import request from '../utils/request';
+import { listMyBusinesses } from '../services/businessService';
 
 export default {
   name: 'MerchantProfile',
@@ -83,9 +84,9 @@ export default {
 
     onMounted(async () => {
       await loadMerchantData();
-      // 在获取到 merchant.id 后，再加载统计数据
+      // 身份由后端登录态解析，页面只请求“我的店铺”。
       if (merchant.value?.id) {
-        await loadMerchantStores(merchant.value.id);
+        await loadMerchantStores();
       }
     });
 
@@ -114,15 +115,9 @@ export default {
     };
     
     // “我的”只显示门店摘要，门店明细统一由经营工作台负责
-    const loadMerchantStores = async (userId) => {
+    const loadMerchantStores = async () => {
       try {
-        const response = await request.get(`/api/businesses/merchant?userId=${userId}`);
-        
-        if (response && response.success && response.data) {
-          stores.value = Array.isArray(response.data) ? response.data : [];
-        } else {
-          stores.value = [];
-        }
+        stores.value = await listMyBusinesses();
       } catch (error) {
         console.error('获取商家店铺摘要失败:', error);
         toast.error('获取店铺信息失败，请重试！');

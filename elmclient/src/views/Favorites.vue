@@ -47,9 +47,9 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from '@/utils/toast';
-import request from '@/utils/request';
 import { getStoredUser } from '@/utils/auth';
 import { formatRating } from '@/utils/formatters';
+import { listMyCollections } from '@/services/merchantInteractionService';
 export default {
   name: 'Favorites',
   setup() {
@@ -69,11 +69,10 @@ export default {
           return;
         }
 
-        // 调用后端API获取收藏列表
-        const response = await request.get(`/api/merchant/interaction/collections/${userInfo.id}`);
+        const businesses = await listMyCollections();
 
         // 将后端返回的数据映射到前端需要的格式
-        favoriteList.value = response.data.map(business => ({
+        favoriteList.value = (businesses || []).map(business => ({
           businessId: business.id,
           businessName: business.businessName,
           businessImg: business.businessImg,

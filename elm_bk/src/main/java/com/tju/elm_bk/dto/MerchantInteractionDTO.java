@@ -1,18 +1,18 @@
 package com.tju.elm_bk.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class MerchantInteractionDTO {
-    @NotNull(message = "用户ID不能为空")
-    @Schema(description = "用户ID")
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Schema(description = "由服务端从登录态注入的用户 ID", accessMode = Schema.AccessMode.READ_ONLY)
     private Long userId;
 
     @NotNull(message = "商铺ID不能为空")

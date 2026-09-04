@@ -51,17 +51,17 @@
             </div>
 
             <div class="actions">
-              <template v-if="item.orderState === 0">
+              <template v-if="item.orderState === ORDER_STATUS.WAITING_PAYMENT">
                 <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
                 <button class="pay-btn" @click.stop="payOrder(item.id)">立即支付</button>
               </template>
-              <template v-else-if="item.orderState === 1">
+              <template v-else-if="item.orderState === ORDER_STATUS.WAITING_MERCHANT_ACCEPT">
                 <button class="cancel-btn" @click.stop="cancelOrder(item.id)">取消订单</button>
               </template>
-              <template v-else-if="item.orderState === 6 || (item.orderState === 4 && item.serviceMode === 'PICKUP')">
+              <template v-else-if="item.orderState === ORDER_STATUS.DELIVERED || (item.orderState === ORDER_STATUS.WAITING_PICKUP && item.serviceMode === 'PICKUP')">
                 <button class="confirm-btn" @click.stop="confirmOrder(item.id)">确认收货</button>
               </template>
-              <template v-else-if="item.orderState === 7">
+              <template v-else-if="item.orderState === ORDER_STATUS.COMPLETED">
                 <button class="detail-btn" @click.stop="goDetail(item.id)">订单详情</button>
                 <button class="review-btn" @click.stop="reviewOrder(item.id)">评价</button>
               </template>
@@ -117,7 +117,7 @@ import { useRouter } from "vue-router";
 import request from "../utils/request";
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '../utils/endpoints';
-import { orderStatusText } from '../utils/orderPresentation';
+import { CUSTOMER_ORDER_GROUPS, ORDER_STATUS, isOrderCountedAsSpend, orderStatusClass, orderStatusText } from '../utils/orderPresentation';
 import { formatDateTime } from '../utils/formatters';
 
 export default {
@@ -142,12 +142,12 @@ export default {
 
     // 标签对应的API状态值
     const tabStatusMap = {
-      0: null,     // 全部
-      1: 0,        // 待支付
-      2: 1,        // 待接单
-      3: [2, 3, 4, 5, 6, 9],
-      4: [7],
-      5: [8]
+      0: null,
+      1: CUSTOMER_ORDER_GROUPS.waitingPayment,
+      2: CUSTOMER_ORDER_GROUPS.waitingMerchant,
+      3: CUSTOMER_ORDER_GROUPS.fulfilling,
+      4: CUSTOMER_ORDER_GROUPS.completed,
+      5: CUSTOMER_ORDER_GROUPS.cancelled
     };
 
     // 获取订单列表
@@ -192,11 +192,11 @@ export default {
         counts[0]++;
 
         // 根据订单状态，增加对应标签的计数
-        if (state === 0) counts[1]++;       // 待支付 -> 索引1
-        else if (state === 1) counts[2]++;  // 待接单 -> 索引2
-        else if ([2, 3, 4, 5, 6, 9].includes(state)) counts[3]++;
-        else if (state === 7) counts[4]++;
-        else if (state === 8) counts[5]++;
+        if (CUSTOMER_ORDER_GROUPS.waitingPayment.includes(state)) counts[1]++;
+        else if (CUSTOMER_ORDER_GROUPS.waitingMerchant.includes(state)) counts[2]++;
+        else if (CUSTOMER_ORDER_GROUPS.fulfilling.includes(state)) counts[3]++;
+        else if (CUSTOMER_ORDER_GROUPS.completed.includes(state)) counts[4]++;
+        else if (CUSTOMER_ORDER_GROUPS.cancelled.includes(state)) counts[5]++;
       });
 
       return counts;
@@ -205,9 +205,7 @@ export default {
     // 计算显示的订单 - 基于当前选中的标签
     const displayedOrders = computed(() => {
       const targetStatus = tabStatusMap[activeTab.value];
-      const byStatus = activeTab.value === 0 ? orderArr.value : orderArr.value.filter(order => Array.isArray(targetStatus)
-        ? targetStatus.includes(order.orderState)
-        : order.orderState === targetStatus);
+      const byStatus = activeTab.value === 0 ? orderArr.value : orderArr.value.filter(order => targetStatus.includes(order.orderState));
       const keyword = searchKeyword.value.toLowerCase();
       if (!keyword) return byStatus;
       return byStatus.filter(order => String(order.id).includes(keyword)
@@ -232,7 +230,7 @@ export default {
         }
         const group = groups.get(key);
         group.orders.push(order);
-        if (![0, 8].includes(Number(order.orderState))) group.amount += Number(order.orderTotal || 0);
+        if (isOrderCountedAsSpend(order.orderState)) group.amount += Number(order.orderTotal || 0);
       });
       return [...groups.values()].sort((a, b) => b.timestamp - a.timestamp).map(group => ({
         ...group,
@@ -253,13 +251,7 @@ export default {
 
     // 获取状态样式类
     const getStatusClass = (state) => {
-      const classMap = {
-        0: "unpaid",
-        1: "pending",
-        2: "accepted", 3: "accepted", 4: "accepted", 5: "accepted", 6: "done",
-        7: "done", 8: "canceled", 9: "unpaid"
-      };
-      return classMap[state] || "";
+      return orderStatusClass(state);
     };
 
     // 格式化时间
@@ -278,7 +270,10 @@ export default {
       if (selectId.value === 0) return;
 
       try {
-        const response = await request.put("/api/orders/status?orderState=8&orderId=" + selectId.value);
+      const response = await request.put('/api/orders/status', null, { params: {
+        orderState: ORDER_STATUS.CANCELLED,
+        orderId: selectId.value
+      } });
 
         if (response.success) {
           toast.success("订单取消成功");
@@ -423,7 +418,8 @@ export default {
       showConfirmFinishedModal,
       showConfirmCanceledModal,
       closeModal,
-      handleImageError
+      handleImageError,
+      ORDER_STATUS
     };
   }
 };

@@ -46,7 +46,7 @@
 					<div v-else class="pickup-detail"><i class="fa fa-shopping-bag"></i><span>到店自取 · {{ orderDetail.businessAddress || orderDetail.businessName || '请到商家门店取餐' }}</span></div>
 				</div>
 
-				<div v-if="orderDetail.orderState === 7" ref="reviewSection" class="info-section review-section">
+				<div v-if="orderDetail.orderState === ORDER_STATUS.COMPLETED" ref="reviewSection" class="info-section review-section">
 					<h3 class="section-title">订单评价</h3>
 					<div v-if="review" class="review-exists">
 						<div class="stars">{{ '★'.repeat(review.rating) }}<span>{{ '★'.repeat(5-review.rating) }}</span></div>
@@ -100,11 +100,6 @@
 					</div>
 				</div>
 
-				<!-- 操作按钮
-				<div v-if="orderDetail.orderState === 0" class="action-buttons">
-					<button class="btn cancel-btn" @click="cancelOrder">取消订单</button>
-					<button class="btn pay-btn" @click="payOrder">立即支付</button>
-				</div> -->
 			</div>
 		</div>
 	</div>
@@ -115,7 +110,7 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
-import { orderStatusText } from '../utils/orderPresentation';
+import { ORDER_STATUS, orderStatusText } from '../utils/orderPresentation';
 import { formatDateTime } from '../utils/formatters';
 
 export default {
@@ -145,7 +140,7 @@ export default {
 				
 				if (response.success) {
 					orderDetail.value = response.data || {};
-					if (orderDetail.value.orderState === 7) {
+					if (orderDetail.value.orderState === ORDER_STATUS.COMPLETED) {
 						await fetchReview();
 					}
 					console.log("订单详情:", orderDetail.value);
@@ -157,7 +152,7 @@ export default {
 				error.value = '网络错误，请稍后重试';
 			} finally {
 				loading.value = false;
-				if (route.query.focus === 'review' && orderDetail.value.orderState === 7) {
+				if (route.query.focus === 'review' && orderDetail.value.orderState === ORDER_STATUS.COMPLETED) {
 					await nextTick();
 					reviewSection.value?.scrollIntoView({ behavior: 'auto', block: 'center' });
 				}
@@ -183,23 +178,34 @@ export default {
 
 		// 获取状态样式类
 		const getStatusClass = (state) => {
-			const classMap = { 0: "status-unpaid", 1: "status-pending", 2: "status-accepted", 3: "status-accepted", 4: "status-accepted", 5: "status-accepted", 6: "status-accepted", 7: "status-done", 8: "status-canceled", 9: "status-unpaid" };
+			const classMap = {
+				[ORDER_STATUS.WAITING_PAYMENT]: "status-unpaid",
+				[ORDER_STATUS.WAITING_MERCHANT_ACCEPT]: "status-pending",
+				[ORDER_STATUS.WAITING_DISPATCH]: "status-accepted",
+				[ORDER_STATUS.WAITING_RIDER_ACCEPT]: "status-accepted",
+				[ORDER_STATUS.WAITING_PICKUP]: "status-accepted",
+				[ORDER_STATUS.DELIVERING]: "status-accepted",
+				[ORDER_STATUS.DELIVERED]: "status-accepted",
+				[ORDER_STATUS.COMPLETED]: "status-done",
+				[ORDER_STATUS.CANCELLED]: "status-canceled",
+				[ORDER_STATUS.DELIVERY_EXCEPTION]: "status-unpaid"
+			};
 			return classMap[state] || "status-unknown";
 		};
 
 		// 获取状态图标
 		const getStatusIcon = (state) => {
 			const iconMap = {
-				0: "fa-clock-o",
-				1: "fa-hourglass-half",
-				2: "fa-check-circle",
-				3: "fa-check-circle",
-				4: "fa-shopping-bag",
-				5: "fa-motorcycle",
-				6: "fa-check-circle",
-				7: "fa-check-circle",
-				8: "fa-times-circle",
-				9: "fa-exclamation-triangle"
+				[ORDER_STATUS.WAITING_PAYMENT]: "fa-clock-o",
+				[ORDER_STATUS.WAITING_MERCHANT_ACCEPT]: "fa-hourglass-half",
+				[ORDER_STATUS.WAITING_DISPATCH]: "fa-check-circle",
+				[ORDER_STATUS.WAITING_RIDER_ACCEPT]: "fa-check-circle",
+				[ORDER_STATUS.WAITING_PICKUP]: "fa-shopping-bag",
+				[ORDER_STATUS.DELIVERING]: "fa-motorcycle",
+				[ORDER_STATUS.DELIVERED]: "fa-check-circle",
+				[ORDER_STATUS.COMPLETED]: "fa-check-circle",
+				[ORDER_STATUS.CANCELLED]: "fa-times-circle",
+				[ORDER_STATUS.DELIVERY_EXCEPTION]: "fa-exclamation-triangle"
 			};
 			return iconMap[state] || "fa-question-circle";
 		};
@@ -278,6 +284,7 @@ export default {
 			getStatusIcon,
 			getGenderText,
 			formatTime,
+			ORDER_STATUS,
 			cancelOrder,
 			payOrder,
 			router,

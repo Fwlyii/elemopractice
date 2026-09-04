@@ -2,6 +2,7 @@ package com.tju.elm_bk.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.tju.elm_bk.constant.PurchaseRules;
 import com.tju.elm_bk.vo.BusinessVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -68,7 +69,7 @@ public class FoodDTO {
                 || foodPrice == null || foodPrice.compareTo(BigDecimal.ZERO) <= 0
                 || foodPrice.compareTo(new BigDecimal("100000")) > 0
                 || (stock != null && (stock < 0 || stock > 1_000_000))
-                || (purchaseLimit != null && purchaseLimit <= 0)) {
+                || (purchaseLimit != null && (purchaseLimit <= 0 || purchaseLimit > PurchaseRules.MAX_QUANTITY_PER_ITEM))) {
             return false;
         }
         return true;

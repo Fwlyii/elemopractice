@@ -34,7 +34,7 @@
             </div>
             <div class="business-info">
               <h3>{{ item.businessName }}</h3>
-              <p>&#165;{{ item.starPrice }}起送 | &#165;{{ item.deliveryPrice }}配送</p>
+              <p>&#165;{{ item.startPrice ?? item.starPrice ?? 0 }}起送 | &#165;{{ item.deliveryPrice ?? 0 }}配送</p>
               <p>{{ item.businessExplain }}</p>
             </div>
           </div>
@@ -47,64 +47,56 @@
 
 <script>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
+import { searchBusinesses } from '@/services/businessService';
+import { toast } from '@/utils/toast';
+
+const HISTORY_KEY = 'businessSearchHistory';
+const HISTORY_LIMIT = 6;
+
 export default {
   setup() {
-    const searchQuery = ref(''); // 搜索输入框的内容
-    const searchHistory = ref([]); // 搜索历史
-    const searchResults = ref([]); // 搜索结果
-    const user = ref(null); // 假设的用户ID，实际开发中可以从用户信息中获取
+    const searchQuery = ref('');
+    const searchHistory = ref([]);
+    const searchResults = ref([]);
     const router = useRouter();
-    // 页面加载时获取用户的历史搜索
-    onMounted(async () => {
-      user.value = sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')) : null;
-      await getSearchHistory();
+
+    onMounted(() => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        searchHistory.value = Array.isArray(stored) ? stored.slice(0, HISTORY_LIMIT) : [];
+      } catch (_) {
+        searchHistory.value = [];
+      }
     });
 
-    // 获取用户的搜索历史
-    const getSearchHistory = async () => {
-      try {
-        const response = await axios.post('/SearchController/getHistoryByUserId', {
-          userId: user.value.userId,
-        });
-        searchHistory.value = response.data ? [response.data] : [];
-        console.log(searchHistory.value);
-      } catch (error) {
-        console.error('获取搜索历史失败:', error);
-      }
+    const rememberSearch = (keyword) => {
+      searchHistory.value = [keyword, ...searchHistory.value.filter(item => item !== keyword)]
+        .slice(0, HISTORY_LIMIT);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistory.value));
     };
+
     const toBusinessInfo = (businessId) => {
       router.push({ path: '/businessInfo', query: { businessId } });
     };
-    // 执行搜索的函数
+
     const performSearch = async () => {
-      if (searchQuery.value.trim() !== '') {
-        try {
-          // 调用搜索接口
-          const response = await axios.post('/SearchController/listBusiness', {
-            searchContent: searchQuery.value,
-            userId: user.value.userId,
-          });
-
-          // 更新搜索结果
-          searchResults.value = response.data;
-          console.log(searchResults.value);
-          console.log(searchResults.value.length);
-          // 清空搜索框
-          searchQuery.value = '';
-
-          // 清空搜索历史
-          searchHistory.value = [];
-
-        } catch (error) {
-          console.error('搜索失败:', error);
-        }
+      const keyword = searchQuery.value.trim();
+      if (!keyword) {
+        toast.info('请输入商家名称');
+        return;
       }
-      else {
-        console.error('搜索内容不能为空');
-      };
-    }
+      try {
+        searchResults.value = await searchBusinesses(keyword);
+        rememberSearch(keyword);
+        if (!searchResults.value.length) toast.info('没有找到相关商家');
+      } catch (error) {
+        console.error('搜索失败:', error);
+        searchResults.value = [];
+        toast.error(error?.message || '搜索失败，请稍后重试');
+      }
+    };
+
     const handleHistoryClick = (history) => {
       searchQuery.value = history;
       performSearch();
@@ -124,7 +116,7 @@ export default {
       handleHistoryClick,
       handleImageError
     };
-  },
+  }
 };
 </script>
 

@@ -66,6 +66,7 @@ import request from '../utils/request';
 import { useRouter } from 'vue-router';
 import { toast } from '../utils/toast';
 import { clearAuth, getToken } from '../utils/auth';
+import { listMyBusinesses } from '../services/businessService';
 
 export default {
   name: 'MyApplication',
@@ -133,20 +134,7 @@ export default {
           router.push({ path: '/login' });
           return;
         }
-        const userResponse = await request.get('/api/person', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (userResponse && userResponse.id) {
-          const params = { userId: userResponse.id };
-          if (status !== null) {
-            params.status = status;
-          }
-          const shopResponse = await request.get('/api/businesses/merchant', {
-            params,
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (shopResponse) {
-            shops.value = shopResponse.data;
-          }
-        }
+        shops.value = await listMyBusinesses(status);
       } catch (error) {
         console.error('获取商铺列表失败:', error);
         if (error.response && error.response.status === 401) {
@@ -487,13 +475,7 @@ export default {
         });
 
         if (formValues) {
-          const userResponse = await request.get('/api/person', { headers: { 'Authorization': `Bearer ${token}` } });
-          if (!userResponse || !userResponse.id) {
-            toast.error('获取用户信息失败');
-            return;
-          }
-          const applicationData = { ...formValues, userId: userResponse.id };
-          const response = await request.post('/api/permission/apply-shop', applicationData, {
+          const response = await request.post('/api/permission/apply-shop', formValues, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response && response.success) {

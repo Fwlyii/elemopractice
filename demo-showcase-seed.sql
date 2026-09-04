@@ -78,6 +78,11 @@ ON DUPLICATE KEY UPDATE
   food_price = VALUES(food_price), business_id = VALUES(business_id), shelve_status = 1,
   stock = VALUES(stock), category = VALUES(category), purchase_limit = VALUES(purchase_limit), is_deleted = 0;
 
+-- 普通演示菜品默认不限购，避免用户在没有活动说明时被 1～3 份的隐藏门槛打断。
+-- 限购能力仍保留在商家商品管理和后端规则中，需要演示时可由商家明确配置。
+UPDATE food SET purchase_limit = NULL WHERE id BETWEEN 1 AND 57;
+UPDATE food SET purchase_limit = 2 WHERE id IN (12, 23, 49);
+
 -- 修正早期样本的分类，使同一家店的分类命名保持一致。
 UPDATE food SET category = '西式早餐' WHERE id = 5;
 

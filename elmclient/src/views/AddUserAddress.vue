@@ -53,7 +53,7 @@ import { ref, onMounted } from 'vue';
 // import Footer from '../components/Footer.vue';
 import { useRouter,useRoute } from 'vue-router';
 import { toast } from '../utils/toast';
-import request from '../utils/request';
+import { createMyAddress } from '../services/addressService';
 export default {
 	name: 'AddUserAddress',
 	setup() {
@@ -61,16 +61,11 @@ export default {
 			contactName: '',
 			contactSex: 1,
 			contactTel: '',
-			address: '',
-			customer: {
-				id: 0,
-				username: ''
-			}
+			address: ''
 		});
 
 		const route = useRoute();
 		const businessId = ref(route.query.businessId);
-		const user = ref(null);
 		const router = useRouter();
 		const reg = /^1[3456789]\d{9}$/;
 		const goBack = () => {
@@ -78,13 +73,6 @@ export default {
     };
 
 		onMounted(() => {
-			const userFromLocal = localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null;
-			const userFromSession = sessionStorage.getItem('userInfo') ? JSON.parse(sessionStorage.getItem('userInfo')) : null;
-			user.value = userFromLocal || userFromSession;
-			if (user.value) {
-			deliveryAddress.value.customer.id = user.value.id; 
-			deliveryAddress.value.customer.username = user.value.username; 
-          }
 			businessId.value = route.query.businessId;
 		});
 		
@@ -102,18 +90,14 @@ export default {
 				return;
 			}
 			
-			request.post('/api/addresses', deliveryAddress.value)
-				.then(response => {
-					if (response.success) {
+			createMyAddress(deliveryAddress.value)
+				.then(() => {
 							toast.success('添加地址成功！');
 							router.push({ path: '/userAddress' , query: {
 								businessId: businessId.value,
 								serviceMode: route.query.serviceMode || 'delivery',
 								foodIds: route.query.foodIds
 							}});
-						} else {
-							toast.error('新增地址失败！原因：' + response.message);
-						}
 				})
 				.catch(error => {
 					console.error(error);
@@ -124,7 +108,6 @@ export default {
 		return {
 			deliveryAddress,
 			businessId,
-			user,
 			addUserAddress,
 			goBack
 		};

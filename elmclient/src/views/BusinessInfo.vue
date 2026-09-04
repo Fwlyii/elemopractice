@@ -64,13 +64,18 @@
                                     <div class="food-left-info">
                                         <h3>{{ item.foodName || '' }}</h3>
                                         <p class="food-explain">{{ item.foodExplain || '商家精选，现点现做' }}</p>
-                                        <p class="food-price">¥{{ formatMoney(item.foodPrice) }}<span v-if="Number(item.stock || 0) <= 0" class="sold-out-label">已售罄</span></p>
+                                        <p class="food-price"><span>¥{{ formatMoney(item.foodPrice) }}</span><small v-if="item.purchaseLimit" class="food-limit">限购 {{ item.purchaseLimit }} 份</small><small v-if="Number(item.stock || 0) <= 0" class="sold-out-label">已售罄</small></p>
                                     </div>
                                 </div>
                                 <div class="food-right">
                                     <button type="button" class="quantity-btn minus-btn" v-show="getCartQuantity(item.id) > 0" @click="minus(item)" aria-label="减少数量">−</button>
                                     <span v-show="getCartQuantity(item.id) > 0" class="quantity">{{ getCartQuantity(item.id) }}</span>
-                                    <button type="button" class="quantity-btn plus-btn" :disabled="Number(item.stock || 0) <= getCartQuantity(item.id)" :class="{ disabled: Number(item.stock || 0) <= getCartQuantity(item.id) }" @click="add(item)" aria-label="增加数量">＋</button>
+                                    <button type="button" class="quantity-btn plus-btn"
+                                        :disabled="isSoldOut(item) || isCartQuantityAtLimit(item)"
+                                        :class="{ disabled: isCartQuantityAtLimit(item) }"
+                                        :title="isCartQuantityAtLimit(item) ? cartQuantityLimitMessage(item) : ''"
+                                        @click="add(item)"
+                                        :aria-label="isCartQuantityAtLimit(item) ? `${item.foodName}已达限购数量` : `增加${item.foodName}数量`">＋</button>
                                 </div>
                             </li>
                         </ul>
@@ -116,6 +121,9 @@ import request from "@/utils/request";
 import { toast } from '@/utils/toast';
 import { formatDate, formatMoney } from '@/utils/formatters';
 import { getToken, updateStoredUser } from '@/utils/auth';
+import { cartQuantityLimitMessage, isSoldOut, maxCartQuantity } from '@/utils/cartQuantityRules';
+import { addCartItem, listCartItems, removeCartItem, setCartItemQuantity } from '@/services/cartService';
+import { getMyInteraction, updateMyInteraction } from '@/services/merchantInteractionService';
 export default {
     name: "BusinessInfo",
     setup() {
@@ -252,18 +260,7 @@ export default {
 
             loadingCart.value = true;
             try {
-                const response = await request.get("/api/carts/list", {
-                    params: { businessId: businessId.value }
-                });
-                console.log("购物车列表API响应:", response);
-
-                if (response.success) {
-                    cartItems.value = response.data || [];
-                    console.log("购物车列表设置成功:", cartItems.value);
-                } else {
-                    console.error('获取购物车列表失败:', response.message);
-                    cartItems.value = [];
-                }
+                cartItems.value = await listCartItems(businessId.value) || [];
             } catch (error) {
                 console.error("获取购物车列表失败:", error);
                 cartItems.value = [];
@@ -277,6 +274,7 @@ export default {
             const cartItem = cartItems.value.find(item => item.foodId === foodId);
             return cartItem ? cartItem.quantity : 0;
         };
+        const isCartQuantityAtLimit = (food) => getCartQuantity(food.id) >= maxCartQuantity(food);
 
         // 添加商品到购物车
         const addToCart = async (food) => {
@@ -287,8 +285,8 @@ export default {
                 requireLogin('登录后即可加入购物车');
                 return;
             }
-            if (food.stock != null && getCartQuantity(food.id) >= food.stock) {
-                toast.warning('该商品当前可售数量已达上限');
+            if (getCartQuantity(food.id) >= maxCartQuantity(food)) {
+                toast.warning(cartQuantityLimitMessage(food));
                 return;
             }
 
@@ -311,7 +309,7 @@ export default {
                 console.log('添加商品成功');
             } catch (error) {
                 console.error('添加商品到购物车失败:', error);
-                toast.error('添加商品失败，请重试');
+                toast.error(error?.response?.data?.message || error?.message || '添加商品失败，请重试');
             }
         };
 
@@ -320,18 +318,8 @@ export default {
             try {
                 console.log('添加新商品到购物车, foodId:', foodId);
 
-                const response = await request.get("/api/carts/add", {
-                    params: { foodId: foodId, quantity: 1 }
-                });
-
-                console.log('添加购物车接口响应:', response);
-
-                if (response.success) {
-                    console.log('添加新商品成功');
-                    return true;
-                } else {
-                    throw new Error(response.message || '添加商品失败');
-                }
+                await addCartItem(foodId, 1);
+                return true;
             } catch (error) {
                 console.error('添加新商品到购物车失败:', error);
                 throw error;
@@ -349,19 +337,8 @@ export default {
                     throw new Error(`未找到foodId ${foodId}对应的购物车项`);
                 }
 
-                const response = await request.get("/api/carts/quantity", {
-                    params: {
-                        cartId: cartItem.id,
-                        quantity: newQuantity
-                    }
-                });
-
-                if (response.success) {
-                    console.log('更新商品数量成功');
-                    return true;
-                } else {
-                    throw new Error(response.message || '更新数量失败');
-                }
+                await setCartItemQuantity(cartItem.id, newQuantity);
+                return true;
             } catch (error) {
                 console.error('更新购物车商品数量失败:', error);
                 throw error;
@@ -415,16 +392,8 @@ export default {
                     return;
                 }
 
-                const response = await request.get("/api/carts/remove", {
-                    params: { cartId: cartItem.id }
-                });
-
-                if (response.success) {
-                    console.log('删除商品成功');
-                    return true;
-                } else {
-                    throw new Error(response.message || '删除商品失败');
-                }
+                await removeCartItem(cartItem.id);
+                return true;
             } catch (error) {
                 console.error('从购物车删除商品失败:', error);
                 throw error;
@@ -455,22 +424,9 @@ export default {
 
                 console.log(`加载互动状态，userId: ${userId}, merchantId: ${businessId.value}`);
 
-                const response = await request.get('/api/merchant/interaction/status', {
-                    params: { userId: userId, merchantId: businessId.value },
-                });
-
-                console.log("互动状态API响应:", response);
-
-                // 根据实际API响应结构调整
-                if (response?.success) {
-                    isLiked.value = Boolean(response.data?.liked);
-                    isFavorited.value = Boolean(response.data?.collected);
-                    console.log(`设置互动状态 - 点赞: ${isLiked.value}, 收藏: ${isFavorited.value}`);
-                } else {
-                    console.error("API返回失败:", response?.message);
-                    isLiked.value = false;
-                    isFavorited.value = false;
-                }
+                const interaction = await getMyInteraction(businessId.value);
+                isLiked.value = Boolean(interaction?.liked);
+                isFavorited.value = Boolean(interaction?.collected);
             } catch (error) {
                 console.error("加载互动状态异常:", error);
                 isLiked.value = false;
@@ -495,7 +451,6 @@ export default {
                 }
 
                 const dto = {
-                    userId,
                     merchantId: businessId.value,
                     liked: type === 'like' ? newValue : isLiked.value,
                     collected: type === 'favorite' ? newValue : isFavorited.value
@@ -503,18 +458,11 @@ export default {
 
                 console.log(`更新互动状态:`, dto);
 
-                const response = await request.post('/api/merchant/interaction/update', dto);
-
-                if (response.success) {
-                    if (type === 'like') {
-                        isLiked.value = newValue;
-                    } else {
-                        isFavorited.value = newValue;
-                    }
-                    console.log(`${type}状态更新成功: ${newValue}`);
+                await updateMyInteraction(dto);
+                if (type === 'like') {
+                    isLiked.value = newValue;
                 } else {
-                    console.error(`${type}状态更新失败:`, response.message);
-                    toast.error('操作失败，请重试');
+                    isFavorited.value = newValue;
                 }
             } catch (error) {
                 console.error(`${type}状态更新异常:`, error);
@@ -629,23 +577,7 @@ export default {
                 console.error("获取食品列表失败:", error);
                 console.error("错误详情:", error.response || error.message);
 
-                // 开发环境使用模拟数据
-                if (process.env.NODE_ENV === "development") {
-                    console.log("使用模拟食品数据");
-                    foodArr.value = [
-                        {
-                            id: 1,
-                            foodId: 1,
-                            foodName: "模拟食品1",
-                            foodPrice: 15,
-                            foodExplain: "模拟食品描述",
-                            foodImg: require('@/assets/default-food.png'),
-                            remarks: "模拟备注",
-                            businessId: businessId.value,
-                            businessName: "模拟商家"
-                        }
-                    ];
-                }
+                foodArr.value = [];
             } finally {
                 loadingFoods.value = false;
                 console.log("食品列表加载完成");
@@ -770,6 +702,8 @@ export default {
             isLiked,
             isFavorited,
             getCartQuantity,
+            isCartQuantityAtLimit,
+            cartQuantityLimitMessage,
             add: addToCart,
             minus: removeFromCart,
             toOrder,
@@ -788,6 +722,7 @@ export default {
             loadingReviews,
             reviewAverage,
             reviewStars,
+            isSoldOut,
             formatDate,
             formatMoney
         };
@@ -1168,7 +1103,8 @@ export default {
 .wrapper .food li .food-left .food-left-info h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #31556d; font-size: 15px; }
 .wrapper .food li .food-left .food-left-info p { margin-top: 6px; color: #91a3ae; font-size: 12px; font-weight: 400; }
 .wrapper .food li .food-left .food-left-info .food-explain { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 47vw; }
-.wrapper .food li .food-left .food-left-info .food-price { color: #e76c48; font-size: 16px; font-weight: 600; }
+.wrapper .food li .food-left .food-left-info .food-price { display: flex; align-items: baseline; gap: 7px; color: #e76c48; font-size: 16px; font-weight: 600; }
+.wrapper .food li .food-left .food-left-info .food-limit { color: #e05252; font-size: 10px; font-weight: 500; white-space: nowrap; }
 .sold-out-label { margin-left: 8px; color: #96a8b4; font-size: 11px; font-weight: 400; }
 .stock-label { color: #9aacb7; font-size: 11px; font-weight: 400; }
 .wrapper .food li .food-right { width: auto; gap: 7px; }

@@ -312,7 +312,7 @@ export default {
       try {
         const token = getToken();
         if (!token) return;
-        const response = await request.get(`/api/notifications?userId=${userInfo.value.id}`, {
+        const response = await request.get('/api/notifications', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

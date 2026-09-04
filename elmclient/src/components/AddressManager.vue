@@ -89,11 +89,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { toast } from '../utils/toast';
-// 导入你指定的 request 工具
-import request from '../utils/request';
+import { createMyAddress, listMyAddresses, removeMyAddress, updateMyAddress } from '../services/addressService';
 
 const props = defineProps({
-  id: String
+  id: [String, Number]
 });
 
 const addresses = ref([]);
@@ -107,12 +106,8 @@ const addressForm = ref({
   contactName: '',
   contactTel: '',
   contactSex: 0,
-  address: '',
-  userId: props.id
+  address: ''
 });
-const userFromLocal = localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null;
-const userFromSession = sessionStorage.getItem('userInfo') ? JSON.parse(sessionStorage.getItem('userInfo')) : null;
-const user = userFromLocal || userFromSession;
 
 // 手机号码格式校验函数
 const validatePhoneNumber = (phone) => {
@@ -134,13 +129,7 @@ const loadAddresses = async () => {
 
   isLoading.value = true;
   try {
-    const response = await request.get('/api/addresses/listDeliveryAddressByUserId', { params: { userId: props.id} });
-    addresses.value = response.data;
-    // 如果接口返回的数据中包含了省市区和详细地址的组合，这里不需要再进行处理
-    // addresses.value = addresses.value.map(addr => ({
-    //   ...addr,
-    //   address: `${addr.address}`
-    // }));
+    addresses.value = await listMyAddresses() || [];
   } catch (error) {
     console.error('获取地址列表失败:', error);
     toast.error('获取地址列表失败，请重试！');
@@ -162,8 +151,7 @@ const openAddressModal = (address = null) => {
       contactName: '',
       contactTel: '',
       contactSex: null,
-      address: '',
-      userId: props.id
+      address: ''
     };
   }
   showAddressModal.value = true;
@@ -197,16 +185,14 @@ const submitAddress = async () => {
 
   try {
     if (isEditing.value) {
-      // 使用 request.post 方法发送 POST 请求
-      await request.post('/api/addresses/updateDeliveryAddress', { ...form });
+      await updateMyAddress(form.id, form);
       toast.success('地址修改成功！');
     } else {
-      await request.post('/api/addresses', {
+      await createMyAddress({
         contactName: form.contactName,
         contactTel: form.contactTel,
         contactSex: form.contactSex,
-        address: form.address,
-        customer: { username: user.username }
+        address: form.address
       });
       toast.success('地址添加成功！');
     }
@@ -233,7 +219,7 @@ const confirmDelete = async () => {
   if (!selectedAddress.value) return;
 
   try {
-    await request.put('/api/addresses/removeDeliveryAddress', { id: selectedAddress.value.id });
+    await removeMyAddress(selectedAddress.value.id);
     toast.success('地址删除成功！');
     closeDeleteModal();
     loadAddresses();

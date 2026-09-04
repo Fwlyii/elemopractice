@@ -2,6 +2,7 @@ package com.tju.elm_bk.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tju.elm_bk.constant.OrderStatus;
 import com.tju.elm_bk.dto.AiChatRequestDTO;
 import com.tju.elm_bk.entity.AiChatHistory;
 import com.tju.elm_bk.entity.Business;
@@ -187,14 +188,8 @@ public class MockAiChatServiceImpl implements AiChatService {
                     Long orderId = (Long) userContext.get("lastOrderId");
                     Integer orderState = (Integer) userContext.get("lastOrderState");
                     
-                    String stateText = switch (orderState != null ? orderState : 0) {
-                        case 0 -> "待支付";
-                        case 1 -> "已支付，商家正在准备中";
-                        case 2 -> "配送中，预计20分钟内送达";
-                        case 3 -> "已送达";
-                        case 4 -> "已取消";
-                        default -> "未知状态";
-                    };
+                    String stateText = OrderStatus.fromCode(
+                            orderState == null ? OrderStatus.WAITING_PAYMENT.getCode() : orderState).getLabel();
                     
                     return String.format("📦 您的订单状态如下：\n\n订单号：%d\n当前状态：%s\n\n如有任何问题，请随时联系我们的客服热线：400-888-8888", orderId, stateText);
                 }

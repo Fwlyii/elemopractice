@@ -12,6 +12,7 @@ import com.tju.elm_bk.mapper.FoodMapper;
 import com.tju.elm_bk.result.ResultCodeEnum;
 import com.tju.elm_bk.service.CartService;
 import com.tju.elm_bk.service.CurrentUserService;
+import com.tju.elm_bk.service.ProductPurchasePolicy;
 import com.tju.elm_bk.vo.CartItemVO;
 import com.tju.elm_bk.vo.CartVO;
 import com.tju.elm_bk.vo.UserVO;
@@ -30,6 +31,7 @@ public class CartServiceImpl implements CartService {
     private final BusinessMapper businessMapper;
     private final FoodMapper foodMapper;
     private final CurrentUserService currentUserService;
+    private final ProductPurchasePolicy productPurchasePolicy;
 
     @Override
     public CartVO addCart(CartItemCreateDTO cartItemCreateDTO) {
@@ -98,7 +100,7 @@ public class CartServiceImpl implements CartService {
         if (food.getShelveStatus() != 1) {
             throw new APIException(ResultCodeEnum.FOOD_UNSHELVED);
         }
-        if (quantity == null || quantity <= 0 || quantity > 999) {
+        if (quantity == null || quantity <= 0) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
 
@@ -139,7 +141,7 @@ public class CartServiceImpl implements CartService {
         if (!Objects.equals(cart.getCustomerId(), userId)) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
-        if (quantity == null || quantity < 0 || quantity > 999) {
+        if (quantity == null || quantity < 0) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
         if (quantity == 0) {
@@ -177,18 +179,8 @@ public class CartServiceImpl implements CartService {
     }
 
     private void ensurePurchasable(Food food, Long desiredQuantity) {
-        if (desiredQuantity == null || desiredQuantity <= 0 || desiredQuantity > 999) {
-            throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
-        }
-        if (food.getShelveStatus() == null || food.getShelveStatus() != 1) {
-            throw new APIException("商品已下架");
-        }
-        if (food.getStock() != null && desiredQuantity > food.getStock()) {
-            throw new APIException("商品库存不足");
-        }
-        if (food.getPurchaseLimit() != null && desiredQuantity > food.getPurchaseLimit()) {
-            throw new APIException("商品“" + food.getFoodName() + "”单笔限购" + food.getPurchaseLimit() + "份");
-        }
+        if (desiredQuantity == null) throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
+        productPurchasePolicy.validateCartQuantity(food, desiredQuantity);
         Business business = businessMapper.selectBusinessById(food.getBusinessId());
         if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         if (business.getStatus() != null && business.getStatus() != 1) {

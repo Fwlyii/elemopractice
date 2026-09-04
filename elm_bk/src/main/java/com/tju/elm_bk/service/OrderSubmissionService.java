@@ -50,6 +50,7 @@ public class OrderSubmissionService {
     private final CurrentUserService currentUserService;
     private final OrderPricingService orderPricingService;
     private final OrderStateTransitionService orderStateTransitionService;
+    private final ProductPurchasePolicy productPurchasePolicy;
 
     @Transactional
     public Long submit(Long businessId, Long addressId, String idempotencyKey,
@@ -148,8 +149,9 @@ public class OrderSubmissionService {
         for (CartItemVO item : items) {
             Integer limit = item.getPurchaseLimit();
             Long total = item.getFoodId() == null ? null : quantities.get(item.getFoodId());
-            if (limit != null && total != null && total > limit) {
-                throw new APIException("商品“" + safeName(item) + "”单笔限购" + limit + "份");
+            if (total != null) {
+                productPurchasePolicy.validateQuantityBounds(total);
+                productPurchasePolicy.validatePurchaseLimit(safeName(item), limit, total);
             }
         }
     }

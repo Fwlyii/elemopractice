@@ -1,6 +1,7 @@
 package com.tju.elm_bk.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.tju.elm_bk.constant.PurchaseRules;
 import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.Food;
 import com.tju.elm_bk.entity.User;
@@ -51,7 +52,7 @@ public class CartItemCreateDTO {
 
     public Boolean verify() {
         return business != null && business.getId() != null && food != null && food.getId() != null
-                && quantity != null && quantity > 0 && quantity <= 999
+                && quantity != null && quantity > 0 && quantity <= PurchaseRules.MAX_QUANTITY_PER_ITEM
                 && customer != null && customer.getUsername() != null;
     }
 

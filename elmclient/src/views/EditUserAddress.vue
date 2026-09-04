@@ -58,7 +58,7 @@
   
   <script>
   import { ref, onMounted } from 'vue';
-  import request from '../utils/request';
+  import { getMyAddress, updateMyAddress } from '../services/addressService';
   import { useRoute,useRouter } from 'vue-router';
   import { toast } from '../utils/toast';
 
@@ -67,7 +67,6 @@
 	setup() {
 	  const businessId = ref(null);
 	  const id = ref(null);
-	  const user = ref({});
 	  const deliveryAddress = ref({
 		contactSex: '1' // 默认选择男性
 	  });
@@ -78,15 +77,8 @@
 	  onMounted(async () => {
 			businessId.value = route.query.businessId;
 			id.value = route.query.id;
-			const userFromLocal = localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null;
-			const userFromSession = sessionStorage.getItem('userInfo') ? JSON.parse(sessionStorage.getItem('userInfo')) : null;
-			user.value = userFromLocal || userFromSession;
-
 			try {
-				const response = await request.get('/api/addresses/getDeliveryAddressById', {
-					params:{id: id.value}
-				});
-				deliveryAddress.value = response.data;
+				deliveryAddress.value = await getMyAddress(id.value);
 			} catch (error) {
 				console.error('获取配送地址失败:', error);
 			}
@@ -106,9 +98,8 @@
 				return;
 			}
   
-		request.post('/api/addresses/updateDeliveryAddress',deliveryAddress.value)
-		  .then(response => {
-			if (response.success) {
+		updateMyAddress(id.value, deliveryAddress.value)
+		  .then(() => {
 			  toast.success("地址更新成功！");
 			  router.push({
 				path: '/userAddress',
@@ -118,9 +109,6 @@
 					  foodIds: route.query.foodIds
 				}
 			  });
-			} else {
-			  toast.error("更新地址失败！");
-			}
 		  }).catch(error => {
 			console.error(error);
 			toast.error("网络错误，请稍后重试");

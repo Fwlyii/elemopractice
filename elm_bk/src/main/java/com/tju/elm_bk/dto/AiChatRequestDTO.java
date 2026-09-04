@@ -1,5 +1,6 @@
 package com.tju.elm_bk.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,7 +19,8 @@ public class AiChatRequestDTO {
     @Size(max = 1000, message = "单次消息不能超过1000个字符")
     private String message;
     
-    @Schema(description = "用户ID，用于获取用户相关信息")
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Schema(description = "由服务端从登录态注入的用户 ID", accessMode = Schema.AccessMode.READ_ONLY)
     private Long userId;
     
     @Schema(description = "会话ID，用于保持对话上下文")

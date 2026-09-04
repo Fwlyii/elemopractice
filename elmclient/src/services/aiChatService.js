@@ -19,7 +19,6 @@ class AiChatService {
       const requestData = {
         message: message.trim(),
         chatType: chatType,
-        userId: this.getCurrentUserId(), // 从本地存储获取用户ID
         sessionId: sessionId
       }
       
@@ -324,33 +323,6 @@ class AiChatService {
         status: 'unhealthy',
         error: error.message
       }
-    }
-  }
-
-  /**
-   * 获取当前用户ID
-   * @returns {number|null} 用户ID
-   */
-  getCurrentUserId() {
-    try {
-      const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo')
-      console.log('获取到的用户信息:', userInfo)
-      
-      if (userInfo) {
-        const user = JSON.parse(userInfo)
-        console.log('解析后的用户对象:', user)
-        const userId = user.id || user.userId || user.ID || user.user_id
-        console.log('提取的用户ID:', userId)
-        return userId || null
-      }
-      
-      // 如果没有用户信息，使用测试用户ID（用户33有多个订单）
-      console.warn('未找到用户信息，使用测试用户ID: 33')
-      return 33
-    } catch (error) {
-      console.warn('获取用户ID失败:', error)
-      // 出错时也使用测试用户ID（用户33有多个订单）
-      return 33
     }
   }
 

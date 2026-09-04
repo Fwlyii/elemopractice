@@ -13,7 +13,7 @@
 		<template v-else>
 			<div v-if="!canPay" class="payment-unavailable">
 				<i class="fa fa-check-circle"></i>
-				<h2>{{ orderDetail.orderState === 8 ? '订单已取消' : '该订单无需再次支付' }}</h2>
+				<h2>{{ orderDetail.orderState === ORDER_STATUS.CANCELLED ? '订单已取消' : '该订单无需再次支付' }}</h2>
 				<p>订单状态已经发生变化，请前往订单详情查看最新进度。</p>
 				<button type="button" @click="router.push({ path: '/listDetail', query: { orderId } })">查看订单详情</button>
 			</div>
@@ -145,6 +145,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
+import { ORDER_STATUS } from '../utils/orderPresentation';
 
 export default {
 	name: 'Payment',
@@ -162,7 +163,7 @@ export default {
 		const availableCoupons = ref([]);
 		const selectedCouponId = ref(null);
 		const couponLoading = ref(false);
-		const canPay = computed(() => Number(orderDetail.value?.orderState) === 0);
+		const canPay = computed(() => Number(orderDetail.value?.orderState) === ORDER_STATUS.WAITING_PAYMENT);
 		const foodSubtotal = computed(() => (orderDetail.value?.foodList || []).reduce((sum, item) => sum
 			+ Number(item.foodPrice || 0) * Number(item.quantity || 0), 0));
 		const merchantDiscount = computed(() => Math.max(0, foodSubtotal.value
@@ -238,7 +239,7 @@ export default {
 			paying.value = true;
 			try {
 				const response = await request.put('/api/orders/status', null, { params: {
-					orderState: 1,
+					orderState: ORDER_STATUS.WAITING_MERCHANT_ACCEPT,
 					orderId: orderId.value,
 					paymentMethod: selectedPayment.value === 'wallet' ? 'wallet' : 'simulated',
 					pointsToUse: Number(pointsToUse.value || 0),
@@ -314,6 +315,7 @@ export default {
 			selectCoupon,
 			formatCouponExpiry,
 			handleImageError,
+			ORDER_STATUS,
 		};
 	}
 }

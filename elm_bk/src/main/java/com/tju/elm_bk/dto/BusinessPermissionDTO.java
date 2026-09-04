@@ -65,7 +65,8 @@ public class BusinessPermissionDTO {
     @Schema(description = "更新人ID")
     private Long updater;
 
-    @Schema(description = "所属用户ID")
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Schema(description = "所属用户ID，由后端登录态写入", accessMode = Schema.AccessMode.READ_ONLY)
     private Long userId;
 
     @Schema(description = "商铺的状态")

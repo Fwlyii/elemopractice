@@ -70,7 +70,7 @@ public interface BusinessMapper {
      * @param userId 用户ID
      * @return 商家ID列表
      */
-    @Select("SELECT id FROM business WHERE user_id = #{userId}")
+    @Select("SELECT id FROM business WHERE user_id = #{userId} AND is_deleted = 0")
     List<Long> getBusinessIdsByUserId(@Param("userId") Long userId);
 
     /**

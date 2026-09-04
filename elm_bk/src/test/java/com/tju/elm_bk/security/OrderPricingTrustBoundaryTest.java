@@ -23,6 +23,7 @@ import com.tju.elm_bk.service.OrderPricingService;
 import com.tju.elm_bk.service.OrderSettlementService;
 import com.tju.elm_bk.service.OrderStateTransitionService;
 import com.tju.elm_bk.service.OrderSubmissionService;
+import com.tju.elm_bk.service.ProductPurchasePolicy;
 import com.tju.elm_bk.service.impl.OrderServiceImpl;
 import com.tju.elm_bk.vo.AddressVO;
 import com.tju.elm_bk.vo.BusinessVO;
@@ -73,7 +74,8 @@ class OrderPricingTrustBoundaryTest {
                 new OrderStateTransitionService(ordersMapper, historyMapper);
         OrderSubmissionService submissionService = new OrderSubmissionService(
                 ordersMapper, businessMapper, addressMapper, cartMapper, foodMapper, detailMapper,
-                assetMapper, currentUserService, pricingService, stateTransitionService);
+                assetMapper, currentUserService, pricingService, stateTransitionService,
+                new ProductPurchasePolicy());
         OrderSettlementService settlementService = new OrderSettlementService(
                 assetMapper, ordersMapper, foodMapper, mock(AssetService.class));
         OrderServiceImpl service = new OrderServiceImpl(

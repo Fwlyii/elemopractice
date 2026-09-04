@@ -37,20 +37,12 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
     public void updateInteraction(MerchantInteractionDTO dto) {
         try {
             // 参数验证
-            if (dto.getUserId() == null) {
-                throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
-            }
             if (dto.getMerchantId() == null) {
                 throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
             }
 
             User currentUser = currentUser();
-            // userId 来自请求体只用于兼容旧前端，真正的身份必须来自 JWT。
-            if (!currentUserService.isAdmin(currentUser) && !Objects.equals(dto.getUserId(), currentUser.getId())) {
-                throw new APIException(ResultCodeEnum.USER_UNMATCHED);
-            }
-            Long operatorId = currentUserService.isAdmin(currentUser) ? dto.getUserId() : currentUser.getId();
-            if (operatorId == null) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
+            Long operatorId = currentUser.getId();
 
             // 查询现有记录
             MerchantInteraction interaction = interactionMapper.selectByUserAndMerchant(
@@ -81,7 +73,7 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
             log.warn("业务异常: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("更新用户商家互动失败: userId={}, merchantId={}", dto.getUserId(), dto.getMerchantId(), e);
+            log.error("更新用户商家互动失败: merchantId={}", dto.getMerchantId(), e);
             throw new APIException(ResultCodeEnum.SERVER_ERROR);
         }
     }
@@ -89,11 +81,11 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
     @Override
     public List<BusinessSearchVO> getUserCollections(Long userId) {
         User currentUser = currentUser();
-        if (!currentUserService.isAdmin(currentUser) && !Objects.equals(userId, currentUser.getId())) {
+        Long targetUserId = userId == null ? currentUser.getId() : userId;
+        if (!currentUserService.isAdmin(currentUser) && !Objects.equals(targetUserId, currentUser.getId())) {
             throw new APIException(ResultCodeEnum.USER_UNMATCHED);
         }
-        if (userId == null) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
-        return businessMapper.selectCollectedBusinesses(userId);
+        return businessMapper.selectCollectedBusinesses(targetUserId);
     }
 
     @Override
@@ -132,11 +124,17 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
     }
 
     @Override
-    public List<MerchantStatsVO>getMerchantStatsByUserId(Long userId){
-        List<Long> businessIds =businessMapper.getBusinessIdsByUserIds(userId);
-        List<MerchantStatsVO> merchantStatsVOS=new ArrayList<>();
-        for(Long businessId:businessIds){
-            MerchantStatsVO merchantStatsVO=getMerchantStats(businessId);
+    public List<MerchantStatsVO> getMerchantStatsByUserId(Long userId) {
+        User currentUser = currentUser();
+        Long targetUserId = userId == null ? currentUser.getId() : userId;
+        if (!currentUserService.isAdmin(currentUser) && !Objects.equals(targetUserId, currentUser.getId())) {
+            throw new APIException(ResultCodeEnum.USER_UNMATCHED);
+        }
+
+        List<Long> businessIds = businessMapper.getBusinessIdsByUserIds(targetUserId);
+        List<MerchantStatsVO> merchantStatsVOS = new ArrayList<>();
+        for (Long businessId : businessIds) {
+            MerchantStatsVO merchantStatsVO = getMerchantStats(businessId);
             merchantStatsVOS.add(merchantStatsVO);
         }
         return merchantStatsVOS;
@@ -145,19 +143,17 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
     @Override
     public MerchantInteractionVO getUserMerchantInteraction(Long userId, Long merchantId) {
         try {
-            if (userId == null) {
-                throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
-            }
             if (merchantId == null) {
                 throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
             }
 
             User currentUser = currentUser();
-            if (!currentUserService.isAdmin(currentUser) && !Objects.equals(userId, currentUser.getId())) {
+            Long targetUserId = userId == null ? currentUser.getId() : userId;
+            if (!currentUserService.isAdmin(currentUser) && !Objects.equals(targetUserId, currentUser.getId())) {
                 throw new APIException(ResultCodeEnum.USER_UNMATCHED);
             }
 
-            MerchantInteraction interaction = interactionMapper.selectByUserAndMerchant(userId, merchantId);
+            MerchantInteraction interaction = interactionMapper.selectByUserAndMerchant(targetUserId, merchantId);
 
             MerchantInteractionVO vo = new MerchantInteractionVO();
             vo.setMerchantId(merchantId);
@@ -171,14 +167,14 @@ public class MerchantInteractionServiceImpl implements MerchantInteractionServic
                 vo.setCollected(false);
             }
 
-            log.info("获取用户{}对商家{}的互动状态成功", userId, merchantId);
+            log.info("获取用户{}对商家{}的互动状态成功", targetUserId, merchantId);
             return vo;
 
         } catch (APIException e) {
             log.warn("业务异常: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("获取用户商家互动状态失败: userId={}, merchantId={}", userId, merchantId, e);
+            log.error("获取用户商家互动状态失败: merchantId={}", merchantId, e);
             throw new APIException(ResultCodeEnum.SERVER_ERROR);
         }
     }

@@ -11,6 +11,34 @@ const BASE_STATUS_TEXT = Object.freeze({
 
 export const isPickupOrder = order => order?.serviceMode === 'PICKUP';
 
+export const CUSTOMER_ORDER_GROUPS = Object.freeze({
+  waitingPayment: Object.freeze([ORDER_STATUS.WAITING_PAYMENT]),
+  waitingMerchant: Object.freeze([ORDER_STATUS.WAITING_MERCHANT_ACCEPT]),
+  fulfilling: Object.freeze([
+    ORDER_STATUS.WAITING_DISPATCH,
+    ORDER_STATUS.WAITING_RIDER_ACCEPT,
+    ORDER_STATUS.WAITING_PICKUP,
+    ORDER_STATUS.DELIVERING,
+    ORDER_STATUS.DELIVERED,
+    ORDER_STATUS.DELIVERY_EXCEPTION
+  ]),
+  completed: Object.freeze([ORDER_STATUS.COMPLETED]),
+  cancelled: Object.freeze([ORDER_STATUS.CANCELLED])
+});
+
+export const MERCHANT_ORDER_GROUPS = Object.freeze({
+  waitingAccept: Object.freeze([ORDER_STATUS.WAITING_MERCHANT_ACCEPT]),
+  waitingRider: Object.freeze([ORDER_STATUS.WAITING_DISPATCH, ORDER_STATUS.WAITING_RIDER_ACCEPT]),
+  fulfilling: Object.freeze([
+    ORDER_STATUS.WAITING_PICKUP,
+    ORDER_STATUS.DELIVERING,
+    ORDER_STATUS.DELIVERED,
+    ORDER_STATUS.DELIVERY_EXCEPTION
+  ]),
+  completed: Object.freeze([ORDER_STATUS.COMPLETED]),
+  cancelled: Object.freeze([ORDER_STATUS.CANCELLED])
+});
+
 export const orderStatusText = (state, order = {}, audience = 'customer') => {
   const value = Number(state);
   if (value === ORDER_STATUS.WAITING_PICKUP) {
@@ -22,12 +50,17 @@ export const orderStatusText = (state, order = {}, audience = 'customer') => {
 
 export const orderStatusClass = state => {
   const value = Number(state);
-  if (value === ORDER_STATUS.COMPLETED) return 'completed';
-  if ([ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_EXCEPTION].includes(value)) return 'cancelled';
-  if ([ORDER_STATUS.DELIVERING, ORDER_STATUS.DELIVERED].includes(value)) return 'delivering';
-  if ([ORDER_STATUS.WAITING_DISPATCH, ORDER_STATUS.WAITING_RIDER_ACCEPT, ORDER_STATUS.WAITING_PICKUP].includes(value)) return 'processing';
-  return 'pending';
+  if (value === ORDER_STATUS.WAITING_PAYMENT) return 'unpaid';
+  if (value === ORDER_STATUS.WAITING_MERCHANT_ACCEPT) return 'pending';
+  if ([ORDER_STATUS.COMPLETED, ORDER_STATUS.DELIVERED].includes(value)) return 'done';
+  if ([ORDER_STATUS.CANCELLED, ORDER_STATUS.DELIVERY_EXCEPTION].includes(value)) return 'canceled';
+  return 'accepted';
 };
+
+export const isOrderCountedAsSpend = state => ![
+  ORDER_STATUS.WAITING_PAYMENT,
+  ORDER_STATUS.CANCELLED
+].includes(Number(state));
 
 export const TASK_STATUS_TEXT = Object.freeze({
   WAITING_RIDER: '待接单', ACCEPTED: '前往商家', ARRIVED_STORE: '已到店', DELIVERING: '配送中',

@@ -29,10 +29,7 @@ public class AddressServiceImpl implements AddressService {
     private final CurrentUserService currentUserService;
     @Override
     public HttpResult<AddressVO> addDeliveryAddress(AddressCreateDTO createDTO) {
-        if (createDTO == null || createDTO.getCustomer() == null
-                || createDTO.getCustomer().getUsername() == null
-                || createDTO.getCustomer().getUsername().isBlank()
-                || createDTO.getContactName() == null || createDTO.getContactName().isBlank()
+        if (createDTO == null || createDTO.getContactName() == null || createDTO.getContactName().isBlank()
                 || createDTO.getContactName().trim().length() > 40
                 || createDTO.getContactTel() == null || !createDTO.getContactTel().matches("^1[3-9]\\d{9}$")
                 || createDTO.getAddress() == null || createDTO.getAddress().isBlank() || createDTO.getAddress().trim().length() > 255
@@ -40,11 +37,15 @@ public class AddressServiceImpl implements AddressService {
                 || (createDTO.getContactSex() != 0 && createDTO.getContactSex() != 1)) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
-        User targetUser = userMapper.findByUsernameWithAuthorities(createDTO.getCustomer().getUsername());
         User currentUser = currentUserService.requireUser();
         boolean isAdmin = currentUserService.isAdmin(currentUser);
-        if (targetUser == null) {
-            throw  new APIException("目标用户不存在");
+        User targetUser = currentUser;
+        String requestedUsername = createDTO.getCustomer() == null ? null : createDTO.getCustomer().getUsername();
+        if (requestedUsername != null && !requestedUsername.isBlank()
+                && !requestedUsername.equals(currentUser.getUsername())) {
+            if (!isAdmin) throw new APIException(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
+            targetUser = userMapper.findByUsernameWithAuthorities(requestedUsername);
+            if (targetUser == null) throw new APIException("目标用户不存在");
         }
 
         // 检查权限：只能新增自己的地址，或者管理员可以新增任何人的地址
@@ -77,14 +78,15 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public HttpResult<List<DeliveryAddress>> listDeliveryAddressByUserId(Long userId) {
-        User targetUser = userMapper.findByUserIdWithAuthorities(userId);
         User currentUser = currentUserService.requireUser();
         boolean isAdmin = currentUserService.isAdmin(currentUser);
+        Long targetUserId = userId == null ? currentUser.getId() : userId;
+        User targetUser = userMapper.findByUserIdWithAuthorities(targetUserId);
         if (targetUser == null) {
             throw  new APIException("目标用户不存在");
         }
         if (currentUser.getUsername().equals(targetUser.getUsername()) || isAdmin){
-            return HttpResult.success(deliveryAddressMapper.listDeliveryAddressByUserId(userId));
+            return HttpResult.success(deliveryAddressMapper.listDeliveryAddressByUserId(targetUserId));
         }else {
             return HttpResult.failure(ResultCodeEnum.NOT_ENOUGH_PERMISSION);
         }

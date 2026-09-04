@@ -1,6 +1,7 @@
 package com.tju.elm_bk.service;
 
 import com.tju.elm_bk.constant.FulfillmentMode;
+import com.tju.elm_bk.constant.PurchaseRules;
 import com.tju.elm_bk.entity.Business;
 import com.tju.elm_bk.entity.UserAsset;
 import com.tju.elm_bk.exception.APIException;
@@ -21,7 +22,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderPricingService {
     private static final BigDecimal MAX_ORDER_AMOUNT = new BigDecimal("99999999.99");
-    private static final int MAX_ITEM_QUANTITY = 999;
     private static final BigDecimal MEMBER_RATE = new BigDecimal("0.95");
 
     private final BusinessPricingPolicy businessPricingPolicy;
@@ -57,7 +57,7 @@ public class OrderPricingService {
         for (CartItemVO item : items) {
             if (item == null || item.getFoodPrice() == null || item.getFoodPrice().signum() <= 0
                     || item.getQuantity() == null || item.getQuantity() <= 0
-                    || item.getQuantity() > MAX_ITEM_QUANTITY) {
+                    || item.getQuantity() > PurchaseRules.MAX_QUANTITY_PER_ITEM) {
                 throw new APIException(ResultCodeEnum.ORDER_SUBMIT_FAILED);
             }
             subtotal = subtotal.add(item.getFoodPrice().multiply(BigDecimal.valueOf(item.getQuantity())));

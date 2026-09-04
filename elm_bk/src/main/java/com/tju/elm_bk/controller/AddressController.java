@@ -26,9 +26,43 @@ public class AddressController {
         return addressService.addDeliveryAddress(createDTO);
     }
 
+    @PostMapping("/me")
+    @Operation(summary = "为当前用户新增地址")
+    public HttpResult<AddressVO> addCurrentUserAddress(@Valid @RequestBody AddressCreateDTO createDTO) {
+        createDTO.setCustomer(null);
+        return addressService.addDeliveryAddress(createDTO);
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "获取当前用户的地址列表")
+    public HttpResult<List<DeliveryAddress>> listCurrentUserAddresses() {
+        return addressService.listDeliveryAddressByUserId(null);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "获取当前用户的指定地址")
+    public HttpResult<DeliveryAddress> getAddress(@PathVariable Long id) {
+        return addressService.getDeliveryAddressById(id);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新当前用户的指定地址")
+    public HttpResult updateAddress(@PathVariable Long id, @RequestBody DeliveryAddress deliveryAddress) {
+        deliveryAddress.setId(id);
+        return addressService.updateDeliveryAddress(deliveryAddress);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除当前用户的指定地址")
+    public HttpResult deleteAddress(@PathVariable Long id) {
+        DeliveryAddress address = new DeliveryAddress();
+        address.setId(id);
+        return addressService.deleteDeliveryAddress(address);
+    }
+
     @Operation(summary = "获取用户地址列表")
     @GetMapping("/listDeliveryAddressByUserId")
-    public HttpResult<List<DeliveryAddress>> listDeliveryAddressByUserId(Long userId)
+    public HttpResult<List<DeliveryAddress>> listDeliveryAddressByUserId(@RequestParam(required = false) Long userId)
     {
         return addressService.listDeliveryAddressByUserId(userId);
     }

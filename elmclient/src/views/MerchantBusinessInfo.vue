@@ -98,6 +98,34 @@ export default {
       .filter(Boolean))]
       .map(category => `<option value="${escapeHtml(category)}"></option>`)
       .join('');
+    const purchaseLimitFieldsHtml = (value = null) => {
+      const limited = Number.isInteger(Number(value)) && Number(value) > 0;
+      return `
+        <label class="edit-field"><span>购买限制</span><select id="purchaseLimitMode" class="swal2-input">
+          <option value="none" ${limited ? '' : 'selected'}>不限购</option>
+          <option value="limited" ${limited ? 'selected' : ''}>每单限购</option>
+        </select><small>限购数量会同步展示给顾客</small></label>
+        <label id="purchaseLimitField" class="edit-field" style="${limited ? '' : 'display:none;'}"><span>每单最多</span><input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="请输入 1～999" value="${limited ? escapeHtml(value) : ''}"></label>`;
+    };
+    const bindPurchaseLimitFields = () => {
+      const mode = document.getElementById('purchaseLimitMode');
+      const field = document.getElementById('purchaseLimitField');
+      const input = document.getElementById('purchaseLimit');
+      if (!mode || !field || !input) return;
+      const sync = () => {
+        const limited = mode.value === 'limited';
+        field.style.display = limited ? '' : 'none';
+        input.disabled = !limited;
+        if (!limited) input.value = '';
+      };
+      mode.addEventListener('change', sync);
+      sync();
+    };
+    const readPurchaseLimit = () => {
+      if (document.getElementById('purchaseLimitMode')?.value !== 'limited') return null;
+      const value = Number(document.getElementById('purchaseLimit')?.value);
+      return Number.isInteger(value) && value >= 1 && value <= 999 ? value : Number.NaN;
+    };
     const toggleOperatingStatus = async () => {
       const nextStatus = business.value.operatingStatus === false;
       const actionText = nextStatus ? '开始营业' : '暂停营业';
@@ -430,13 +458,14 @@ console.log('修改成功，新的接口测试ok');
           <label class="edit-field"><span>商品价格</span><input id="foodPrice" type="number" min="0" step="0.01" class="swal2-input" placeholder="请输入售价"></label>
           <label class="edit-field"><span>商品分类</span><input id="foodCategory" class="swal2-input" maxlength="32" list="food-category-options" placeholder="输入分类，例如：盖饭、饮品"><small>可以选择店内已有分类，也可以直接创建新分类</small></label>
           <datalist id="food-category-options">${categoryOptionsHtml()}</datalist>
-          <label class="edit-field"><span>单笔限购</span><input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="可选，不填表示不限购"></label>
+          ${purchaseLimitFieldsHtml()}
         `,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: '确认',
         cancelButtonText: '取消',
         didOpen: () => {
+          bindPurchaseLimitFields();
           const fileInput = document.createElement('input');
           fileInput.type = 'file';
           fileInput.accept = 'image/*';
@@ -530,8 +559,7 @@ console.log('修改成功，新的接口测试ok');
           const foodExplain = document.getElementById('foodExplain').value.trim();
           const foodPrice = parseFloat(document.getElementById('foodPrice').value);
           const category = document.getElementById('foodCategory').value.trim();
-          const limitInput = document.getElementById('purchaseLimit').value;
-          const purchaseLimit = limitInput ? parseInt(limitInput, 10) : null;
+          const purchaseLimit = readPurchaseLimit();
 
           if (!foodName || !foodExplain || !category || category.length > 32 || isNaN(foodPrice) || foodPrice < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
             Swal.showValidationMessage('请填写完整且正确的信息');
@@ -644,13 +672,14 @@ console.log('修改成功，新的接口测试ok');
           <label class="edit-field"><span>商品价格</span><input id="foodPrice" type="number" min="0" step="0.01" class="swal2-input" placeholder="请输入售价" value="${escapeHtml(foodItem.foodPrice)}"></label>
           <label class="edit-field"><span>商品分类</span><input id="foodCategory" class="swal2-input" maxlength="32" list="food-category-options" placeholder="输入分类，例如：盖饭、饮品" value="${escapeHtml(foodItem.category || '其他')}"><small>可以选择店内已有分类，也可以直接创建新分类</small></label>
           <datalist id="food-category-options">${categoryOptionsHtml()}</datalist>
-          <label class="edit-field"><span>单笔限购</span><input id="purchaseLimit" type="number" min="1" max="999" class="swal2-input" placeholder="可选，不填表示不限购" value="${escapeHtml(foodItem.purchaseLimit ?? '')}"></label>
+          ${purchaseLimitFieldsHtml(foodItem.purchaseLimit)}
         `,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: '确认',
         cancelButtonText: '取消',
         didOpen: () => {
+          bindPurchaseLimitFields();
           const fileInput = document.createElement('input');
           fileInput.type = 'file';
           fileInput.accept = 'image/*';
@@ -741,8 +770,7 @@ console.log('修改成功，新的接口测试ok');
           const foodExplain = document.getElementById('foodExplain').value.trim();
           const foodPrice = parseFloat(document.getElementById('foodPrice').value);
           const category = document.getElementById('foodCategory').value.trim();
-          const limitInput = document.getElementById('purchaseLimit').value;
-          const purchaseLimit = limitInput ? parseInt(limitInput, 10) : null;
+          const purchaseLimit = readPurchaseLimit();
 
           if (!foodName || !foodExplain || !category || category.length > 32 || isNaN(foodPrice) || foodPrice < 0 || (purchaseLimit !== null && (isNaN(purchaseLimit) || purchaseLimit < 1 || purchaseLimit > 999))) {
             Swal.showValidationMessage('请填写完整且正确的信息');
@@ -809,7 +837,8 @@ console.log('修改成功，新的接口测试ok');
             foodPrice: formValues.foodPrice,
             businessId: businessId.value,
             category: formValues.category,
-            purchaseLimit: formValues.purchaseLimit
+            purchaseLimit: formValues.purchaseLimit,
+            purchaseLimitEnabled: formValues.purchaseLimit !== null
           };
 
           const response = await request.post('/api/foods/modifyItem', updateData);

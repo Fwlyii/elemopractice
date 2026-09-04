@@ -63,8 +63,9 @@
 <script>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import request from '../utils/request';
 import { toast } from '../utils/toast';
+import { cartQuantityLimitMessage, maxCartQuantity } from '../utils/cartQuantityRules';
+import { listCartItems, removeCartItem, setCartItemQuantity } from '../services/cartService';
 
 export default {
 	name: 'Cart',
@@ -93,9 +94,9 @@ export default {
 		});
 
 		const listCart = () => {
-			request.get("/api/carts/list?businessId=" + businessId.value)
-				.then(response => {
-					cartItems.value = Array.isArray(response?.data) ? response.data : [];
+			listCartItems(businessId.value)
+				.then(items => {
+					cartItems.value = Array.isArray(items) ? items : [];
 					businessName.value = cartItems.value[0]?.businessName || '当前商家';
 					selectedFoodIds.value = [...new Set(cartItems.value.map(item => item.foodId).filter(Boolean))];
 				}).catch(error => {
@@ -121,18 +122,12 @@ export default {
 			if (updating) next.add(id); else next.delete(id);
 			updatingCartIds.value = next;
 		};
-		const maxQuantity = (item) => Math.max(1, Math.min(
-			Number.isFinite(Number(item.stock)) ? Number(item.stock) : Number.MAX_SAFE_INTEGER,
-			Number.isFinite(Number(item.purchaseLimit)) && Number(item.purchaseLimit) > 0
-				? Number(item.purchaseLimit)
-				: Number.MAX_SAFE_INTEGER
-		));
+		const maxQuantity = maxCartQuantity;
 		const updateItemQuantity = async (item, quantity) => {
 			if (updatingCartIds.value.has(item.id)) return;
 			markUpdating(item.id, true);
 			try {
-				const response = await request.put(`/api/carts/${item.id}`, null, { params: { quantity } });
-				if (!response?.success) throw new Error(response?.message || '更新失败');
+				await setCartItemQuantity(item.id, quantity);
 				if (quantity === 0) {
 					cartItems.value = cartItems.value.filter(candidate => candidate.id !== item.id);
 					selectedFoodIds.value = selectedFoodIds.value.filter(foodId => foodId !== item.foodId);
@@ -149,8 +144,7 @@ export default {
 			if (updatingCartIds.value.has(item.id)) return;
 			markUpdating(item.id, true);
 			try {
-				const response = await request.delete(`/api/carts/${item.id}`);
-				if (!response?.success) throw new Error(response?.message || '删除失败');
+				await removeCartItem(item.id);
 				cartItems.value = cartItems.value.filter(candidate => candidate.id !== item.id);
 				selectedFoodIds.value = selectedFoodIds.value.filter(foodId => foodId !== item.foodId);
 			} catch (error) {
@@ -163,7 +157,7 @@ export default {
 			const next = Number(item.quantity || 0) + delta;
 			if (next <= 0) return removeItem(item);
 			if (next > maxQuantity(item)) {
-				toast.warning(item.purchaseLimit ? `该商品每单限购 ${item.purchaseLimit} 份` : '当前可售数量已达上限');
+				toast.warning(cartQuantityLimitMessage(item));
 				return;
 			}
 			return updateItemQuantity(item, next);
