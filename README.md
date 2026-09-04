@@ -426,4 +426,8 @@ MySQL版本信息：
 
 ## Docker 演示
 
-本地演示可执行 `docker compose -f docker-compose.demo.yml up -d --build`，前端地址为 `http://localhost:18081`；公网临时分享可执行 `docker compose -f docker-compose.demo.yml --profile share up -d --build`。
+首次运行“双击启动”脚本时会在项目根目录生成仅供本机使用的 `.env`，其中包含随机 JWT 签名密钥；该文件已被 Git 忽略，请勿提交或分享。
+
+本地演示可执行 `./scripts/ensure-demo-env.sh && docker compose -f docker-compose.demo.yml up -d --build`，前端地址为 `http://localhost:18081`；公网临时分享可执行 `./scripts/ensure-demo-env.sh && docker compose -f docker-compose.demo.yml --profile share up -d --build`。
+
+课程演示环境会设置 `APP_DEMO_ENABLED=true`，用于开放模拟支付、余额充值和免费会员。正式部署必须保持该配置为 `false`，并接入支付平台的服务端签名回调后才能开放真实支付。

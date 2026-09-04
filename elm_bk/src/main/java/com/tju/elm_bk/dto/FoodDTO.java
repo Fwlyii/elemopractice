@@ -64,8 +64,10 @@ public class FoodDTO {
     private Integer purchaseLimit;
 
     public Boolean verify() {
-        if(business == null || business.getId() == null || foodName == null ||foodPrice == null || foodPrice.compareTo(BigDecimal.ZERO) < 0
-                || (stock != null && stock < 0)
+        if(business == null || business.getId() == null || foodName == null || foodName.isBlank() || foodName.trim().length() > 100
+                || foodPrice == null || foodPrice.compareTo(BigDecimal.ZERO) <= 0
+                || foodPrice.compareTo(new BigDecimal("100000")) > 0
+                || (stock != null && (stock < 0 || stock > 1_000_000))
                 || (purchaseLimit != null && purchaseLimit <= 0)) {
             return false;
         }

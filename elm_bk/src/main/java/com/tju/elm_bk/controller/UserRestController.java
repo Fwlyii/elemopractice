@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
@@ -78,7 +79,7 @@ public class UserRestController {
         user.setIsDeleted(false);
 
         // 加密密码
-        user.setPassword(passwordEncoder.encode(user.getPassword() != null ? user.getPassword() : "password"));
+        user.setPassword(passwordEncoder.encode(newUser.getPassword()));
 
         // 保存用户
         userService.addUser(user);
@@ -119,12 +120,14 @@ public class UserRestController {
         PersonVO personVO=new PersonVO();
         BeanUtils.copyProperties(currentUser, personVO);
         Person person = personService.getPersonByUserId(currentUser.getId());
+        if (person == null) throw new APIException("当前账号缺少个人信息");
         BeanUtils.copyProperties(person, personVO);
         return ResponseEntity.ok(personVO);
     }
 
     @GetMapping("/persons")
     @Operation(summary = "获取不同状态的自然人用户", description = "获取不同状态自然人用户，传入0-全部，1-启用，2-禁用")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public HttpResult<List<PersonVO>> listPersons(Integer status) {
         return HttpResult.success(personService.listPersons(status));
     }
@@ -134,6 +137,7 @@ public class UserRestController {
      */
     @PostMapping("/persons/search")
     @Operation(summary = "搜索用户（用户名/手机号/邮箱）")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public HttpResult<List<PersonVO>> searchPersons(@RequestBody UserSearchDTO searchDTO) {
         List<PersonVO> searchResult = personService.searchPersons(searchDTO);
         return HttpResult.success(searchResult);
@@ -143,6 +147,11 @@ public class UserRestController {
     @PostMapping("/password")
     @Operation(summary = "修改密码", description = "已登录用户可修改自己的密码，管理员可修改任何用户的密码")
     public ResponseEntity<String> updateUserPassword(@Valid @RequestBody LoginDTO loginDto) {
+        String newPassword = loginDto.getPassword();
+        if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 32
+                || !newPassword.matches(".*[A-Za-z].*") || !newPassword.matches(".*\\d.*")) {
+            throw new APIException("密码长度需为8-32位且同时包含字母和数字");
+        }
         User currentUser = getCurrentUser();
         boolean isAdmin = currentUser.getAuthorities().stream()
                 .anyMatch(auth -> "ADMIN".equals(auth.getName()));
@@ -154,7 +163,7 @@ public class UserRestController {
 
         // 检查权限：只能修改自己的密码，或者管理员可以修改任何人的密码
         if (currentUser.getUsername().equals(targetUser.getUsername()) || isAdmin) {
-            targetUser.setPassword(passwordEncoder.encode(loginDto.getPassword()));
+            targetUser.setPassword(passwordEncoder.encode(newPassword));
             targetUser.setUpdateTime(LocalDateTime.now());
             targetUser.setUpdater(currentUser.getId());
             userService.updateUser(targetUser);
@@ -191,9 +200,7 @@ public class UserRestController {
         user.setIsDeleted(false); // 默认未删除
         user.setActivated(true); // 默认激活（可登录）
         user.setUsername(createDTO.getUsername());
-        // 密码：DTO中未传则用默认密码"password"，传了则加密存储
-        String rawPassword = createDTO.getPassword() != null ? createDTO.getPassword() : "password";
-        user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setPassword(passwordEncoder.encode(createDTO.getPassword()));
         // 保存User，获取自增ID
         userService.addUser(user);
         Person person = new Person();
@@ -303,7 +310,6 @@ public class UserRestController {
 //        }
 
         User user1 = userService.getUserWithAuthorities(user.getUsername());
-        log.info("user1:{}",user1);
         PersonVO personVO = new PersonVO();
 
         BeanUtils.copyProperties(newUser, personVO);
@@ -314,6 +320,7 @@ public class UserRestController {
 
     @PutMapping("/{username}/status")
     @Operation(summary = "启用/禁用用户")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public HttpResult<String> toggleUserStatus(
             @PathVariable String username,
             @RequestParam Boolean activated) { // true-启用，false-禁用
@@ -340,6 +347,15 @@ public class UserRestController {
     @GetMapping("/personInfo")
     @Operation(summary = "根据id获取自然人属性", description = "根据id获取自然人属性")
     public HttpResult<Person> getPersonInfo(Long id) {
+        if (id == null) {
+            throw new APIException("用户ID不能为空");
+        }
+        User currentUser = getCurrentUser();
+        boolean isAdmin = currentUser.getAuthorities() != null && currentUser.getAuthorities().stream()
+                .anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        if (!isAdmin && !Objects.equals(currentUser.getId(), id)) {
+            throw new APIException("无权查看其他用户的个人信息");
+        }
         return HttpResult.success(personMapper.getPersonByUserId(id));
     }
 

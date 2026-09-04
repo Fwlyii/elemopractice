@@ -18,6 +18,10 @@ public interface PersonMapper {
     @Select("SELECT COUNT(*) FROM person WHERE phone = #{phone}")
     int countByPhone(String phone);
 
+    @Select("SELECT COUNT(*) FROM person WHERE phone = #{phone} AND id <> #{id}")
+    int countByPhoneExcludingId(@org.apache.ibatis.annotations.Param("phone") String phone,
+                                @org.apache.ibatis.annotations.Param("id") Long id);
+
     void updateById(Person updateDTO);
 
     @Select("select * from person")

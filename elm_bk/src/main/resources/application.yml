@@ -9,6 +9,10 @@ spring:
     url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:mysql://localhost:3306/elm_v2}}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:root}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:}}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 
 #  data:
@@ -29,8 +33,8 @@ mybatis:
 
 
 jwt:
-  # 本地演示兜底值仅用于开发；部署时请通过 JWT_SECRET 覆盖，并使用至少64字节随机密钥。
-  secret: ${JWT_SECRET:elm-demo-development-secret-change-before-production-use-env-2026-09-03-please}
+  # 不提供可预测的默认签名密钥；演示启动脚本会在本机 .env 中自动生成随机值。
+  secret: ${JWT_SECRET}
   token-validity-in-seconds: 86400
   token-validity-in-seconds-for-remember-me: 108000
 
@@ -42,6 +46,11 @@ springdoc:
   swagger-ui:
     enabled: true
     path: /swagger-ui
+
+app:
+  demo:
+    # 模拟支付、模拟充值和免费会员只能在显式开启的演示环境使用。
+    enabled: ${APP_DEMO_ENABLED:false}
 
 # DeepSeek AI配置
 deepseek:

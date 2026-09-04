@@ -13,8 +13,8 @@ import com.tju.elm_bk.vo.OrderItemDetailVO;
 import com.tju.elm_bk.vo.OrderItemVO;
 import com.tju.elm_bk.vo.OrderVO;
 import com.tju.elm_bk.websocket.WebSocketServer;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +26,13 @@ import java.util.Objects;
 
 @Service
 public class OrderServiceImpl implements OrderService {
+
+    private static final BigDecimal MAX_ORDER_AMOUNT = new BigDecimal("99999999.99");
+    private static final int MAX_DISTINCT_ITEMS = 100;
+    private static final int MAX_ITEM_QUANTITY = 999;
+
+    @Value("${app.demo.enabled:false}")
+    private boolean demoEnabled;
 
     @Autowired
     private OrdersMapper ordersMapper;
@@ -89,82 +96,19 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderVO addOrder(OrderDTO orderDTO) {
-        if (!orderDTO.verify()) {
+        if (orderDTO == null || !orderDTO.verify()) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
-        Business business = businessMapper.selectBusinessById(orderDTO.getBusiness().getId());
-        if (business == null) {
-            throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
-        }
-        ensureBusinessOrderable(business);
-        DeliveryAddress deliveryAddress = deliveryAddressMapper.getDeliveryAddressById(orderDTO.getDeliveryAddress().getId());
-        if (deliveryAddress == null || Boolean.TRUE.equals(deliveryAddress.getIsDeleted())) {
-            throw new APIException(ResultCodeEnum.ADDRESS_MISSED);
-        }
-
-        // 设置订单信息
-        User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        if (!Objects.equals(userMapper.getUserIdByUsername(orderDTO.getCustomer().getUsername()), user.getId())) {
+        String currentUsername = SecurityUtils.getCurrentUsername()
+                .orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED));
+        if (!Objects.equals(currentUsername, orderDTO.getCustomer().getUsername())) {
             throw new APIException(ResultCodeEnum.USER_UNMATCHED);
         }
-        if (!Objects.equals(deliveryAddress.getUserId(), user.getId())) {
-            throw new APIException(ResultCodeEnum.ADDRESS_PERMISSION_DENIED);
-        }
-        List<CartItemVO> cartItemsInBusiness = cartMapper.selectCartItems(user.getId(), business.getId());
-        if (cartItemsInBusiness.isEmpty()) {
-            throw new APIException(ResultCodeEnum.CART_EMPTY);
-        }
-        validatePurchaseLimits(cartItemsInBusiness);
-        reserveStock(cartItemsInBusiness);
-        Order order = new Order();
-        order.setBusinessId(business.getId());
-        order.setOrderDate(LocalDateTime.now());
-        order.setCustomerId(user.getId());
-        order.setAddressId(deliveryAddress.getId());
-        copyAddressSnapshot(order, deliveryAddress);
-        order.setDeliveryPrice(business.getDeliveryPrice());
-
-        order.setOrderState(0);
-        order.setCreator(user.getId());
-        order.setUpdater(user.getId());
-        order.setCreateTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
-        order.setIsDeleted(false);
-
-        // 计算总价
-        double totalPrice = 0.0;
-        for (CartItemVO cartItemVO : cartItemsInBusiness) {
-            totalPrice += (cartItemVO.getFoodPrice() * cartItemVO.getQuantity());
-        }
-        order.setOrderTotal(BigDecimal.valueOf(totalPrice));
-        validateStartPrice(business, order.getOrderTotal());
-
-        // 插入订单数据到数据库
-        ordersMapper.insertOrder(order);
-        recordStatus(order.getId(), null, OrderStatus.WAITING_PAYMENT.getCode(), user.getId(), "顾客创建订单");
-
-        // 插入订单详情
-        for (CartItemVO cartItemVO : cartItemsInBusiness) {
-
-            OrderDetailet orderDetailet = new OrderDetailet();
-
-            orderDetailet.setOrderId(order.getId());
-            orderDetailet.setQuantity(cartItemVO.getQuantity());
-            orderDetailet.setFoodId(cartItemVO.getFoodId());
-
-            orderDetailet.setCreator(user.getId());
-            orderDetailet.setUpdater(user.getId());
-            orderDetailet.setCreateTime(LocalDateTime.now());
-            orderDetailet.setUpdateTime(LocalDateTime.now());
-            orderDetailet.setIsDeleted(false);
-
-            orderDetailetMapper.saveOrderDetail(orderDetailet);
-        }
-
-        // 清空该用户在当前商家的购物车
-        cartMapper.clearCart(user.getId(),orderDTO.getBusiness().getId());
-
-        return ordersMapper.selectOrderById(order.getId());
+        // 兼容老师测试用的旧请求格式，但所有身份、地址、商品价格、优惠和配送费
+        // 仍统一走正式下单服务；customer 只做一致性校验，orderTotal 等字段不作为事实来源。
+        Long orderId = orderSubmit(orderDTO.getBusiness().getId(), orderDTO.getDeliveryAddress().getId(),
+                null, "delivery", null);
+        return ordersMapper.selectOrderById(orderId);
     }
 
 
@@ -311,9 +255,19 @@ public class OrderServiceImpl implements OrderService {
      * 模拟支付不扣钱包；钱包支付和积分抵扣都使用条件更新保证余额不会变负。
      */
     private void settlePayment(Order order, Long userId, String requestedMethod, Integer requestedPoints, Long couponId) {
-        String method = requestedMethod == null ? "simulated" : requestedMethod.trim().toLowerCase();
+        String method = requestedMethod == null ? "" : requestedMethod.trim().toLowerCase();
+        if (method.isEmpty()) {
+            if (!demoEnabled) throw new APIException("请选择有效的支付方式");
+            method = "simulated";
+        }
         boolean wallet = "wallet".equals(method);
-        if (!wallet && !"simulated".equals(method) && !"alipay".equals(method) && !"wechat".equals(method)) {
+        if ("alipay".equals(method) || "wechat".equals(method)) {
+            throw new APIException("支付宝和微信支付尚未接入服务端支付回调，不能直接标记为已支付");
+        }
+        if ("simulated".equals(method) && !demoEnabled) {
+            throw new APIException("模拟支付仅在课程演示环境开放");
+        }
+        if (!wallet && !"simulated".equals(method)) {
             throw new APIException("不支持的支付方式");
         }
         int points = requestedPoints == null ? 0 : requestedPoints;
@@ -434,6 +388,9 @@ public class OrderServiceImpl implements OrderService {
         if (cartItemsInBusiness == null || cartItemsInBusiness.isEmpty()) {
             throw new APIException(ResultCodeEnum.CART_EMPTY);
         }
+        if (cartItemsInBusiness.size() > MAX_DISTINCT_ITEMS) {
+            throw new APIException("单笔订单商品种类不能超过" + MAX_DISTINCT_ITEMS + "种");
+        }
         validatePurchaseLimits(cartItemsInBusiness);
         Order order = new Order();
         order.setBusinessId(businessId);
@@ -450,18 +407,26 @@ public class OrderServiceImpl implements OrderService {
         order.setUpdateTime(LocalDateTime.now());
         order.setIsDeleted(false);
 
-        // 计算总价
-        double totalPrice = 0.0;
+        // 金额从数据库商品快照计算，全链路使用 BigDecimal，避免浮点误差。
+        BigDecimal subtotal = BigDecimal.ZERO;
         for (CartItemVO cartItemVO : cartItemsInBusiness) {
-            totalPrice += (cartItemVO.getFoodPrice() * cartItemVO.getQuantity());
+            if (cartItemVO.getFoodPrice() == null || cartItemVO.getFoodPrice().compareTo(BigDecimal.ZERO) <= 0
+                    || cartItemVO.getQuantity() == null || cartItemVO.getQuantity() <= 0
+                    || cartItemVO.getQuantity() > MAX_ITEM_QUANTITY) {
+                throw new APIException(ResultCodeEnum.ORDER_SUBMIT_FAILED);
+            }
+            subtotal = subtotal.add(cartItemVO.getFoodPrice().multiply(BigDecimal.valueOf(cartItemVO.getQuantity())));
+            if (subtotal.compareTo(MAX_ORDER_AMOUNT) > 0) {
+                throw new APIException("订单金额超过系统允许的单笔上限");
+            }
         }
 
-        if (totalPrice == 0.0) {
+        if (subtotal.compareTo(BigDecimal.ZERO) <= 0) {
             throw new APIException(ResultCodeEnum.ORDER_SUBMIT_FAILED);
         }
         // 在创建订单事务中原子预占库存；任一商品不足会回滚整笔订单。
         reserveStock(cartItemsInBusiness);
-        BigDecimal subtotal = BigDecimal.valueOf(totalPrice).setScale(2, RoundingMode.HALF_UP);
+        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
         validateStartPrice(business, subtotal);
         UserAsset assets = assetMapper.findByUserId(userId);
         BigDecimal merchantPromotion = BigDecimal.ZERO;
@@ -478,6 +443,9 @@ public class OrderServiceImpl implements OrderService {
         }
         BigDecimal orderDeliveryPrice = "PICKUP".equals(normalizedServiceMode) ? BigDecimal.ZERO : (business.getDeliveryPrice() == null ? BigDecimal.ZERO : business.getDeliveryPrice());
         BigDecimal price = discountedSubtotal.add(orderDeliveryPrice).max(BigDecimal.ZERO);
+        if (price.compareTo(MAX_ORDER_AMOUNT) > 0) {
+            throw new APIException("订单金额超过系统允许的单笔上限");
+        }
         // 浮点数精度,保留两位小数
         order.setOrderTotal(price.setScale(2, RoundingMode.HALF_UP));
         // 订单保存当前商家配送费,避免商家修改导致的不一致
@@ -485,7 +453,7 @@ public class OrderServiceImpl implements OrderService {
         order.setServiceMode(normalizedServiceMode);
 
         // 插入订单数据到数据库
-        ordersMapper.insertOrderPlus(order);
+        ordersMapper.insertOrder(order);
         recordStatus(order.getId(), null, OrderStatus.WAITING_PAYMENT.getCode(), userId, "顾客创建订单");
 
         // 插入订单详情
@@ -497,7 +465,7 @@ public class OrderServiceImpl implements OrderService {
             orderDetailet.setQuantity(cartItemVO.getQuantity());
             orderDetailet.setFoodId(cartItemVO.getFoodId());
             // 商品价格保存到detail里,避免商家修改导致用户原有订单数据不一致
-            orderDetailet.setFoodPrice(BigDecimal.valueOf(cartItemVO.getFoodPrice()));
+            orderDetailet.setFoodPrice(cartItemVO.getFoodPrice().setScale(2, RoundingMode.HALF_UP));
 
             orderDetailet.setCreator(userId);
             orderDetailet.setUpdater(userId);
@@ -538,14 +506,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void validatePurchaseLimits(List<CartItemVO> items) {
-        java.util.Map<Long, Integer> quantities = new java.util.HashMap<>();
+        java.util.Map<Long, Long> quantities = new java.util.HashMap<>();
         for (CartItemVO item : items) {
             if (item.getFoodId() == null || item.getQuantity() == null) continue;
-            quantities.merge(item.getFoodId(), item.getQuantity(), Integer::sum);
+            quantities.merge(item.getFoodId(), item.getQuantity().longValue(), Long::sum);
         }
         for (CartItemVO item : items) {
             Integer limit = item.getPurchaseLimit();
-            Integer total = item.getFoodId() == null ? null : quantities.get(item.getFoodId());
+            Long total = item.getFoodId() == null ? null : quantities.get(item.getFoodId());
             if (limit != null && total != null && total > limit) {
                 throw new APIException("商品“" + (item.getFoodName() == null ? "" : item.getFoodName()) + "”单笔限购" + limit + "份");
             }

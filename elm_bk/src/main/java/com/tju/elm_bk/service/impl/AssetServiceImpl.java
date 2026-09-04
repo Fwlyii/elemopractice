@@ -11,6 +11,7 @@ import com.tju.elm_bk.utils.SecurityUtils;
 import com.tju.elm_bk.vo.AssetVO;
 import com.tju.elm_bk.vo.AssetLedgerVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,8 @@ import java.util.List;
 public class AssetServiceImpl implements AssetService {
     private final AssetMapper assetMapper;
     private final UserMapper userMapper;
+    @Value("${app.demo.enabled:false}")
+    private boolean demoEnabled;
     private User current() {
         String username=SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException("请先登录"));
         User user=userMapper.findByUsername(username); if(user==null) throw new APIException("当前用户不存在"); return user;
@@ -34,17 +37,35 @@ public class AssetServiceImpl implements AssetService {
     }
     @Override public AssetVO me(){ return snapshot(current().getId()); }
     @Override @Transactional public AssetVO recharge(BigDecimal amount){
+        requireDemoFeature("模拟充值");
         if(amount==null||amount.compareTo(BigDecimal.ONE)<0||amount.compareTo(new BigDecimal("500"))>0) throw new APIException("充值金额需在1-500元之间");
-        Long id=current().getId(); assetMapper.ensure(id); assetMapper.addBalance(id,amount); assetMapper.insertLedger(id,"RECHARGE",amount,0,"模拟充值",null); return snapshot(id);
+        Long id=current().getId(); assetMapper.ensure(id); UserAsset asset=assetMapper.lockByUserId(id);
+        BigDecimal currentBalance=asset.getBalance()==null?BigDecimal.ZERO:asset.getBalance();
+        if(currentBalance.add(amount).compareTo(new BigDecimal("2000"))>0) throw new APIException("演示钱包余额不能超过2000元");
+        assetMapper.addBalance(id,amount); assetMapper.insertLedger(id,"RECHARGE",amount,0,"模拟充值",null); return snapshot(id);
     }
-    @Override @Transactional public AssetVO claimWelcomeCoupon(){ Long id=current().getId(); assetMapper.ensure(id); if (assetMapper.claimWelcomeCoupon(id) == 1) assetMapper.insertLedger(id,"COUPON_GRANT",BigDecimal.ZERO,0,"领取新人券",null); return snapshot(id); }
+    @Override @Transactional public AssetVO claimWelcomeCoupon(){
+        Long id=current().getId();
+        assetMapper.ensure(id);
+        // 锁住该用户唯一的资产行，使“检查+领取”在并发请求下仍只成功一次。
+        assetMapper.lockByUserId(id);
+        if (assetMapper.countWelcomeCoupons(id) == 0 && assetMapper.claimWelcomeCoupon(id) == 1) {
+            assetMapper.insertLedger(id,"COUPON_GRANT",BigDecimal.ZERO,0,"领取新人券",null);
+        }
+        return snapshot(id);
+    }
     @Override public List<UserCoupon> availableCoupons(){ return assetMapper.listAvailableCoupons(current().getId()); }
     @Override @Transactional public AssetVO activateMembership(){
-        Long id=current().getId(); assetMapper.ensure(id); UserAsset current=assetMapper.findByUserId(id);
+        requireDemoFeature("免费开通会员");
+        Long id=current().getId(); assetMapper.ensure(id); UserAsset current=assetMapper.lockByUserId(id);
         if (current.getMembershipExpire() != null && current.getMembershipExpire().isAfter(LocalDateTime.now())) return snapshot(id);
         assetMapper.activateMembership(id); assetMapper.insertLedger(id,"MEMBERSHIP",BigDecimal.ZERO,0,"开通30天会员",null); return snapshot(id);
     }
     @Override public List<AssetLedgerVO> ledger(Integer limit){ Long id=current().getId(); int safeLimit=limit==null?20:Math.min(Math.max(limit,1),100); return assetMapper.listLedger(id,safeLimit); }
+
+    private void requireDemoFeature(String feature) {
+        if (!demoEnabled) throw new APIException(feature + "仅在课程演示环境开放");
+    }
 
     @Override @Transactional
     public void refundOrderAssets(Long orderId, Long userId, Integer pointsUsed, BigDecimal walletAmount) {

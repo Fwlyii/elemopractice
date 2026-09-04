@@ -8,7 +8,7 @@ services:
       MYSQL_ROOT_PASSWORD: elm_demo_root_password
       TZ: Asia/Shanghai
     ports:
-      - "13306:3306"
+      - "127.0.0.1:13306:3306"
     volumes:
       - ./elm_bk/elm_v2.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./demo-seed.sql:/docker-entrypoint-initdb.d/02-demo-seed.sql:ro
@@ -27,12 +27,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/elm_v2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: elm_demo
       SPRING_DATASOURCE_PASSWORD: elm_demo_password
-      # 仅供本地/答辩演示；正式环境请在 .env 中覆盖 JWT_SECRET。
-      JWT_SECRET: ${JWT_SECRET:-elm-demo-development-secret-change-before-production-use-env-2026-09-03-please}
+      JWT_SECRET: ${JWT_SECRET:?请先通过启动脚本生成或在.env中配置JWT_SECRET}
+      APP_DEMO_ENABLED: "true"
       DEEPSEEK_API_KEY: ""
       TZ: Asia/Shanghai
     ports:
-      - "18080:8080"
+      - "127.0.0.1:18080:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -42,7 +42,7 @@ services:
       context: ./elmclient
       dockerfile: Dockerfile.demo
     ports:
-      - "18081:80"
+      - "127.0.0.1:18081:80"
     depends_on:
       - backend
 

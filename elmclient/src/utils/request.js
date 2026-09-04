@@ -13,9 +13,14 @@ const request = axios.create({
 // 2. 请求拦截器：给非登录/注册请求加 Authorization 头
 request.interceptors.request.use(
   (config) => {
-    // 排除登录和注册接口，以及外部API（根据你的实际接口路径调整）
-    const excludePaths = ['/api/auth', '/api/register', 'restapi.amap.com'];
-    if (!excludePaths.some(path => config.url.includes(path))) {
+    const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
+    const targetUrl = new URL(config.url || '', apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`);
+    // 这个 Axios 实例只允许访问本项目后端，防止绝对 URL 或重定向配置把 JWT 带到第三方站点。
+    if (targetUrl.origin !== apiOrigin) {
+      return Promise.reject(new Error('拒绝向非平台域名发送认证请求'));
+    }
+    const excludePaths = ['/api/auth', '/api/register'];
+    if (!excludePaths.includes(targetUrl.pathname)) {
       // 从 localStorage/sessionStorage 获取 token
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       if (token) {

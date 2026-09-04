@@ -10,6 +10,7 @@ public class LoginDTO {
     private String username;
 
     @NotNull
+    @Size(min = 1, max = 128)
     private String password;
 
     private Boolean rememberMe;

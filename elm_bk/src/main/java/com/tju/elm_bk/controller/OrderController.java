@@ -67,7 +67,7 @@ public class OrderController {
     @Operation(summary = "支付或取消订单", description = "只允许目标状态1（待商家接单）或8（已取消）；配送流转请使用/api/v1专用接口")
     public HttpResult<Long> setOrderStatus(@RequestParam Integer orderState,
                                            @RequestParam Long orderId,
-                                           @RequestParam(required = false, defaultValue = "simulated") String paymentMethod,
+                                           @RequestParam(required = false) String paymentMethod,
                                            @RequestParam(required = false, defaultValue = "0") Integer pointsToUse,
                                            @RequestParam(required = false) Long couponId) {
         return HttpResult.success(orderService.setOrderState(orderId, orderState, paymentMethod, pointsToUse, couponId));
@@ -89,6 +89,7 @@ public class OrderController {
 
     private List<Long> parseFoodIds(String foodIds) {
         if (foodIds == null || foodIds.trim().isEmpty()) return null;
+        if (foodIds.length() > 2000) throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         try {
             List<Long> ids = Arrays.stream(foodIds.split(","))
                     .map(String::trim)
@@ -98,6 +99,7 @@ public class OrderController {
                     .distinct()
                     .collect(Collectors.toList());
             if (ids.isEmpty()) throw new NumberFormatException("empty");
+            if (ids.size() > 100) throw new NumberFormatException("too many items");
             return ids;
         } catch (NumberFormatException ex) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);

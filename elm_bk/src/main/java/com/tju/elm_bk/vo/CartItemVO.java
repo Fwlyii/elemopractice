@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -33,7 +34,7 @@ public class CartItemVO {
     private String foodName;
 
     @Schema(description = "商品单价")
-    private Double foodPrice;
+    private BigDecimal foodPrice;
 
     @Schema(description = "可售库存")
     private Integer stock;

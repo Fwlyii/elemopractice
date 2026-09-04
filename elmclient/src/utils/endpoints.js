@@ -8,5 +8,7 @@ export const apiBaseUrl = configuredApiBaseUrl
 export const getWebSocketUrl = (path) => {
   const url = new URL(path, `${apiBaseUrl}/`);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  if (token) url.searchParams.set('access_token', token);
   return url.toString();
 };

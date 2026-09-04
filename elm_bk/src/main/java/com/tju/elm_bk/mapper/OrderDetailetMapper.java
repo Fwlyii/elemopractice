@@ -11,11 +11,6 @@ import java.util.List;
 @Mapper
 public interface OrderDetailetMapper {
 
-    Integer saveOrderDetail(OrderDetailet orderDetailet);
-
-
-
-
     Integer saveOrderDetailPlus(OrderDetailet orderDetailet);
 
     @Select("""

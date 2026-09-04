@@ -51,10 +51,10 @@ public class UserModelDetailsService implements UserDetailsService{
         // 打印处理后的权限列表
         log.debug("处理后的权限列表：{}", grantedAuthorities);
 
-// 增加非空校验
+        // 权限缺失属于账号配置异常，必须默认拒绝；不能在认证阶段擅自补成普通用户。
         if (grantedAuthorities.isEmpty()) {
-            grantedAuthorities.add(new SimpleGrantedAuthority("USER")); // 默认角色
-            log.warn("用户 {} 未分配任何权限，已自动添加默认权限USER", user.getUsername());
+            log.warn("用户 {} 未分配任何权限，拒绝认证", user.getUsername());
+            throw new UsernameNotFoundException("User " + login + " has no authorities");
         }
 
 

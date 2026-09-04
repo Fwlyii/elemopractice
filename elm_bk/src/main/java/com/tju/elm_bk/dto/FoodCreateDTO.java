@@ -44,6 +44,7 @@ public class FoodCreateDTO {
     public boolean verify() {
         return foodName != null && !foodName.trim().isEmpty() && businessId != null && foodPrice != null
                 && foodPrice.compareTo(BigDecimal.ZERO) > 0 && (stock == null || stock >= 0)
+                && foodPrice.compareTo(new BigDecimal("100000")) <= 0 && (stock == null || stock <= 1_000_000)
                 && (purchaseLimit == null || purchaseLimit > 0);
     }
 

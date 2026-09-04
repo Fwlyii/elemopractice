@@ -22,6 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
+@PreAuthorize("hasAuthority('ADMIN')")
 @Tag(name = "管理端数据看板", description = "管理端数据看板")
 public class AdminController {
     @Autowired

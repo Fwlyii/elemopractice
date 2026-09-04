@@ -128,7 +128,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         task.setDistanceKm(estimateDistance(orderId)); task.setRiderFee(order.getDeliveryPrice() == null ? BigDecimal.ZERO : order.getDeliveryPrice());
         deliveryTaskMapper.insertTask(task);
         notifyUser(order.getCustomerId(), "餐品已出餐，正在等待骑手接单", orderId);
-        broadcastDeliveryUpdate("新配送任务 #" + task.getId() + " 等待骑手接单", orderId);
+        notifyDeliveryAudience("RIDER", "新配送任务 #" + task.getId() + " 等待骑手接单", orderId);
         return deliveryTaskMapper.selectViewById(task.getId());
     }
 
@@ -274,7 +274,7 @@ public class DeliveryServiceImpl implements DeliveryService {
         changeOrderState(task.getOrderId(), previousOrderStatus, OrderStatus.DELIVERY_EXCEPTION,
                 rider.getId(), "骑手上报异常：" + dto.getExceptionType());
         notifyOrderParties(order, rider.getId(), "配送出现异常，管理员正在处理", task.getOrderId());
-        broadcastDeliveryUpdate("配送任务 #" + taskId + " 出现异常", task.getOrderId());
+        notifyDeliveryAudience("ADMIN", "配送任务 #" + taskId + " 出现异常", task.getOrderId());
         return deliveryException;
     }
 
@@ -525,11 +525,11 @@ public class DeliveryServiceImpl implements DeliveryService {
         webSocketServer.sendToClient(userId.toString(), message.toJSONString());
     }
 
-    private void broadcastDeliveryUpdate(String content, Long orderId) {
+    private void notifyDeliveryAudience(String authority, String content, Long orderId) {
         JSONObject message = new JSONObject();
         message.put("type", "delivery_update");
         message.put("orderId", orderId);
         message.put("content", content);
-        webSocketServer.sendToAllClient(message.toJSONString());
+        webSocketServer.sendToAuthority(authority, message.toJSONString());
     }
 }

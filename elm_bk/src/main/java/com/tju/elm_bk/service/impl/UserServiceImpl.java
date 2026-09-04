@@ -49,7 +49,6 @@ public class UserServiceImpl implements UserService {
         String currentUsername = SecurityUtils.getCurrentUsername()
                 .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
         User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
-        log.info("当前用户：{}", currentUser);
         User targetUser = userMapper.findByUsernameWithAuthorities(username);
         if (targetUser == null) {
             throw new APIException("目标用户不存在");
@@ -90,7 +89,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void toggleUserActivated(String username, Boolean activated) {
-        User user = userMapper.findByUsername(username);
+        if (username == null || username.isBlank() || activated == null) {
+            throw new APIException("用户名和账号状态不能为空");
+        }
+        String currentUsername = SecurityUtils.getCurrentUsername()
+                .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
+        User currentUser = userMapper.findByUsernameWithAuthorities(currentUsername);
+        boolean isAdmin = currentUser != null && currentUser.getAuthorities() != null
+                && currentUser.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        if (!isAdmin) {
+            throw new APIException("只有管理员可以启用或禁用账号");
+        }
+        if (currentUsername.equals(username)) {
+            throw new APIException("不能修改当前登录管理员自己的启用状态");
+        }
+        User user = userMapper.findByUsername(username.trim());
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }

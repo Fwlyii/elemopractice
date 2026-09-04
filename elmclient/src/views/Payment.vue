@@ -100,11 +100,13 @@
 						<div class="payment-option" :class="{ active: selectedPayment === 'alipay' }"
 							@click="selectPayment('alipay')">
 							<img src="../assets/alipay.png" alt="支付宝支付">
+							<span class="payment-demo-badge">演示</span>
 							<i class="fa fa-check-circle"></i>
 						</div>
 						<div class="payment-option" :class="{ active: selectedPayment === 'wechat' }"
 							@click="selectPayment('wechat')">
 							<img src="../assets/wechat.png" alt="微信支付">
+							<span class="payment-demo-badge">演示</span>
 							<i class="fa fa-check-circle"></i>
 						</div>
 						<div class="payment-option wallet-option" :class="{ active: selectedPayment === 'wallet' }"
@@ -114,6 +116,7 @@
 							<i class="fa fa-check-circle"></i>
 						</div>
 					</div>
+					<p class="payment-demo-note">支付宝、微信支付仅模拟支付结果，不连接真实资金渠道。</p>
 					<div v-if="assetInfo" class="asset-pay-hint">
 						<span>钱包余额 ¥{{ Number(assetInfo.balance || 0).toFixed(2) }} · 可用积分 {{ assetInfo.points || 0 }}</span>
 						<label v-if="maxPoints > 0">积分抵扣
@@ -496,6 +499,8 @@ export default {
 
 .wallet-option { color: #526f8b; gap: 2vw; }
 .wallet-option strong { flex: 1; font-size: 3.4vw; font-weight: 600; }
+.payment-demo-badge { margin-left: auto; padding: 0.5vw 1.2vw; border-radius: 1vw; background: #edf6fc; color: #4b8bb6; font-size: 2.6vw; line-height: 1.4; }
+.payment-demo-note { margin: 2vw 0 0; color: #8a9eac; font-size: 2.8vw; line-height: 1.5; }
 .wallet-icon { width: 8vw; height: 8vw; display: grid; place-items: center; border-radius: 50%; background: #e8f5ff; color: #168bd1; font-size: 5vw; font-weight: 700; }
 .asset-pay-hint { margin-top: 3vw; padding: 3vw; border: 1px solid #dcebf7; border-radius: 2vw; background: #f7fbff; color: #607b92; font-size: 3.2vw; line-height: 1.8; }
 .asset-pay-hint label { display: flex; align-items: center; gap: 2vw; margin-top: 1vw; color: #315a79; }

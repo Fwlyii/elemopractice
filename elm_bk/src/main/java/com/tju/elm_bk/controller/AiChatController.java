@@ -17,14 +17,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import com.tju.elm_bk.entity.Order;
-import com.tju.elm_bk.mapper.OrdersMapper;
 import com.tju.elm_bk.mapper.FoodMapper;
 import com.tju.elm_bk.mapper.BusinessMapper;
 import com.tju.elm_bk.mapper.PreferenceMapper;
@@ -45,7 +40,6 @@ public class AiChatController {
     
     private final AiChatService aiChatService;
     private final UserMapper userMapper;
-    private final OrdersMapper ordersMapper;
     private final FoodMapper foodMapper;
     private final BusinessMapper businessMapper;
     private final PreferenceMapper preferenceMapper;
@@ -87,8 +81,9 @@ public class AiChatController {
                 request.setUserId(null);
             }
             
-            log.info("AI聊天请求: userId={}, message={}, chatType={}", 
-                    request.getUserId(), request.getMessage(), request.getChatType());
+            // 对话正文可能包含手机号、地址等隐私，不写入应用日志。
+            log.info("AI聊天请求: userId={}, messageLength={}, chatType={}",
+                    request.getUserId(), request.getMessage().length(), request.getChatType());
             
             AiChatResponseVO response = aiChatService.chat(request);
             
@@ -288,87 +283,5 @@ public class AiChatController {
     private User currentUserOrNull() {
         try { return userMapper.findByUsername(SecurityUtils.getCurrentUsername().orElse("")); }
         catch (Exception ignored) { return null; }
-    }
-    
-    /**
-     * 调试接口：查看用户订单数据
-     */
-    @GetMapping("/debug/orders/{userId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    @Operation(summary = "调试：查看用户所有订单（测试用）", description = "仅用于调试订单查询问题")
-    public HttpResult<Map<String, Object>> debugUserOrders(@PathVariable Long userId) {
-        try {
-            Map<String, Object> result = new HashMap<>();
-            
-            log.info("=== 开始调试用户{}的订单数据 ===", userId);
-            
-            // 1. 查询用户信息
-            User user = userMapper.findById(userId);
-            result.put("user", user);
-            log.info("用户信息: {}", user);
-            
-            // 2. 查询所有订单（不限制条数）
-            List<Order> allOrders = ordersMapper.selectRecentOrdersByUserId(userId, 100);
-            result.put("allOrdersCount", allOrders.size());
-            result.put("allOrders", allOrders);
-            log.info("用户{}总订单数: {}", userId, allOrders.size());
-            
-            // 3. 查询最近5个订单
-            List<Order> recentOrders = ordersMapper.selectRecentOrdersByUserId(userId, 5);
-            result.put("recentOrdersCount", recentOrders.size());
-            result.put("recentOrders", recentOrders);
-            log.info("用户{}最近5个订单数: {}", userId, recentOrders.size());
-            
-            // 4. 查询特定订单（如果存在）
-            try {
-                Order order6 = ordersMapper.selectById(6L);
-                result.put("order6", order6);
-                if (order6 != null) {
-                    log.info("订单6详情: ID={}, 客户ID={}, 状态={}", order6.getId(), order6.getCustomerId(), order6.getOrderState());
-                } else {
-                    log.info("订单6不存在");
-                }
-            } catch (Exception e) {
-                log.warn("查询订单6失败: {}", e.getMessage());
-            }
-            
-            try {
-                Order order11 = ordersMapper.selectById(11L);
-                result.put("order11", order11);
-                if (order11 != null) {
-                    log.info("订单11详情: ID={}, 客户ID={}, 状态={}", order11.getId(), order11.getCustomerId(), order11.getOrderState());
-                } else {
-                    log.info("订单11不存在");
-                }
-            } catch (Exception e) {
-                log.warn("查询订单11失败: {}", e.getMessage());
-            }
-            
-            // 5. 查询多个用户的订单用于对比
-            try {
-                log.info("尝试查询其他用户的订单进行对比分析");
-                Map<Long, Integer> userOrderCount = new HashMap<>();
-                
-                // 查询用户1-5的订单数量
-                for (long testUserId = 1; testUserId <= 5; testUserId++) {
-                    List<Order> userOrders = ordersMapper.selectRecentOrdersByUserId(testUserId, 100);
-                    userOrderCount.put(testUserId, userOrders.size());
-                    log.info("用户{}的订单数量: {}", testUserId, userOrders.size());
-                }
-                
-                result.put("userOrderCount", userOrderCount);
-                log.info("用户订单统计: {}", userOrderCount);
-            } catch (Exception e) {
-                log.warn("查询用户订单统计失败: {}", e.getMessage());
-            }
-            
-            log.info("=== 调试结束 ===");
-            
-            return HttpResult.success(result);
-            
-        } catch (Exception e) {
-            log.error("调试用户订单失败", e);
-            throw new APIException(ResultCodeEnum.SERVER_ERROR);
-        }
     }
 }

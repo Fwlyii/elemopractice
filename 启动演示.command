@@ -22,6 +22,7 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+./scripts/ensure-demo-env.sh
 docker compose -f docker-compose.demo.yml up -d
 open "http://localhost:18081"
 

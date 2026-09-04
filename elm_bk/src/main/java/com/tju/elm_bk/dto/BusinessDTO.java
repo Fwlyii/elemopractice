@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -24,9 +25,9 @@ public class BusinessDTO {
 //    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 //    private LocalDateTime updateTime;
     @Schema(description = "创建人ID")
-    private Integer creator;
+    private Long creator;
     @Schema(description = "更新人ID")
-    private Integer updater;
+    private Long updater;
     @Schema(description = "删除状态")
     private Boolean deleted;
 
@@ -46,17 +47,17 @@ public class BusinessDTO {
     @Schema(description = "订单类型ID")
     private Integer orderTypeId;
     @Schema(description = "起送价")
-    private Double startPrice;
+    private BigDecimal startPrice;
     @Schema(description = "配送价")
-    private Double deliveryPrice;
+    private BigDecimal deliveryPrice;
     @Schema(description = "备注")
     private String remarks;
     @Schema(description = "是否支持堂食")
     private Boolean dineInAvailable;
     @Schema(description = "满减门槛")
-    private Double promotionThreshold;
+    private BigDecimal promotionThreshold;
     @Schema(description = "满减优惠金额")
-    private Double promotionDiscount;
+    private BigDecimal promotionDiscount;
 //    @Schema(description = "商铺状态")
 //    private Integer status;
 }

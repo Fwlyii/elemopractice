@@ -66,7 +66,6 @@ public class SecurityConfig {
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html",
-                "/upload",
                 "/ws/**",
                 "/api/ai/chat/health",
                 "/api/businesses/search",
@@ -79,7 +78,6 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .headers(httpSecurity -> httpSecurity  // 显式参数名
-                        .cacheControl(cache -> cache.disable())
                         .frameOptions(options -> options.sameOrigin())
                 )
                 .sessionManagement(httpSecurity -> httpSecurity  // 显式参数名
@@ -98,7 +96,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));
+        // 只接受本机开发页和课程演示的临时 HTTPS 域名；不允许任意第三方网页跨域读取接口。
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://*.trycloudflare.com"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // 本地前端与后端分别运行在 18081/18080 时，下单请求会先发送预检；
         // 幂等键用于防止重复提交，必须显式加入 CORS 白名单，否则浏览器只会显示 Network Error。

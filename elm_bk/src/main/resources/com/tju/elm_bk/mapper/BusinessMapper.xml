@@ -76,25 +76,6 @@
         WHERE b.id = #{id} AND b.is_deleted = 0
     </select>
 
-    <!-- 完全更新商户信息并返回完整对象 -->
-    <update id="updateBusiness" parameterType="map">
-        UPDATE business
-        SET
-            business_name = #{updateDto.businessName},
-            business_address = #{updateDto.businessAddress},
-            business_explain = #{updateDto.businessExplain},
-            business_img = #{updateDto.businessImg},
-            order_type_id = #{updateDto.orderTypeId, jdbcType=INTEGER},
-            start_price = #{updateDto.startPrice, jdbcType=DECIMAL},
-            delivery_price = #{updateDto.deliveryPrice, jdbcType=DECIMAL},
-            remarks = #{updateDto.remarks},
-            dine_in_available = #{updateDto.dineInAvailable, jdbcType=BOOLEAN},
-            promotion_threshold = #{updateDto.promotionThreshold, jdbcType=DECIMAL},
-            promotion_discount = #{updateDto.promotionDiscount, jdbcType=DECIMAL},
-            updater = #{updateDto.updater},
-            update_time = NOW()
-        WHERE id = #{id} AND is_deleted = 0
-    </update>
     <!-- 部分更新商户信息并返回完整对象 -->
     <update id="patchBusiness" parameterType="map">
         UPDATE business
@@ -140,31 +121,6 @@
         WHERE id = #{id} AND is_deleted = 0
     </update>
 
-    <!-- 完全更新商户所有者信息 -->
-    <update id="updateBusinessOwner" parameterType="map">
-        UPDATE users u
-            JOIN business b ON u.id = b.user_id AND b.is_deleted = 0
-            SET
-                u.username = #{updateDto.businessOwner.username},
-                u.updater = #{updateDto.businessOwner.updater},
-                u.update_time = NOW()
-        WHERE b.id = #{id} AND u.is_deleted = 0
-    </update>
-    <!-- 部分更新商户所有者信息 -->
-    <update id="patchBusinessOwner" parameterType="map">
-        UPDATE users u
-        JOIN business b ON u.id = b.user_id AND b.is_deleted = 0
-        <set>
-            <if test="updateDto.businessOwner != null and updateDto.businessOwner.username != null and updateDto.businessOwner.username != ''">
-                u.username = #{updateDto.businessOwner.username},
-            </if>
-            <if test="updateDto.businessOwner != null and updateDto.businessOwner.updater != null">
-                u.updater = #{updateDto.businessOwner.updater},
-            </if>
-            u.update_time = NOW()
-        </set>
-        WHERE b.id = #{id} AND u.is_deleted = 0
-    </update>
 
     <!-- 获取所有商户列表 -->
     <select id="getBusinesses" resultMap="businessVOResultMap">

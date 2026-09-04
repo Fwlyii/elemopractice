@@ -54,8 +54,17 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Override
     public BusinessVO getBusinessById(Long id) {
-        //这里需要权限检查吗
-//        System.out.println("查询商家ID: " + id);
+        Business business = businessMapper.selectBusinessById(id);
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+        if (!Objects.equals(business.getStatus(), 1)) {
+            User user = userMapper.findByUsernameWithAuthorities(
+                    SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
+            );
+            boolean admin = user != null && user.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
+            if (!admin && (user == null || !Objects.equals(business.getUserId(), user.getId()))) {
+                throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+            }
+        }
         return businessMapper.getBusinessById(id);
     }
 
@@ -81,17 +90,6 @@ public class BusinessServiceImpl implements BusinessService {
         if (!hasBusinessPermission && !isAdmin) {
             throw new APIException(ResultCodeEnum.UNAUTHORIZED);
         }
-//        //判断是不是自己操作自己的店铺或者管理员
-//        boolean isSelf=isIdPresent(businessMapper.getBusinessIdsByUserId(currentUser.getId()),id);
-//
-//        if(!isSelf&&!isAdmin){
-//            throw new APIException(ResultCodeEnum.UNAUTHORIZED);
-//        }
-////        System.out.println("前端--更新商家信息为: " + updateDto);
-//        // 1. 更新商户基本信息
-//        int result = businessMapper.updateBusiness(id, updateDto);
-//        if (result == 0) {throw new APIException(ResultCodeEnum.BUSINESS_MISSED);}
-
         //如果是不是管理员，且传入的商铺id不是自己的 isSelf
         boolean isSelf=isIdPresent(businessMapper.getBusinessIdsByUserId(currentUser.getId()),id);
         if(!isSelf&&!isAdmin){
@@ -100,25 +98,26 @@ public class BusinessServiceImpl implements BusinessService {
         Business existing = businessMapper.selectBusinessById(id);
         if (existing == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         validateBusinessPricing(updateDto, existing);
+        updateDto.setUpdater(currentUser.getId());
         //如果不是管理员，且传入的businessOwner的username对应的user_id不是自己的--USER_DENIED
         Long ownerId = resolveRequestedOwnerId(updateDto);
         if (ownerId != null && !isAdmin && !Objects.equals(ownerId, currentUser.getId())) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
+        if (ownerId != null) ensureEligibleBusinessOwner(ownerId);
         //执行更新操作（部分更新）
         int result = businessMapper.patchBusiness(id, updateDto);
         //如果是管理员，需要将传入的username对应的user_id传入business表的user_id
         if(isAdmin && ownerId != null){
-            //根据商铺id更新user_id
-            businessMapper.updateUserIdById(ownerId,id);//id是business的商铺id，更新business表的user_id为传入的username对应的user_id
+            if (businessMapper.updateUserIdById(ownerId, id, currentUser.getId()) != 1) {
+                throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+            }
         }
         if (result == 0) {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
 
 
-        // 2. 如果有商户所有者信息，更新商户所有者
-        if (ownerId != null) {businessMapper.updateBusinessOwner(id, updateDto);}
         // 3. 重新查询完整的商户信息并返回
         return businessMapper.getBusinessById(id);
     }
@@ -198,27 +197,25 @@ public class BusinessServiceImpl implements BusinessService {
         Business existing = businessMapper.selectBusinessById(id);
         if (existing == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         validateBusinessPricing(updateDto, existing);
+        updateDto.setUpdater(currentUser.getId());
         //如果不是管理员，且传入的businessOwner的username对应的user_id不是自己的--USER_DENIED
         Long ownerId = resolveRequestedOwnerId(updateDto);
         if (ownerId != null && !isAdmin && !Objects.equals(ownerId, currentUser.getId())) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
+        if (ownerId != null) ensureEligibleBusinessOwner(ownerId);
         //执行更新操作（部分更新）
         int result = businessMapper.patchBusiness(id, updateDto);
         //如果是管理员，需要将传入的username对应的user_id传入business表的user_id
         if(isAdmin && ownerId != null){
-            //根据商铺id更新user_id
-            businessMapper.updateUserIdById(ownerId,id);//id是business的商铺id，更新business表的user_id为传入的username对应的user_id
+            if (businessMapper.updateUserIdById(ownerId, id, currentUser.getId()) != 1) {
+                throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+            }
         }
         if (result == 0) {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
 
-        // 2. 如果有商户所有者信息，更新商户所有者
-        if (ownerId != null) {
-            //部分更新
-            businessMapper.patchBusinessOwner(id, updateDto);
-        }
         return businessMapper.getBusinessById(id);
     }
 
@@ -254,12 +251,17 @@ public class BusinessServiceImpl implements BusinessService {
         // 2.是管理员：直接通过
         Long ownerId = userMapper.getUserIdByUsername(businessDTO.getBusinessOwner().getUsername().trim());
         if (ownerId == null) throw new APIException(ResultCodeEnum.USER_MISSED);
+        ensureEligibleBusinessOwner(ownerId);
         boolean isSelf=ownerId.equals(currentUser.getId());
 //        boolean isSelf=isIdPresent(businessMapper.getBusinessIdsByUserId(currentUser.getId()),businessDTO.getId());
         if(!isSelf&&!isAdmin){
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
-        //-----------------------需要调用user的接口------------------!!!
+        // 校验和写库必须使用同一个服务端解析出的 ownerId，不能再相信请求体里的 id。
+        businessDTO.getBusinessOwner().setId(ownerId);
+        businessDTO.setCreator(currentUser.getId());
+        businessDTO.setUpdater(currentUser.getId());
+        businessDTO.setDeleted(false);
 
         int result =businessMapper.insertBusiness(businessDTO);
         if (result == 0) {//这不对吧..
@@ -282,7 +284,6 @@ public class BusinessServiceImpl implements BusinessService {
     public List<BusinessSearchVO> getBusinessesBySearch(String keyword, boolean isScore ,boolean isSales) {
         List<BusinessSearchVO> businesses = businessMapper.searchBusinesses(keyword);
         Set<Long> recentPurchaseIds = getRecentPurchaseIds();
-//        System.out.println(businesses);
         // 为每个店铺计算评分与销量
         for (BusinessSearchVO business : businesses) {
             int salesCount = business.getSalesCount() == null
@@ -296,10 +297,6 @@ public class BusinessServiceImpl implements BusinessService {
                     ? BigDecimal.valueOf(normalizedRating).setScale(2, RoundingMode.HALF_UP)
                     : business.getScore().setScale(2, RoundingMode.HALF_UP);
             business.setScore(rating);
-//            System.out.println("Business ID: " + business.getId() +
-//                    ", likeCount: " + likeCount +
-//                    ", collectCount: " + collectCount +
-//                    ", rawRating: " + normalizedRating);
             business.setSalesCount(salesCount);
             populateRecommendationMetadata(business, recentPurchaseIds);
         }
@@ -322,7 +319,6 @@ public class BusinessServiceImpl implements BusinessService {
         if (comparator != null) {
             businesses.sort(comparator);
         }
-//        System.out.println(businesses);
         return businesses;
     }
 
@@ -492,7 +488,9 @@ public class BusinessServiceImpl implements BusinessService {
 
         // 设置基础信息
         business.setCreator(currentUser.getId());
+        business.setUpdater(currentUser.getId());
         business.setCreateTime(LocalDateTime.now());
+        business.setUpdateTime(LocalDateTime.now());
 
         // 状态设置：管理员直接通过，普通商家需要审核
         business.setStatus(isAdmin ? 1 : 0);
@@ -503,14 +501,17 @@ public class BusinessServiceImpl implements BusinessService {
             if (business.getUserId() == null) {
                 throw new APIException(ResultCodeEnum.USER_VALUE_MISSED);// 用户ID不能为空
             }
+            User targetOwner = userMapper.findById(business.getUserId());
+            if (targetOwner == null || Boolean.TRUE.equals(targetOwner.getIsDeleted())) {
+                throw new APIException(ResultCodeEnum.USER_MISSED);
+            }
+            ensureEligibleBusinessOwner(business.getUserId());
         } else {
             // 普通商家操作，使用当前用户ID
             business.setUserId(currentUser.getId());
         }
         // 设置默认值
-        if (business.getIs_deleted() == null) {
-            business.setIs_deleted(false);
-        }
+        business.setIs_deleted(false);
         if (business.getDeliveryPrice() == null) {
             business.setDeliveryPrice(BigDecimal.ZERO);
         }
@@ -529,7 +530,16 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Override
     public List<Business> getMerchantBusinesses(Long userId, Integer status) {
-        return businessMapper.selectByUserIdAndStatus(userId, status);
+        User currentUser = userMapper.findByUsernameWithAuthorities(
+                SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED))
+        );
+        if (currentUser == null) throw new APIException(ResultCodeEnum.USER_MISSED);
+        boolean admin = currentUser.getAuthorities().stream().anyMatch(auth -> "ADMIN".equals(auth.getName()));
+        Long targetUserId = userId == null ? currentUser.getId() : userId;
+        if (!admin && !Objects.equals(targetUserId, currentUser.getId())) {
+            throw new APIException(ResultCodeEnum.USER_DENIED);
+        }
+        return businessMapper.selectByUserIdAndStatus(targetUserId, status);
     }
 
     @Override
@@ -579,55 +589,57 @@ public class BusinessServiceImpl implements BusinessService {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
         validateBusinessPricing(updateDto, existing);
+        updateDto.setUpdater(currentUser.getId());
 
         int result = businessMapper.patchBusiness(id, updateDto);
         if (result == 0) {
             throw new RuntimeException("更新商户信息失败，商户不存在或已被删除");
         }
-        // 2. 如果有商户所有者信息，更新商户所有者
-        if (updateDto.getBusinessOwner() != null) {
-            businessMapper.updateBusinessOwner(id, updateDto);
-        }
         return businessMapper.getBusinessById(id);
     }
 
     private void validateBusinessPricing(BusinessUpdateDTO updateDto, Business existing) {
-        double startPrice = updateDto.getStartPrice() == null
-                ? (existing.getStartPrice() == null ? 0D : existing.getStartPrice().doubleValue())
+        BigDecimal startPrice = updateDto.getStartPrice() == null
+                ? existing.getStartPrice()
                 : updateDto.getStartPrice();
-        double deliveryPrice = updateDto.getDeliveryPrice() == null
-                ? (existing.getDeliveryPrice() == null ? 0D : existing.getDeliveryPrice().doubleValue())
+        BigDecimal deliveryPrice = updateDto.getDeliveryPrice() == null
+                ? existing.getDeliveryPrice()
                 : updateDto.getDeliveryPrice();
-        validateBusinessPricing(startPrice, deliveryPrice, updateDto.getPromotionThreshold(), updateDto.getPromotionDiscount());
+        BigDecimal threshold = updateDto.getPromotionThreshold() == null
+                ? existing.getPromotionThreshold()
+                : updateDto.getPromotionThreshold();
+        BigDecimal discount = updateDto.getPromotionDiscount() == null
+                ? existing.getPromotionDiscount()
+                : updateDto.getPromotionDiscount();
+        validateBusinessPricing(startPrice, deliveryPrice, threshold, discount);
     }
 
     private void validateBusinessCreation(BusinessDTO dto) {
-        if (dto.getBusinessName() == null || dto.getBusinessName().trim().isEmpty()) {
-            throw new APIException("店铺名称不能为空");
+        if (dto.getBusinessName() == null || dto.getBusinessName().trim().isEmpty()
+                || dto.getBusinessName().trim().length() > 64
+                || dto.getBusinessAddress() == null || dto.getBusinessAddress().isBlank()
+                || dto.getBusinessAddress().trim().length() > 255
+                || dto.getOrderTypeId() == null || dto.getOrderTypeId() <= 0) {
+            throw new APIException("店铺名称、地址和经营类型不能为空且必须合法");
         }
         validateBusinessPricing(dto.getStartPrice(), dto.getDeliveryPrice(), dto.getPromotionThreshold(), dto.getPromotionDiscount());
     }
 
     private void validateBusinessPricing(java.math.BigDecimal startPrice, java.math.BigDecimal deliveryPrice,
                                          java.math.BigDecimal threshold, java.math.BigDecimal discount) {
-        double start = startPrice == null ? 0D : startPrice.doubleValue();
-        double delivery = deliveryPrice == null ? 0D : deliveryPrice.doubleValue();
-        validateBusinessPricing(start, delivery,
-                threshold == null ? null : threshold.doubleValue(),
-                discount == null ? null : discount.doubleValue());
-    }
-
-    private void validateBusinessPricing(Double startPrice, Double deliveryPrice, Double threshold, Double discount) {
-        double start = startPrice == null ? 0D : startPrice;
-        double delivery = deliveryPrice == null ? 0D : deliveryPrice;
-        if (!Double.isFinite(start) || start < 0 || !Double.isFinite(delivery) || delivery < 0) {
-            throw new APIException("起送价和配送费必须为非负数字");
+        BigDecimal start = startPrice == null ? BigDecimal.ZERO : startPrice;
+        BigDecimal delivery = deliveryPrice == null ? BigDecimal.ZERO : deliveryPrice;
+        if (start.compareTo(BigDecimal.ZERO) < 0 || start.compareTo(new BigDecimal("100000")) > 0
+                || delivery.compareTo(BigDecimal.ZERO) < 0 || delivery.compareTo(new BigDecimal("10000")) > 0) {
+            throw new APIException("起送价和配送费必须为合理的非负数字");
         }
         if (threshold != null || discount != null) {
-            double min = threshold == null ? 0D : threshold;
-            double off = discount == null ? 0D : discount;
-            if (!Double.isFinite(min) || !Double.isFinite(off) || min < 0 || off < 0
-                    || (min == 0 && off > 0) || (min > 0 && off >= min)) {
+            BigDecimal min = threshold == null ? BigDecimal.ZERO : threshold;
+            BigDecimal off = discount == null ? BigDecimal.ZERO : discount;
+            if (min.compareTo(BigDecimal.ZERO) < 0 || min.compareTo(new BigDecimal("100000")) > 0
+                    || off.compareTo(BigDecimal.ZERO) < 0 || off.compareTo(new BigDecimal("100000")) > 0
+                    || (min.compareTo(BigDecimal.ZERO) == 0 && off.compareTo(BigDecimal.ZERO) > 0)
+                    || (min.compareTo(BigDecimal.ZERO) > 0 && off.compareTo(min) >= 0)) {
                 throw new APIException("满减优惠配置不合法：优惠金额必须小于门槛");
             }
         }
@@ -654,6 +666,14 @@ public class BusinessServiceImpl implements BusinessService {
         Long ownerId = userMapper.getUserIdByUsername(updateDto.getBusinessOwner().getUsername().trim());
         if (ownerId == null) throw new APIException(ResultCodeEnum.USER_MISSED);
         return ownerId;
+    }
+
+    private void ensureEligibleBusinessOwner(Long ownerId) {
+        User owner = userMapper.findByUserIdWithAuthorities(ownerId);
+        if (owner == null || !Boolean.TRUE.equals(owner.getActivated()) || owner.getAuthorities() == null
+                || owner.getAuthorities().stream().noneMatch(auth -> "BUSINESS".equals(auth.getName()) || "ADMIN".equals(auth.getName()))) {
+            throw new APIException("店铺所有者必须是已启用的商家或管理员账号");
+        }
     }
 
 }

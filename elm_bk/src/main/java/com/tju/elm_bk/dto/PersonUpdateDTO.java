@@ -3,6 +3,7 @@ package com.tju.elm_bk.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,15 +19,19 @@ public class PersonUpdateDTO {
 
     @Schema(description = "邮箱")
     @Pattern(regexp = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$", message = "邮箱格式错误")
+    @Size(max = 120, message = "邮箱不能超过120个字符")
     private String email;
 
     @Schema(description = "名")
+    @Size(max = 50, message = "名字不能超过50个字符")
     private String firstName;
 
     @Schema(description = "姓")
+    @Size(max = 50, message = "姓氏不能超过50个字符")
     private String lastName;
 
     @Schema(description = "性别")
+    @Size(max = 10, message = "性别字段不能超过10个字符")
     private String gender;
 
     @Schema(description = "电话")
@@ -34,5 +39,6 @@ public class PersonUpdateDTO {
     private String phone;
 
     @Schema(description = "照片")
+    @Size(max = 500, message = "头像地址不能超过500个字符")
     private String photo;
 }

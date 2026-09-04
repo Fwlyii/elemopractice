@@ -185,6 +185,7 @@
 <script>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue'
 import aiChatService from '../services/aiChatService'
+import { formatSafeMessage } from '../utils/safeMessage'
 
 export default {
   name: 'AiChatbot',
@@ -438,17 +439,7 @@ export default {
 
     // 格式化消息内容
     const formatMessage = (content) => {
-      // 检查content是否为null、undefined或空字符串
-      if (!content || typeof content !== 'string') {
-        console.warn('formatMessage收到无效content:', content)
-        return '消息内容为空'
-      }
-      
-      return content
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>')
-        .replace(/•/g, '•')
-        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')
+      return formatSafeMessage(content)
     }
 
     // 格式化时间

@@ -209,7 +209,7 @@ public class AiChatServiceImpl implements AiChatService {
         
         // 订单相关
         if (containsOrderKeywords(message) && request.getUserId() != null) {
-            log.info("检测到订单相关查询，用户ID: {}, 原始消息: {}", request.getUserId(), originalMessage);
+            log.info("检测到订单相关查询，用户ID: {}", request.getUserId());
             
             // 首先尝试从消息中提取具体的订单号
             List<Long> extractedOrderIds = extractOrderIds(originalMessage);
@@ -223,27 +223,25 @@ public class AiChatServiceImpl implements AiChatService {
                 for (Long orderId : extractedOrderIds) {
                     log.info("正在查询订单ID: {}", orderId);
                     Order order = knowledgeBaseUtil.getOrderById(orderId);
-                    log.info("查询到的订单: {}", order);
-                    
                     if (order != null && order.getCustomerId().equals(request.getUserId())) {
                         enhancedMessage.append("- ").append(knowledgeBaseUtil.formatOrderInfo(order)).append("\n");
                         log.info("订单{}属于用户{}，已添加到回复", orderId, request.getUserId());
                     } else {
                         enhancedMessage.append("- 订单").append(orderId).append("：未找到或不属于您\n");
-                        log.warn("订单{}不属于用户{}或未找到，订单详情: {}", orderId, request.getUserId(), order);
+                        log.warn("订单{}不属于用户{}或未找到", orderId, request.getUserId());
                     }
                 }
             } else {
                 // 如果没有指定订单号，显示最近的几个订单
                 log.info("未提取到具体订单号，查询用户{}的最近订单", request.getUserId());
                 List<Order> recentOrders = knowledgeBaseUtil.getRecentOrdersByUserId(request.getUserId(), 5);
-                log.info("查询到的最近订单数量: {}, 详情: {}", recentOrders.size(), recentOrders);
+                log.info("查询到的最近订单数量: {}", recentOrders.size());
                 
                 if (!recentOrders.isEmpty()) {
                     enhancedMessage.append("\n\n您的最近订单信息：\n");
                     for (Order order : recentOrders) {
                         enhancedMessage.append("- ").append(knowledgeBaseUtil.formatOrderInfo(order)).append("\n");
-                        log.info("添加订单{}到回复: {}", order.getId(), knowledgeBaseUtil.formatOrderInfo(order));
+                        log.info("添加订单{}到AI上下文", order.getId());
                     }
                     
                     if (recentOrders.size() >= 5) {
@@ -255,7 +253,7 @@ public class AiChatServiceImpl implements AiChatService {
                 }
             }
             
-            log.info("最终增强的消息内容: {}", enhancedMessage.toString());
+            log.debug("订单上下文已生成，长度={}", enhancedMessage.length());
         }
         
         return enhancedMessage.toString();

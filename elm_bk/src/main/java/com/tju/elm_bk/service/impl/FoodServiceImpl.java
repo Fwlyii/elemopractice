@@ -35,14 +35,39 @@ public class FoodServiceImpl implements FoodService {
     private UserMapper userMapper;
     @Autowired
     private BusinessMapper businessMapper;
+    @Autowired
+    private com.tju.elm_bk.mapper.OrdersMapper ordersMapper;
 
     @Override
     public List<FoodVO> getFoodList(Integer business, Integer order) {
-        return foodMapper.selectFoodVOList(business, order);
+        User user = currentUser();
+        boolean privileged = isAdmin(user);
+        if (order != null) {
+            com.tju.elm_bk.entity.Order targetOrder = ordersMapper.getOrderById(order.longValue());
+            if (targetOrder == null) throw new APIException(ResultCodeEnum.ORDER_MISSED);
+            Business orderBusiness = businessMapper.selectBusinessById(targetOrder.getBusinessId());
+            privileged = privileged || Objects.equals(targetOrder.getCustomerId(), user.getId())
+                    || (orderBusiness != null && Objects.equals(orderBusiness.getUserId(), user.getId()));
+            if (!privileged) throw new APIException(ResultCodeEnum.USER_DENIED);
+        } else if (business != null) {
+            Business targetBusiness = businessMapper.selectBusinessById(business.longValue());
+            if (targetBusiness == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+            privileged = privileged || Objects.equals(targetBusiness.getUserId(), user.getId());
+        }
+        return foodMapper.selectFoodVOList(business, order, !privileged);
     }
 
     @Override
     public FoodVO getFoodById(Long id) {
+        Food food = foodMapper.selectFoodById(id);
+        if (food == null) throw new APIException(ResultCodeEnum.FOOD_MISSED);
+        Business business = businessMapper.selectBusinessById(food.getBusinessId());
+        User user = currentUser();
+        if (!isAdmin(user) && (business == null || !Objects.equals(business.getUserId(), user.getId()))
+                && (food.getShelveStatus() == null || food.getShelveStatus() != 1
+                || business.getStatus() == null || business.getStatus() != 1)) {
+            throw new APIException(ResultCodeEnum.FOOD_MISSED);
+        }
         return foodMapper.selectFoodVOById(id);
     }
 
@@ -123,11 +148,13 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public List<FoodItemVO> getFoodItemList(Long businessId, Integer shelveStatus) {
         User user = userMapper.findByUsernameWithAuthorities(SecurityUtils.getCurrentUsername().orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED)));
-        List<Authority> authorities = user.getAuthorities();
+        Business business = businessMapper.selectBusinessById(businessId);
+        if (business == null) throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
+        boolean admin = user.getAuthorities().stream().anyMatch(authority -> "ADMIN".equals(authority.getName()));
+        boolean owner = Objects.equals(user.getId(), business.getUserId());
 
-        // 普通用户只能看到已上架的商品
-        if (authorities.stream()
-                .noneMatch(authority -> (Objects.equals(authority.getName(), "BUSINESS") || Objects.equals(authority.getName(), "ADMIN")))) {
+        // 下架商品属于商家后台数据：只有本店商家或管理员可以查询。
+        if (!admin && !owner) {
             shelveStatus = 1;
         }
 
@@ -230,7 +257,8 @@ public class FoodServiceImpl implements FoodService {
     @Override
     @Transactional
     public Long updateStock(FoodUpdateDTO foodUpdateDTO) {
-        if (foodUpdateDTO == null || foodUpdateDTO.getFoodId() == null || foodUpdateDTO.getStock() == null || foodUpdateDTO.getStock() < 0) {
+        if (foodUpdateDTO == null || foodUpdateDTO.getFoodId() == null || foodUpdateDTO.getStock() == null
+                || foodUpdateDTO.getStock() < 0 || foodUpdateDTO.getStock() > 1_000_000) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
         Food food = foodMapper.selectFoodById(foodUpdateDTO.getFoodId());
@@ -286,15 +314,29 @@ public class FoodServiceImpl implements FoodService {
         return Math.min(purchaseLimit, 999);
     }
 
+    private User currentUser() {
+        String username = SecurityUtils.getCurrentUsername()
+                .orElseThrow(() -> new APIException(ResultCodeEnum.VALUE_MISSED));
+        User user = userMapper.findByUsernameWithAuthorities(username);
+        if (user == null) throw new APIException(ResultCodeEnum.USER_MISSED);
+        return user;
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getAuthorities() != null && user.getAuthorities().stream()
+                .anyMatch(authority -> "ADMIN".equals(authority.getName()));
+    }
+
     private void validateFoodUpdate(FoodDTO dto) {
-        if (dto.getFoodName() != null && dto.getFoodName().trim().isEmpty()) {
+        if (dto.getFoodName() != null && (dto.getFoodName().trim().isEmpty() || dto.getFoodName().trim().length() > 100)) {
             throw new APIException("商品名称不能为空");
         }
-        if (dto.getFoodPrice() != null && dto.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) < 0) {
-            throw new APIException("商品价格不能为负数");
+        if (dto.getFoodPrice() != null && (dto.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) <= 0
+                || dto.getFoodPrice().compareTo(new java.math.BigDecimal("100000")) > 0)) {
+            throw new APIException("商品价格必须大于0且不超过100000元");
         }
-        if (dto.getStock() != null && dto.getStock() < 0) {
-            throw new APIException("库存不能为负数");
+        if (dto.getStock() != null && (dto.getStock() < 0 || dto.getStock() > 1_000_000)) {
+            throw new APIException("库存必须在0到1000000之间");
         }
         if (dto.getPurchaseLimit() != null && dto.getPurchaseLimit() <= 0) {
             throw new APIException("单笔限购数量必须大于0");
@@ -302,9 +344,10 @@ public class FoodServiceImpl implements FoodService {
     }
 
     private void validateFoodEntity(Food food) {
-        if (food.getFoodName() == null || food.getFoodName().trim().isEmpty()
-                || food.getFoodPrice() == null || food.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) < 0
-                || (food.getStock() != null && food.getStock() < 0)) {
+        if (food.getFoodName() == null || food.getFoodName().trim().isEmpty() || food.getFoodName().trim().length() > 100
+                || food.getFoodPrice() == null || food.getFoodPrice().compareTo(java.math.BigDecimal.ZERO) <= 0
+                || food.getFoodPrice().compareTo(new java.math.BigDecimal("100000")) > 0
+                || (food.getStock() != null && (food.getStock() < 0 || food.getStock() > 1_000_000))) {
             throw new APIException("商品信息不合法");
         }
     }

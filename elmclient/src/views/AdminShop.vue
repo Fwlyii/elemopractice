@@ -207,7 +207,7 @@ export default {
             businessName: '虾滑不WA火锅', 
             businessAddress: '天津市和平区', 
             businessExplain: '不限量AC虾滑',
-            businessImg: 'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/c55e6a1a-17fd-4661-9f1b-722610e5cf1c.png',
+            businessImg: '/images/merchants/01-stir-fry.jpg',
             orderTypeId: 1
           },
           { 

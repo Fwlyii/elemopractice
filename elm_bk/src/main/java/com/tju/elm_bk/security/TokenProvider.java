@@ -14,7 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -28,6 +29,7 @@ public class TokenProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(TokenProvider.class);
     private static final String AUTHORITIES_KEY = "auth";
+    private static final String ISSUED_AT_MILLIS_KEY = "iat_ms";
 
     private final SecretKey key;
     private final long tokenValidityInMilliseconds;
@@ -59,6 +61,8 @@ public class TokenProvider {
         return Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim(AUTHORITIES_KEY, authorities)
+                .claim(ISSUED_AT_MILLIS_KEY, now)
+                .setIssuedAt(new Date(now))
                 .signWith(key, SignatureAlgorithm.HS512)
                 .setExpiration(validity)
                 .compact();
@@ -99,5 +103,23 @@ public class TokenProvider {
             LOG.trace("Invalid JWT token trace.", e);
         }
         return false;
+    }
+
+    /**
+     * 账号密码、状态或权限发生变化后，之前签发的令牌必须失效。
+     * 缺少毫秒签发时间的历史令牌也默认失效，以免部署升级后继续绕过新规则。
+     */
+    public boolean isCurrentForAccount(String token, LocalDateTime accountUpdatedAt) {
+        if (accountUpdatedAt == null) return true;
+        try {
+            Claims claims = Jwts.parserBuilder().setSigningKey(key).build()
+                    .parseClaimsJws(token).getBody();
+            Number issuedAtMillis = claims.get(ISSUED_AT_MILLIS_KEY, Number.class);
+            if (issuedAtMillis == null) return false;
+            long accountUpdatedMillis = accountUpdatedAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            return issuedAtMillis.longValue() >= accountUpdatedMillis;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 }

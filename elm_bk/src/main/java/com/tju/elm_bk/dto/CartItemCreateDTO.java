@@ -50,7 +50,9 @@ public class CartItemCreateDTO {
     private Integer quantity;
 
     public Boolean verify() {
-        return business != null && business.getId() != null && food != null && food.getId() != null && quantity != null && customer != null && customer.getUsername() != null;
+        return business != null && business.getId() != null && food != null && food.getId() != null
+                && quantity != null && quantity > 0 && quantity <= 999
+                && customer != null && customer.getUsername() != null;
     }
 
 }

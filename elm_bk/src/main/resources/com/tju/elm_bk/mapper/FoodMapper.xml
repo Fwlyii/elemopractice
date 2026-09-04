@@ -154,6 +154,9 @@
         <if test="null != orderId">
             AND od.order_id = #{orderId}
         </if>
+        <if test="visibleOnly">
+            AND f.shelve_status = 1 AND f.stock &gt; 0 AND b.status = 1 AND b.is_deleted = 0
+        </if>
         ORDER BY f.create_time DESC
     </select>
 

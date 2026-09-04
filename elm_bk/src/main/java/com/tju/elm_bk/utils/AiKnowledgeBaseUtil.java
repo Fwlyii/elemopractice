@@ -145,7 +145,7 @@ public class AiKnowledgeBaseUtil {
         try {
             log.info("正在查询订单ID: {}", orderId);
             Order order = ordersMapper.selectById(orderId);
-            log.info("查询订单结果: orderId={}, order={}", orderId, order);
+            log.info("查询订单结果: orderId={}, found={}", orderId, order != null);
             return order;
         } catch (Exception e) {
             log.error("获取订单详情失败: orderId={}", orderId, e);
@@ -161,11 +161,6 @@ public class AiKnowledgeBaseUtil {
             log.info("正在查询用户ID: {} 的最近 {} 个订单", userId, limit);
             List<Order> orders = ordersMapper.selectRecentOrdersByUserId(userId, limit);
             log.info("查询到用户{}的订单数量: {}", userId, orders.size());
-            for (Order order : orders) {
-                log.info("订单详情: ID={}, 状态={}, 总金额={}, 客户ID={}, 商家ID={}, 下单时间={}", 
-                    order.getId(), order.getOrderState(), order.getOrderTotal(), 
-                    order.getCustomerId(), order.getBusinessId(), order.getOrderDate());
-            }
             return orders;
         } catch (Exception e) {
             log.error("获取用户订单列表失败: userId={}, limit={}", userId, limit, e);

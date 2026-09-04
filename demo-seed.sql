@@ -27,13 +27,13 @@ INSERT INTO business
    business_name, delivery_price, order_type_id, remarks, start_price, user_id, status)
 VALUES
   (1, NOW(), 0, '天津大学北洋园校区', '学生最爱的现炒套餐',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/c55e6a1a-17fd-4661-9f1b-722610e5cf1c.png',
+   '/images/merchants/01-stir-fry.jpg',
    '北洋食堂·现炒', 2.00, 4, '本地演示数据', 15.00, 2, 1),
   (2, NOW(), 0, '天津大学卫津路校区', '暖心早餐与咖啡',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/18fa7ba5-83f2-4cc8-8b9f-e4ffaa10875d.png',
+   '/images/merchants/02-breakfast.jpg',
    '海棠早餐铺', 1.50, 2, '本地演示数据', 10.00, 2, 1),
   (3, NOW(), 0, '天津市和平区', '夜宵炸物与冰饮',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/bbd37656-0eae-41be-995e-e2be0b96aca2.png',
+   '/images/merchants/03-chicken-wings.jpg',
    '深夜能量站', 3.00, 10, '本地演示数据', 20.00, 2, 1);
 
 INSERT INTO food
@@ -113,19 +113,19 @@ INSERT INTO business
    dine_in_available, promotion_threshold, promotion_discount, demo_rating, demo_sales_count)
 VALUES
   (4, DATE_SUB(NOW(), INTERVAL 75 DAY), 0, '天津大学北洋园校区', '现炒锅气足，晚餐和夜宵都受欢迎',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/bbd37656-0eae-41be-995e-e2be0b96aca2.png',
+   '/images/merchants/04-hot-pot.jpg',
    '津南麻辣香锅', 2.50, 10, '演示样本·高销量堂食店', 25.00, 2, 1, 1, 50.00, 8.00, 4.80, 860),
   (5, DATE_SUB(NOW(), INTERVAL 60 DAY), 0, '天津大学卫津路校区', '手冲咖啡和低糖甜品',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/18fa7ba5-83f2-4cc8-8b9f-e4ffaa10875d.png',
+   '/images/merchants/05-coffee.jpg',
    '北洋咖啡实验室', 1.00, 2, '演示样本·品质咖啡', 20.00, 2, 1, 0, 30.00, 5.00, 4.70, 520),
   (6, DATE_SUB(NOW(), INTERVAL 210 DAY), 0, '天津大学北洋园校区', '汤清面劲道，午餐高峰常排队',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/c55e6a1a-17fd-4661-9f1b-722610e5cf1c.png',
+   '/images/merchants/06-beef-noodles.jpg',
    '清真兰州牛肉面', 1.50, 4, '演示样本·月售很高', 15.00, 2, 1, 1, 20.00, 3.00, 4.60, 1280),
   (7, DATE_SUB(NOW(), INTERVAL 45 DAY), 0, '天津大学津南校区', '轻食沙拉和能量碗，适合学习日',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/18fa7ba5-83f2-4cc8-8b9f-e4ffaa10875d.png',
+   '/images/merchants/07-salad.jpg',
    '轻食研究所', 2.00, 4, '演示样本·高好评轻食', 25.00, 2, 1, 0, 35.00, 6.00, 4.90, 76),
   (8, DATE_SUB(NOW(), INTERVAL 5 DAY), 0, '天津大学北洋园校区', '刚开业的炸鸡和冰饮小店',
-   'https://sunnybigevent.oss-cn-beijing.aliyuncs.com/bbd37656-0eae-41be-995e-e2be0b96aca2.png',
+   '/images/merchants/08-chicken-burger.jpg',
    '泰合炸鸡·夜宵', 3.00, 10, '演示样本·新店', 20.00, 2, 1, 0, NULL, NULL, 4.20, 18)
 ON DUPLICATE KEY UPDATE
   create_time = VALUES(create_time), is_deleted = 0, business_address = VALUES(business_address),

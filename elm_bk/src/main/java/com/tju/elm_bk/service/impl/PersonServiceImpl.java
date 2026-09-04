@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -48,15 +49,19 @@ public class PersonServiceImpl implements PersonService {
         Long currentUserId = currentUser.getId();
         boolean isAdmin = currentUser.getAuthorities().stream()
                 .anyMatch(auth -> "ADMIN".equals(auth.getName()));
-        if (currentUserId==updateDTO.getId() || isAdmin){
+        if (Objects.equals(currentUserId, updateDTO.getId()) || isAdmin){
             if (personMapper.getPersonByUserId(updateDTO.getId()) == null) {
                 throw new APIException("该用户信息不存在！");
+            }
+            if (updateDTO.getPhone() != null
+                    && personMapper.countByPhoneExcludingId(updateDTO.getPhone(), updateDTO.getId()) > 0) {
+                throw new APIException("手机号已被其他账号使用");
             }
             User user = new User();
             LocalDateTime now = LocalDateTime.now();
             user.setUpdateTime(now);
             user.setUpdater(currentUserId);
-            user.setId(currentUserId);
+            user.setId(updateDTO.getId());
 
             userMapper.update(user);
             Person p = new Person();
@@ -86,7 +91,6 @@ public class PersonServiceImpl implements PersonService {
                     continue;
                 }
                 if(user.getActivated()){
-                    System.out.println("useraaa:{}"+user);
                     BeanUtils.copyProperties(user, personVO);
                     BeanUtils.copyProperties(person, personVO);
                     personVOS.add(personVO);

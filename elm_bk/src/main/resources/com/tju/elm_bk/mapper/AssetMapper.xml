@@ -4,6 +4,9 @@
     <select id="findByUserId" resultType="com.tju.elm_bk.entity.UserAsset">
         SELECT id,user_id,balance,points,membership_expire,update_time FROM user_asset WHERE user_id=#{userId}
     </select>
+    <select id="lockByUserId" resultType="com.tju.elm_bk.entity.UserAsset">
+        SELECT id,user_id,balance,points,membership_expire,update_time FROM user_asset WHERE user_id=#{userId} FOR UPDATE
+    </select>
     <insert id="ensure">
         INSERT INTO user_asset(user_id,balance,points,update_time) VALUES(#{userId},0,0,NOW())
         ON DUPLICATE KEY UPDATE user_id=user_id
@@ -25,6 +28,9 @@
     <select id="countCoupons" resultType="int">
         SELECT COUNT(*) FROM user_coupon WHERE user_id=#{userId} AND used=0 AND expires_at>NOW()
     </select>
+    <select id="countWelcomeCoupons" resultType="int">
+        SELECT COUNT(*) FROM user_coupon WHERE user_id=#{userId} AND name='新人券'
+    </select>
     <select id="listAvailableCoupons" resultType="com.tju.elm_bk.entity.UserCoupon">
         SELECT id,user_id,name,discount_amount,min_order_amount,expires_at,used,order_id
         FROM user_coupon
@@ -45,13 +51,6 @@
         UPDATE user_asset SET membership_expire=DATE_ADD(GREATEST(COALESCE(membership_expire,NOW()),NOW()),INTERVAL 30 DAY), update_time=NOW()
         WHERE user_id=#{userId}
     </update>
-    <select id="findBestCouponId" resultType="long">
-        SELECT id FROM user_coupon WHERE user_id=#{userId} AND used=0 AND expires_at>NOW()
-          AND min_order_amount &lt;= #{subtotal} ORDER BY discount_amount DESC, id LIMIT 1
-    </select>
-    <select id="findCouponDiscount" resultType="java.math.BigDecimal">
-        SELECT discount_amount FROM user_coupon WHERE id=#{couponId}
-    </select>
     <update id="useCoupon">
         UPDATE user_coupon SET used=1, order_id=#{orderId} WHERE id=#{couponId} AND used=0
     </update>

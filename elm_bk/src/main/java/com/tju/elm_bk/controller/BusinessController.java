@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -42,16 +43,9 @@ public class BusinessController {
     @Operation(summary = "（牙膏）根据id获取某店铺详情", description = "根据id获取某店铺详情")
     public HttpResult<BusinessVO> getBusiness(@PathVariable("id") Long id) {
         if (id == null || id <= 0) {
-//            log.warn("获取店铺详情请求参数错误: id={}", id);
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
         }
         BusinessVO businessVo = businessService.getBusinessById(id);
-//        if (businessVo == null) {
-//            log.info("未找到对应的店铺信息: id={}", id);
-//            throw new APIException(ResultCodeEnum.NOT_FOUND);
-//        }
-//        System.out.println("查询到的BusinessVO对象: " + businessVo);
-//        log.debug("成功获取店铺详情: id={}, name={}", id, businessVo.getBusinessName());
         return HttpResult.success(businessVo);
     }
 
@@ -63,6 +57,7 @@ public class BusinessController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "（牙膏）更新某店铺信息（覆盖）", description = "更新某店铺信息")
+    @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<BusinessVO> updateBusiness(@PathVariable("id") Long id,@RequestBody BusinessUpdateDTO updateDto){
         if (id == null || id <= 0) {
 //            log.warn("更新店铺信息请求参数错误: id={}", id);
@@ -75,6 +70,7 @@ public class BusinessController {
 
      @DeleteMapping("/{id}")
      @Operation(summary = "（牙膏）删除某店铺")
+     @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<BusinessVO> deleteBusiness(@PathVariable("id") Long id) {
         if (id == null || id <= 0) {
             log.warn("删除店铺信息请求参数错误: id={}", id);
@@ -86,6 +82,7 @@ public class BusinessController {
 
      @PatchMapping("/{id}")
      @Operation(summary = "（牙膏）部分更新某店铺信息")
+     @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<BusinessVO> patchBusiness(@PathVariable("id") Long id,@RequestBody BusinessUpdateDTO updateDto) {
         if (id == null || id <= 0) {
             log.warn("更新店铺信息请求参数错误: id={}", id);
@@ -101,6 +98,7 @@ public class BusinessController {
      */
     @GetMapping
     @Operation(summary = "获取所有店铺信息--牙膏版本")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public HttpResult<List<BusinessVO>> getBusinesses() {
         List<BusinessVO> businessVos = businessService.getBusinesses();
         return HttpResult.success(businessVos);
@@ -109,6 +107,7 @@ public class BusinessController {
 
      @PostMapping
      @Operation(summary = "添加新店铺——牙膏版本")
+    @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<BusinessVO> addBusiness(@RequestBody BusinessDTO businessDTO) {
         BusinessVO businessVo = businessService.addBusiness(businessDTO);
         return HttpResult.success(businessVo);
@@ -128,6 +127,7 @@ public class BusinessController {
 
     @PostMapping("/apply")
     @Operation(summary = "(商家和管理员增加店铺)商家新添加店铺--带状态")
+    @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<Integer> applyForAddBusiness(@RequestBody Business business) {
         return HttpResult.success(businessService.applyForAddBusiness(business));
     }
@@ -151,6 +151,7 @@ public class BusinessController {
      */
     @GetMapping("/active")
     @Operation(summary = "查所有激活的商家（管理端商铺管理第一页）")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public List<BusinessInfoDTO> getAllActiveBusinesses() {
         return businessService.getAllActiveBusinesses();
     }
@@ -168,6 +169,7 @@ public class BusinessController {
 
     @GetMapping("/id_list")
     @Operation(summary = "获取当前商家用户商铺id列表")
+    @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<List<MerchantStatsVO>> getBusinessIdList() {
         return HttpResult.success(businessService.getBusinessIdList());
     }
@@ -184,6 +186,7 @@ public class BusinessController {
     //还是更新商铺的接口，但部分跟新且适配数据库版本
     @PatchMapping("/own/{id}")
     @Operation(summary = "（可用）部分更新某店铺信息")
+    @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<BusinessVO> patchBusinessOwn(@PathVariable("id") Long id,@RequestBody BusinessUpdateDTO updateDto) {
          BusinessVO businessVO = businessService.patchBusinessOwn( id,  updateDto);
          return HttpResult.success(businessVO);

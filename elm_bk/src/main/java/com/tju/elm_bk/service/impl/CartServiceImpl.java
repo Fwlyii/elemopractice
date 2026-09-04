@@ -59,9 +59,10 @@ public class CartServiceImpl implements CartService {
 
         Cart existing = cartMapper.selectActiveCartItem(user.getId(), food.getBusinessId(), food.getId());
         if (existing != null) {
-            int mergedQuantity = (existing.getQuantity() == null ? 0 : existing.getQuantity()) + cartItemCreateDTO.getQuantity();
+            long mergedQuantity = (long) (existing.getQuantity() == null ? 0 : existing.getQuantity()) + cartItemCreateDTO.getQuantity();
+            if (mergedQuantity > 999) throw new APIException("单种商品一次最多购买999份");
             ensurePurchasable(food, cartItemCreateDTO.getQuantity(), user.getId());
-            cartMapper.updateCartItem(existing.getId(), mergedQuantity);
+            cartMapper.updateCartItem(existing.getId(), (int) mergedQuantity);
             CartVO merged = cartMapper.selectCart(existing.getId());
             merged.setCustomer(toUserVO(user));
             merged.setBusiness(businessMapper.selectBusinessVO(existing.getBusinessId()));
@@ -113,7 +114,7 @@ public class CartServiceImpl implements CartService {
             throw new APIException(ResultCodeEnum.BUSINESS_MISSED);
         }
 
-        if (quantity == null || quantity <= 0) {
+        if (quantity == null || quantity <= 0 || quantity > 999) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
 
@@ -121,8 +122,9 @@ public class CartServiceImpl implements CartService {
         ensurePurchasable(food, quantity, userId);
         Cart existing = cartMapper.selectActiveCartItem(userId, business.getId(), foodId);
         if (existing != null) {
-            int mergedQuantity = (existing.getQuantity() == null ? 0 : existing.getQuantity()) + quantity;
-            cartMapper.updateCartItem(existing.getId(), mergedQuantity);
+            long mergedQuantity = (long) (existing.getQuantity() == null ? 0 : existing.getQuantity()) + quantity;
+            if (mergedQuantity > 999) throw new APIException("单种商品一次最多购买999份");
+            cartMapper.updateCartItem(existing.getId(), (int) mergedQuantity);
             return existing.getId();
         }
         Cart cart = new Cart();
@@ -154,7 +156,7 @@ public class CartServiceImpl implements CartService {
         if (!Objects.equals(cart.getCustomerId(), userId)) {
             throw new APIException(ResultCodeEnum.USER_DENIED);
         }
-        if (quantity == null || quantity < 0) {
+        if (quantity == null || quantity < 0 || quantity > 999) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
         if (quantity == 0) {
@@ -192,7 +194,7 @@ public class CartServiceImpl implements CartService {
     }
 
     private void ensurePurchasable(Food food, Integer quantity, Long userId) {
-        if (quantity == null || quantity <= 0) {
+        if (quantity == null || quantity <= 0 || quantity > 999) {
             throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
         }
         if (food.getShelveStatus() == null || food.getShelveStatus() != 1) {
@@ -209,18 +211,25 @@ public class CartServiceImpl implements CartService {
         if (business.getStatus() != null && business.getStatus() != 1) {
             throw new APIException("商家当前未营业");
         }
-        int existing = cartMapper.selectCartItems(userId, food.getBusinessId()).stream()
+        long existing = cartMapper.selectCartItems(userId, food.getBusinessId()).stream()
                 .filter(item -> Objects.equals(item.getFoodId(), food.getId()))
-                .mapToInt(item -> item.getQuantity() == null ? 0 : item.getQuantity()).sum();
-        if (food.getStock() != null && existing + quantity > food.getStock()) {
+                .mapToLong(item -> item.getQuantity() == null ? 0 : item.getQuantity()).sum();
+        long requestedTotal = existing + quantity;
+        if (requestedTotal > 999) {
+            throw new APIException("单种商品一次最多购买999份");
+        }
+        if (food.getStock() != null && requestedTotal > food.getStock()) {
             throw new APIException("加入后数量超过库存");
         }
-        if (food.getPurchaseLimit() != null && existing + quantity > food.getPurchaseLimit()) {
+        if (food.getPurchaseLimit() != null && requestedTotal > food.getPurchaseLimit()) {
             throw new APIException("商品“" + food.getFoodName() + "”单笔限购" + food.getPurchaseLimit() + "份");
         }
     }
 
     private void ensurePurchasableForUpdate(Food food, Integer quantity, Long userId, Long cartId) {
+        if (quantity == null || quantity <= 0 || quantity > 999) {
+            throw new APIException(ResultCodeEnum.QUANTITY_ILLEGAL);
+        }
         if (food.getShelveStatus() == null || food.getShelveStatus() != 1) {
             throw new APIException("商品已下架");
         }

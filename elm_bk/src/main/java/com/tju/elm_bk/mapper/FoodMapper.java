@@ -14,7 +14,8 @@ import org.apache.ibatis.annotations.Update;
 public interface FoodMapper {
 
 
-    List<FoodVO> selectFoodVOList(@Param("businessId") Integer businessId, @Param("orderId") Integer orderId);
+    List<FoodVO> selectFoodVOList(@Param("businessId") Integer businessId, @Param("orderId") Integer orderId,
+                                  @Param("visibleOnly") boolean visibleOnly);
 
     FoodVO selectFoodVOById(@Param("id") Long id);
 

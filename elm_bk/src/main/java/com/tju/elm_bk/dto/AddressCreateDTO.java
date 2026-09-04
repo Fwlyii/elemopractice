@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,6 +19,8 @@ public class AddressCreateDTO {
     private Boolean isDeleted = false; // 默认未删除
 
     @Schema(description = "联系人姓名")
+    @NotBlank(message = "联系人姓名不能为空")
+    @Size(max = 40, message = "联系人姓名不能超过40个字符")
     private String contactName;
 
     @Schema(description = "联系人性别（0-女，1-男）")
@@ -28,6 +31,8 @@ public class AddressCreateDTO {
     private String contactTel;
 
     @Schema(description = "详细地址")
+    @NotBlank(message = "详细地址不能为空")
+    @Size(max = 255, message = "详细地址不能超过255个字符")
     private String address;
 
     @Schema(description = "所属用户（创建地址时通常关联当前登录用户，前端可选传username）")

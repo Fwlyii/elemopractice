@@ -19,8 +19,8 @@ public interface PermissionApplicationMapper {
     @Select("SELECT * FROM permission_application WHERE id = #{id}")
     PermissionApplication selectById(@NotNull(message = "申请ID不能为空") Long id);
 
-    @Update("UPDATE permission_application SET status = #{status},update_time = #{updateTime} WHERE id = #{id}")
-    void updateAuditStatus(PermissionApplication application);
+    @Update("UPDATE permission_application SET status = #{status},update_time = #{updateTime} WHERE id = #{id} AND status = 0 AND is_deleted = false")
+    int updateAuditStatus(PermissionApplication application);
 
     @Select("SELECT * FROM permission_application WHERE status = 0 AND is_deleted = false")
     List<PermissionApplication> list();

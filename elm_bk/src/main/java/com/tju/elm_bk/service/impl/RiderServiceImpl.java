@@ -73,7 +73,7 @@ public class RiderServiceImpl implements RiderService {
         JSONObject message = new JSONObject();
         message.put("type", "rider_application");
         message.put("content", "用户[" + current.getUsername() + "]提交了骑手申请");
-        webSocketServer.sendToAllClient(message.toJSONString());
+        webSocketServer.sendToAuthority("ADMIN", message.toJSONString());
         return riderMapper.findByUserId(current.getId());
     }
 

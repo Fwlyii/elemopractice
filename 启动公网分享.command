@@ -22,6 +22,7 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+./scripts/ensure-demo-env.sh
 # Quick Tunnel 地址是临时的；每次分享前重建 tunnel 容器，避免复用已经失效的隧道。
 docker compose -f docker-compose.demo.yml --profile share rm -sf tunnel >/dev/null 2>&1 || true
 docker compose -f docker-compose.demo.yml --profile share up -d --build

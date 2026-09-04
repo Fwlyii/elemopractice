@@ -103,6 +103,11 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
     @Transactional(rollbackFor = Exception.class)
     public PermissionApplication auditApplication(AuditPermissionDTO auditDTO) {
 
+        if (auditDTO == null || auditDTO.getId() == null
+                || (auditDTO.getAuditResult() != 1 && auditDTO.getAuditResult() != 2)) {
+            throw new APIException("审核结果只能是通过或拒绝");
+        }
+
         String currentUsername = SecurityUtils.getCurrentUsername()
                 .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
         Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
@@ -120,7 +125,9 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
         // 3. 更新申请状态
         application.setStatus(auditDTO.getAuditResult());// 1-同意，2-拒绝
         application.setUpdateTime(LocalDateTime.now());
-        applicationMapper.updateAuditStatus(application);
+        if (applicationMapper.updateAuditStatus(application) != 1) {
+            throw new APIException("申请状态已变化，请刷新后重试");
+        }
 
         // 4. 如果同意申请，给用户添加BUSINESS权限
         Long applicantUserId = application.getUserId(); // 申请人ID
@@ -142,6 +149,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public BusinessPermissionVO applyShop(BusinessPermissionDTO businessPermissionDTO) {
+        validateShopApplication(businessPermissionDTO);
         String currentUsername = SecurityUtils.getCurrentUsername()
                 .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
         Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
@@ -169,16 +177,27 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public BusinessPermissionVO auditShopApplication(BusinessPermissionDTO businessPermissionDTO) {
+        if (businessPermissionDTO == null || businessPermissionDTO.getId() == null
+                || (businessPermissionDTO.getStatus() != 1 && businessPermissionDTO.getStatus() != 2)) {
+            throw new APIException("审核状态只能是通过或拒绝");
+        }
         String currentUsername = SecurityUtils.getCurrentUsername()
                 .orElseThrow(() -> new APIException("未获取到当前登录用户名"));
         Long currentUserId = userMapper.getUserIdByUsername(currentUsername);
         businessPermissionDTO.setUpdater(currentUserId);
         businessPermissionDTO.setUpdateTime(LocalDateTime.now());
-        if (businessMapper.selectBusinessById(businessPermissionDTO.getId()) == null) {
+        com.tju.elm_bk.entity.Business application = businessMapper.selectBusinessById(businessPermissionDTO.getId());
+        if (application == null) {
             throw new APIException("申请记录不存在");
         }
-        businessMapper.updateBusinessStatus(businessPermissionDTO);
+        if (application.getStatus() == null || application.getStatus() != 0) {
+            throw new APIException("该开店申请已经审核，不能重复操作");
+        }
+        if (businessMapper.updateBusinessStatus(businessPermissionDTO) != 1) {
+            throw new APIException("开店申请状态已变化，请刷新后重试");
+        }
         BusinessPermissionVO businessPermissionVO =businessMapper.getBusinessPermissionById(businessPermissionDTO.getId());
         Long applicantUserId = businessPermissionVO.getUserId();
         if (businessPermissionDTO.getStatus() == 1) { // 1-同意
@@ -188,6 +207,38 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
             sendAuditRejectNotification(applicantUserId,1);
         }
         return businessPermissionVO;
+    }
+
+    private void validateShopApplication(BusinessPermissionDTO dto) {
+        if (dto == null || dto.getBusinessName() == null || dto.getBusinessName().isBlank()
+                || dto.getBusinessName().trim().length() > 64
+                || dto.getBusinessAddress() == null || dto.getBusinessAddress().isBlank()
+                || dto.getBusinessAddress().trim().length() > 255
+                || dto.getOrderTypeId() == null || dto.getOrderTypeId() <= 0) {
+            throw new APIException("店铺名称、地址和经营类型不能为空且必须合法");
+        }
+        java.math.BigDecimal start = dto.getStartPrice() == null ? java.math.BigDecimal.ZERO : dto.getStartPrice();
+        java.math.BigDecimal delivery = dto.getDeliveryPrice() == null ? java.math.BigDecimal.ZERO : dto.getDeliveryPrice();
+        if (start.compareTo(java.math.BigDecimal.ZERO) < 0 || start.compareTo(new java.math.BigDecimal("100000")) > 0
+                || delivery.compareTo(java.math.BigDecimal.ZERO) < 0 || delivery.compareTo(new java.math.BigDecimal("10000")) > 0) {
+            throw new APIException("起送价和配送费必须为合理的非负金额");
+        }
+        java.math.BigDecimal threshold = dto.getPromotionThreshold();
+        java.math.BigDecimal discount = dto.getPromotionDiscount();
+        if ((threshold == null) != (discount == null)
+                || (threshold != null && (threshold.compareTo(java.math.BigDecimal.ZERO) <= 0
+                || discount.compareTo(java.math.BigDecimal.ZERO) <= 0
+                || discount.compareTo(threshold) >= 0))) {
+            throw new APIException("满减门槛和优惠金额必须同时填写，且优惠金额应小于门槛");
+        }
+        dto.setBusinessName(dto.getBusinessName().trim());
+        dto.setBusinessAddress(dto.getBusinessAddress().trim());
+        dto.setStartPrice(start.setScale(2, java.math.RoundingMode.HALF_UP));
+        dto.setDeliveryPrice(delivery.setScale(2, java.math.RoundingMode.HALF_UP));
+        if (threshold != null) {
+            dto.setPromotionThreshold(threshold.setScale(2, java.math.RoundingMode.HALF_UP));
+            dto.setPromotionDiscount(discount.setScale(2, java.math.RoundingMode.HALF_UP));
+        }
     }
 
     @Override
@@ -251,7 +302,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
             message.put("content", content);
         }
         message.put("userId", userId);
-        webSocketServer.sendToAllClient(message.toJSONString());
+        webSocketServer.sendToClient(userId.toString(), message.toJSONString());
 
         notification.setUserId(userId); // 接收消息的用户ID
         notification.setNotificationType(type); // 0=商家申请，1=开店申请
@@ -281,7 +332,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
             message.put("content", content);
         }
         message.put("userId", userId);
-        webSocketServer.sendToAllClient(message.toJSONString());
+        webSocketServer.sendToClient(userId.toString(), message.toJSONString());
         notification.setUserId(userId); // 接收消息的用户ID
         notification.setNotificationType(type); // 0=商家申请，1=开店申请
         notification.setAuditResult(2); // 1=通过，2=拒绝
@@ -305,8 +356,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
         message.put("userId", userId);
         message.put("content", "用户[" + username + "]申请成为商家，请及时审核");
 
-        // 调用WebSocket服务群发消息（管理员客户端会监听该消息）
-        webSocketServer.sendToAllClient(message.toJSONString());
+        webSocketServer.sendToAuthority("ADMIN", message.toJSONString());
     }
     /**
      * 向管理员推送开店申请通知
@@ -321,7 +371,6 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
         message.put("userId", userId);
         message.put("content", "商家[" + username + "]申请开店，请及时审核");
 
-        // 调用WebSocket服务群发消息（管理员客户端会监听该消息）
-        webSocketServer.sendToAllClient(message.toJSONString());
+        webSocketServer.sendToAuthority("ADMIN", message.toJSONString());
     }
 }

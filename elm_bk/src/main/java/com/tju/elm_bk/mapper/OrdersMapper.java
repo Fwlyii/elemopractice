@@ -36,8 +36,6 @@ public interface OrdersMapper {
 
 
 
-    void insertOrderPlus(Order order);
-
     @Select("""
         <script>
             select o.id,o.order_total,o.order_state,o.order_date,o.business_id,o.delivery_price,o.service_mode,b.business_name,b.business_img
@@ -102,9 +100,6 @@ public interface OrdersMapper {
     OrderItemDetailVO selectOrderItemById(@Param("orderItemId") Long orderItemId);
 
 
-
-    @Update("update orders set order_state = #{orderState} where id = #{orderId}")
-    Integer setOrderState(@Param("orderId") Long orderId, @Param("orderState") Integer orderState);
 
     @Update("""
         UPDATE orders

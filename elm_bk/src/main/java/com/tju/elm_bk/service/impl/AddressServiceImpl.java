@@ -33,8 +33,9 @@ public class AddressServiceImpl implements AddressService {
                 || createDTO.getCustomer().getUsername() == null
                 || createDTO.getCustomer().getUsername().isBlank()
                 || createDTO.getContactName() == null || createDTO.getContactName().isBlank()
-                || createDTO.getContactTel() == null || createDTO.getContactTel().isBlank()
-                || createDTO.getAddress() == null || createDTO.getAddress().isBlank()
+                || createDTO.getContactName().trim().length() > 40
+                || createDTO.getContactTel() == null || !createDTO.getContactTel().matches("^1[3-9]\\d{9}$")
+                || createDTO.getAddress() == null || createDTO.getAddress().isBlank() || createDTO.getAddress().trim().length() > 255
                 || createDTO.getContactSex() == null
                 || (createDTO.getContactSex() != 0 && createDTO.getContactSex() != 1)) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);
@@ -140,9 +141,9 @@ public class AddressServiceImpl implements AddressService {
     }
 
     private void validateAddressFields(DeliveryAddress address) {
-        if (address.getContactName() == null || address.getContactName().isBlank()
+        if (address.getContactName() == null || address.getContactName().isBlank() || address.getContactName().trim().length() > 40
                 || address.getContactTel() == null || !address.getContactTel().matches("^1[3-9]\\d{9}$")
-                || address.getAddress() == null || address.getAddress().isBlank()
+                || address.getAddress() == null || address.getAddress().isBlank() || address.getAddress().trim().length() > 255
                 || address.getContactSex() == null
                 || (address.getContactSex() != 0 && address.getContactSex() != 1)) {
             throw new APIException(ResultCodeEnum.PARAM_NOT_MATCHED);

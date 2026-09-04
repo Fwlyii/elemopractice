@@ -18,17 +18,12 @@ public interface BusinessMapper {
 
     BusinessVO getBusinessById(@Param("id") Long businessId);
 
-    @Select("SELECT * FROM business WHERE id = #{businessId}")
+    @Select("SELECT * FROM business WHERE id = #{businessId} AND is_deleted = 0")
     BusinessPermissionVO getBusinessPermissionById(@Param("businessId") Long businessId);
 
-    // 更新商户信息
-    int updateBusiness(@Param("id") Long id, @Param("updateDto") BusinessUpdateDTO updateDto);
     int patchBusiness(@Param("id") Long id, @Param("updateDto") BusinessUpdateDTO updateDto);
-    // 更新商户所有者信息
-    int updateBusinessOwner(@Param("id") Long id, @Param("updateDto") BusinessUpdateDTO updateDto);
-    int patchBusinessOwner(@Param("id") Long id, @Param("updateDto") BusinessUpdateDTO updateDto);
-    @Update("UPDATE business SET user_id = #{ownerId} WHERE id = #{id}")
-    void updateUserIdById(@Param("ownerId") Long ownerId, @Param("id") Long id);
+    @Update("UPDATE business SET user_id = #{ownerId}, updater = #{operatorId}, update_time = NOW() WHERE id = #{id} AND is_deleted = 0")
+    int updateUserIdById(@Param("ownerId") Long ownerId, @Param("id") Long id, @Param("operatorId") Long operatorId);
     // 嵌套查询方法
     List<Authority> selectAuthoritiesByUserId(@Param("userId") Long userId);
 
@@ -40,14 +35,14 @@ public interface BusinessMapper {
 
     List<BusinessVO> getBusinesses();
 
-    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId}")
+    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId} AND b.is_deleted = 0")
     BusinessVO selectBusinessVO(@Param("businessId") Long businessId);
 
-    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId}")
+    @Select("SELECT b.* FROM business b WHERE b.id = #{businessId} AND b.is_deleted = 0")
     Business selectBusinessById(@Param("businessId") Long businessId);
 
-    @Update("UPDATE business SET status = #{status},update_time=#{updateTime},updater=#{updater} WHERE id = #{id}")
-    void updateBusinessStatus(BusinessPermissionDTO businessPermissionDTO);
+    @Update("UPDATE business SET status = #{status},update_time=#{updateTime},updater=#{updater} WHERE id = #{id} AND status = 0 AND is_deleted = 0")
+    int updateBusinessStatus(BusinessPermissionDTO businessPermissionDTO);
 
     void insertBusinessPermission(BusinessPermissionDTO businessPermissionDTO);
 
