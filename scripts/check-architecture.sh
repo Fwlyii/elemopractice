@@ -50,6 +50,10 @@ check_absent "普通用户页面不再给通知接口上传 userId" \
   '/api/notifications\?userId|/api/notifications[^\n]*params' \
   "$frontend_dir/views/MyInformation.vue" "$frontend_dir/views/Notifications.vue"
 
+check_absent "用户个人页不再承担多身份切换" \
+  '身份中心|goToRole\(|identity-(section|grid|item)' \
+  "$frontend_dir/views/MyInformation.vue"
+
 check_absent "页面不再绕过统一实时连接服务" \
   'new[[:space:]]+WebSocket|getWebSocketUrl|client-\$\{Date\.now|admin-\$\{Date\.now' \
   "$frontend_dir/views"

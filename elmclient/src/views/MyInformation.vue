@@ -44,32 +44,6 @@
       </div>
     </div>
 
-    <div v-if="!riderMode" class="identity-section">
-      <div class="section-title">身份中心</div>
-      <div class="identity-grid">
-        <button class="identity-item" @click="goToRole('user')">
-          <span class="identity-icon user"><i class="fas fa-user"></i></span>
-          <span class="identity-copy"><b>用户端</b><small>浏览商家、下单</small></span>
-          <i class="fas fa-chevron-right"></i>
-        </button>
-        <button class="identity-item" @click="goToRole('merchant')">
-          <span class="identity-icon merchant"><i class="fas fa-store"></i></span>
-          <span class="identity-copy"><b>商家端</b><small>{{ hasBusiness ? '进入经营工作台' : '申请商家身份' }}</small></span>
-          <i class="fas fa-chevron-right"></i>
-        </button>
-        <button class="identity-item" @click="goToRole('rider')">
-          <span class="identity-icon rider"><i class="fas fa-motorcycle"></i></span>
-          <span class="identity-copy"><b>骑手端</b><small>{{ hasRider ? '进入接单广场' : '登录或申请骑手身份' }}</small></span>
-          <i class="fas fa-chevron-right"></i>
-        </button>
-        <button v-if="hasAdmin" class="identity-item" @click="goToRole('admin')">
-          <span class="identity-icon admin"><i class="fas fa-shield-alt"></i></span>
-          <span class="identity-copy"><b>管理端</b><small>进入平台管理后台</small></span>
-          <i class="fas fa-chevron-right"></i>
-        </button>
-      </div>
-    </div>
-
     <!-- 隐藏的文件输入框 -->
     <input type="file" ref="fileInput" style="display: none" accept="image/*" @change="handleFileUpload">
 
@@ -191,7 +165,7 @@ import request from '../utils/request';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '../utils/toast';
 import { createRealtimeConnection } from '../services/realtimeService';
-import { getRoleDefinition, hasAuthority, roleCanEnter } from '../utils/roles';
+import { hasAuthority } from '../utils/roles';
 import { clearAuth, getToken, updateStoredUser } from '../utils/auth';
 import { DEFAULT_USER_AVATAR } from '../utils/profileDefaults';
 
@@ -214,9 +188,6 @@ export default {
     const fileInput = ref(null);
     let realtimeConnection = null;
     const riderMode = computed(() => route.query.role === 'rider');
-    const hasBusiness = computed(() => hasAuthority(userInfo.value, 'BUSINESS'));
-    const hasRider = computed(() => hasAuthority(userInfo.value, 'RIDER'));
-    const hasAdmin = computed(() => hasAuthority(userInfo.value, 'ADMIN'));
 
     const editFormData = ref({
       firstName: '',
@@ -384,12 +355,6 @@ export default {
     const goRiderTab = (tab) => {
       router.push({ path: '/rider/dashboard', query: { tab } });
     };
-    const goToRole = (role) => {
-      const definition = getRoleDefinition(role);
-      if (!definition.authority || roleCanEnter(userInfo.value, role)) return router.push(definition.target);
-      if (definition.applyTarget) return router.push(definition.applyTarget);
-      toast.warning(`当前账号没有${definition.label}权限`);
-    };
     const openEditModal = () => {
       if (userInfo.value) {
         editFormData.value.firstName = userInfo.value.firstName || '';
@@ -483,11 +448,7 @@ export default {
       navigateTo,
       backToRiderDashboard,
       goRiderTab,
-      goToRole,
       riderMode,
-      hasBusiness,
-      hasRider,
-      hasAdmin,
       showAddressSection,
       triggerFileInput,
       handleFileUpload,
@@ -908,8 +869,7 @@ export default {
     margin: 10px 0;
   }
 
-  .menu-section,
-  .identity-section {
+  .menu-section {
     width: calc(100% - 24px);
   }
 }
@@ -1023,54 +983,7 @@ export default {
   transform: translateY(-20px); /* 进一步调整位置 */
 }
 
-/* 身份中心：让不同工作台在“我的”中可以快速切换 */
-.identity-section {
-  width: calc(100% - 32px);
-  max-width: 560px;
-  margin: 24px auto 0;
-}
-.identity-grid {
-  display: grid;
-  gap: 8px;
-  background: #fff;
-  border: 1px solid #e4edf6;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 5px 15px rgba(31, 75, 122, .05);
-}
-.identity-item {
-  width: 100%;
-  min-height: 64px;
-  padding: 10px 16px;
-  border: 0;
-  border-bottom: 1px solid #edf2f7;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  text-align: left;
-  color: #8497aa;
-  cursor: pointer;
-  transition: background-color .18s ease;
-}
-.identity-item:last-child { border-bottom: 0; }
-.identity-item:hover { background: #f5faff; }
-.identity-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-}
-.identity-icon.user,.identity-icon.merchant,.identity-icon.rider,.identity-icon.admin { background: #eaf5ff; color: #1684cb; }
-.identity-copy { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-.identity-copy b { color: #38536f; font-size: 14px; font-weight: 600; }
-.identity-copy small { color: #8ca0b3; font-size: 11px; }
-.identity-item > i { color: #b4c3d0; font-size: 12px; }
-
-/* 页面层级整理：固定顶部和底部导航不应遮挡内容，身份入口与个人卡片保持独立间距。 */
-.identity-section { margin-top: 24px; }
+/* 页面层级整理：固定顶部和底部导航不应遮挡内容。 */
 .menu-section { margin-top: 24px; }
 .rider-menu-section { margin-top: 24px; }
 .address-manager { margin-top: 16px; transform: none; }
