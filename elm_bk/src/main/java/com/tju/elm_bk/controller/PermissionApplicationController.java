@@ -30,6 +30,7 @@ public class PermissionApplicationController {
      */
     @PostMapping("/apply-merchant")
     @Operation(summary = "申请成为商家", description = "顾客提交成为商家的申请，提交后会通知管理员审核")
+    @PreAuthorize("hasAuthority('BUSINESS_APPLICANT')")
     public HttpResult<PermissionApplication> applyMerchant() {
         return HttpResult.success(permissionApplicationService.applyMerchant());
     }

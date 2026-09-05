@@ -28,12 +28,14 @@ public class RiderController {
     }
 
     @PostMapping("/applications")
+    @PreAuthorize("hasAuthority('RIDER_APPLICANT')")
     @Operation(summary = "申请成为骑手")
     public HttpResult<RiderProfile> apply(@Valid @RequestBody RiderApplicationDTO dto) {
         return HttpResult.success(riderService.apply(dto));
     }
 
     @GetMapping("/me")
+    @PreAuthorize("hasAnyAuthority('RIDER_APPLICANT','RIDER')")
     @Operation(summary = "获取当前用户的骑手档案")
     public HttpResult<RiderProfile> me() {
         return HttpResult.success(riderService.getMyProfile());

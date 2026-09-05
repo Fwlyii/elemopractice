@@ -91,7 +91,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/carts/**", "/api/addresses/**",
                                 "/api/v1/assets/**", "/api/v1/preferences/**")
                                 .hasAuthority("USER")
-                        .requestMatchers("/api/orders/list/business").hasAuthority("BUSINESS")
+                        // 订单详情仍由服务层核对“本人订单/本人店铺/管理员”，允许三端按职责读取。
+                        .requestMatchers(HttpMethod.GET, "/api/orders/{id}", "/api/orders/detail")
+                                .hasAnyAuthority("USER", "BUSINESS", "ADMIN")
+                        .requestMatchers("/api/orders/list/business")
+                                .hasAnyAuthority("BUSINESS", "ADMIN")
                         .requestMatchers("/api/orders/**").hasAuthority("USER")
                         .requestMatchers("/api/merchant/interaction/collections/**",
                                 "/api/merchant/interaction/status/**",

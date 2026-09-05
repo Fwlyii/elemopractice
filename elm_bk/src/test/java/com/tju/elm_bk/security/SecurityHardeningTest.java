@@ -2,9 +2,15 @@ package com.tju.elm_bk.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tju.elm_bk.controller.AdminController;
+import com.tju.elm_bk.controller.BusinessController;
 import com.tju.elm_bk.controller.FileUploadController;
+import com.tju.elm_bk.controller.PermissionApplicationController;
+import com.tju.elm_bk.controller.ReviewController;
+import com.tju.elm_bk.controller.RiderController;
 import com.tju.elm_bk.controller.UserRestController;
 import com.tju.elm_bk.dto.FoodCreateDTO;
+import com.tju.elm_bk.dto.ReviewCreateDTO;
+import com.tju.elm_bk.dto.RiderApplicationDTO;
 import com.tju.elm_bk.entity.Authority;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.exception.APIException;
@@ -13,11 +19,10 @@ import com.tju.elm_bk.service.CurrentUserService;
 import com.tju.elm_bk.service.ImageStorageService;
 import com.tju.elm_bk.service.impl.AssetServiceImpl;
 import com.tju.elm_bk.websocket.WebSocketServer;
-import jakarta.websocket.Session;
 import jakarta.websocket.CloseReason;
+import jakarta.websocket.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
@@ -36,6 +41,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -58,6 +64,20 @@ class SecurityHardeningTest {
         PreAuthorize toggleGuard = toggle.getAnnotation(PreAuthorize.class);
         assertNotNull(toggleGuard);
         assertEquals("hasAuthority('ADMIN')", toggleGuard.value());
+    }
+
+    @Test
+    void portalSpecificEndpointsRequireTheirSessionAuthority() throws Exception {
+        assertGuard(RiderController.class, "apply", "hasAuthority('RIDER_APPLICANT')",
+                RiderApplicationDTO.class);
+        assertGuard(RiderController.class, "me", "hasAnyAuthority('RIDER_APPLICANT','RIDER')");
+        assertGuard(PermissionApplicationController.class, "applyMerchant",
+                "hasAuthority('BUSINESS_APPLICANT')");
+        assertGuard(ReviewController.class, "create", "hasAuthority('USER')", ReviewCreateDTO.class);
+        assertGuard(ReviewController.class, "getByOrder", "hasAuthority('USER')", Long.class);
+        assertGuard(ReviewController.class, "reply", "hasAuthority('BUSINESS')", Long.class, Map.class);
+        assertGuard(BusinessController.class, "getMerchantBusinesses",
+                "hasAnyAuthority('BUSINESS','ADMIN')", Long.class, Integer.class);
     }
 
     @Test
@@ -101,6 +121,13 @@ class SecurityHardeningTest {
         dto.setStock(10);
         dto.setFoodPrice(BigDecimal.ZERO);
         assertFalse(dto.verify());
+    }
+
+    private void assertGuard(Class<?> controller, String methodName, String expression,
+                             Class<?>... parameterTypes) throws Exception {
+        PreAuthorize guard = controller.getMethod(methodName, parameterTypes).getAnnotation(PreAuthorize.class);
+        assertNotNull(guard, controller.getSimpleName() + "." + methodName + " 缺少端权限约束");
+        assertEquals(expression, guard.value());
     }
 
     @Test

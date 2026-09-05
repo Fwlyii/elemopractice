@@ -137,6 +137,7 @@ public class BusinessController {
 
     @GetMapping("/merchant")
     @Operation(summary = "(返回需要的)查某商家的所有的店铺，可传状态(管理员商铺管理第二页)")
+    @PreAuthorize("hasAnyAuthority('BUSINESS','ADMIN')")
     public HttpResult<List<Business>> getMerchantBusinesses(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Integer status) {
