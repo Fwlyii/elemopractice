@@ -10,7 +10,7 @@
 
     <div class="business-info-card">
       <div class="business-logo">
-        <img :src="business.businessImg || require('@/assets/default-business.png')" @error="handleImageError" alt="商家图片" />
+        <img :src="business.businessImg || require('@/assets/business-default.png')" @error="handleImageError" alt="商家图片" />
       </div>
       <div class="info-details">
         <h1>{{ business.businessName }}</h1>
@@ -419,7 +419,6 @@ export default {
               ...business.value,
               ...updateData
             };
-console.log('修改成功，新的接口测试ok');
             Swal.fire({
               icon: 'success',
               title: '修改成功',

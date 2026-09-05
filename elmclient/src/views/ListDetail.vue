@@ -143,7 +143,6 @@ export default {
 					if (orderDetail.value.orderState === ORDER_STATUS.COMPLETED) {
 						await fetchReview();
 					}
-					console.log("订单详情:", orderDetail.value);
 				} else {
 					error.value = '获取订单详情失败: ' + response.message;
 				}

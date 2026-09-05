@@ -50,7 +50,6 @@
 
 <script>
 import { ref, onMounted } from 'vue';
-// import Footer from '../components/Footer.vue';
 import { useRouter,useRoute } from 'vue-router';
 import { toast } from '../utils/toast';
 import { createMyAddress } from '../services/addressService';

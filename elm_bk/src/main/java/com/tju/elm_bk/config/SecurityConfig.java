@@ -4,7 +4,7 @@ import com.tju.elm_bk.security.JWTFilter;
 import com.tju.elm_bk.security.JwtAccessDeniedHandler;
 import com.tju.elm_bk.security.JwtAuthenticationEntryPoint;
 import com.tju.elm_bk.service.UserModelDetailsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,18 +28,12 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
-    @Autowired
-    private JwtAuthenticationEntryPoint authenticationEntryPoint;
-    @Autowired
-    private JwtAccessDeniedHandler accessDeniedHandler;
+    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+    private final JwtAccessDeniedHandler accessDeniedHandler;
     private final UserModelDetailsService userDetailsService;
     private final JWTFilter jwtFilter;
-
-    public SecurityConfig(UserModelDetailsService userDetailsService, JWTFilter jwtFilter) {
-        this.userDetailsService = userDetailsService;
-        this.jwtFilter = jwtFilter;
-    }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -102,22 +96,25 @@ public class SecurityConfig {
                                 "/api/merchant/interaction/update").hasAuthority("USER")
                         .anyRequest().authenticated()
                 )
-                .headers(httpSecurity -> httpSecurity  // 显式参数名
+                .headers(httpSecurity -> httpSecurity
                         .frameOptions(options -> options.sameOrigin())
                 )
-                .sessionManagement(httpSecurity -> httpSecurity  // 显式参数名
+                .sessionManagement(httpSecurity -> httpSecurity
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .formLogin(httpSecurity -> httpSecurity.disable())  // 显式参数名
-                .httpBasic(httpSecurity -> httpSecurity.disable())  // 显式参数名
-                .rememberMe(httpSecurity -> httpSecurity.disable())  // 显式参数名
-                .csrf(httpSecurity -> httpSecurity.disable())  // 显式参数名
-                .cors(httpSecurity -> httpSecurity.configurationSource(corsConfigurationSource()))// 显式参数名
-                .exceptionHandling(exception -> exception.accessDeniedHandler(accessDeniedHandler).authenticationEntryPoint(authenticationEntryPoint));
+                .formLogin(httpSecurity -> httpSecurity.disable())
+                .httpBasic(httpSecurity -> httpSecurity.disable())
+                .rememberMe(httpSecurity -> httpSecurity.disable())
+                .csrf(httpSecurity -> httpSecurity.disable())
+                .cors(httpSecurity -> httpSecurity.configurationSource(corsConfigurationSource()))
+                .exceptionHandling(exception -> exception
+                        .accessDeniedHandler(accessDeniedHandler)
+                        .authenticationEntryPoint(authenticationEntryPoint));
         return http.build();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

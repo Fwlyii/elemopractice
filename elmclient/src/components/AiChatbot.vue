@@ -5,8 +5,7 @@
          @click="handleClick" 
          :class="{ active: showChat }">
       <i class="fa fa-robot"></i>
-      <span v-if="!showChat && !hasUnreadMessages">AI</span>
-      <span v-if="hasUnreadMessages" class="unread-indicator">•</span>
+      <span v-if="!showChat">AI</span>
     </div>
 
     <!-- 聊天窗口 -->
@@ -183,7 +182,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import aiChatService from '../services/aiChatService'
 import { formatSafeMessage } from '../utils/safeMessage'
 
@@ -219,12 +218,6 @@ export default {
       '配送时间多久'
     ])
 
-    // 计算属性
-    const hasUnreadMessages = computed(() => {
-      // 这里可以添加未读消息的逻辑
-      return false
-    })
-
     // 初始化AI状态检查
     const checkAiStatus = async () => {
       try {
@@ -249,17 +242,14 @@ export default {
     }
 
     // 处理点击事件
-    const handleClick = (event) => {
-      console.log('handleClick called')
+    const handleClick = () => {
       toggleChat()
     }
 
     // 切换聊天窗口
     const toggleChat = async () => {
-      console.log('toggleChat called, current showChat:', showChat.value)
       showChat.value = !showChat.value
       showHistory.value = false
-      console.log('toggleChat after toggle, showChat:', showChat.value)
       
       if (showChat.value) {
         await nextTick()
@@ -481,7 +471,6 @@ export default {
       messageInput,
       quickQuestions,
       aiStatus,
-      hasUnreadMessages,
       detectedChatType,
        handleClick,
        toggleChat,
@@ -546,22 +535,6 @@ export default {
   display: none;
 }
 
-
-.unread-indicator {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background: #ff4757;
-  color: white;
-  border-radius: 50%;
-  width: 12px;
-  height: 12px;
-  font-size: 20px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 
 /* 聊天容器 */

@@ -151,14 +151,9 @@ const filterStatus = computed(() => {
 
 const getPersonList = async () => {
   try {
-    // 打印请求参数
-    console.log('请求状态：', filterStatus.value);
     const res = await request.get('/api/persons', {
       params: { status: filterStatus.value }
     });
-    
-    // 打印接口返回结果
-    console.log('接口返回：', res);
     
     if (res.success) {
       // 正确赋值给 Vue3 的响应式变量

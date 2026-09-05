@@ -1,7 +1,6 @@
 <template>
 	<div class="wrapper">
     <BackButton />
-	  <!-- <header class="topbar"><p>商铺管理 - {{ businessName || '商家' }}</p></header> -->
     <div class="header">
             <p>商铺管理 - {{ businessName || '商家' }}</p>
         </div>
@@ -128,10 +127,9 @@
 
 <script>
 import { ref, reactive, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import { useRoute } from 'vue-router';
 import request from '@/utils/request';
-import { ElMessage } from 'element-plus';
+import { toast } from '@/utils/toast';
 import BackButton from '../components/BackButton.vue';
 
 export default {
@@ -139,7 +137,6 @@ export default {
   components: { BackButton },
   setup() {
     const route = useRoute();
-    const router = useRouter();
     const ownerId = ref(null);
     const businessName = ref('');
     const storeList = ref([]);
@@ -181,7 +178,7 @@ export default {
         businessImg: '', 
         businessAddress: '',
         businessExplain: '',
-        orderTypeId: null // 新增商铺类型字段
+        orderTypeId: null
       }
     });
 
@@ -200,25 +197,8 @@ export default {
         }
       } catch (error) {
         console.error('获取商铺列表失败:', error);
-        // 备用数据
-        storeList.value = [
-          { 
-            id: 1,
-            businessName: '虾滑不WA火锅', 
-            businessAddress: '天津市和平区', 
-            businessExplain: '不限量AC虾滑',
-            businessImg: '/images/merchants/01-stir-fry.jpg',
-            orderTypeId: 1
-          },
-          { 
-            id: 2,
-            businessName: '黄焖鸡米饭', 
-            businessAddress: '梅园二楼', 
-            businessExplain: '好吃',
-            businessImg: null,
-            orderTypeId: 6
-          }
-        ];
+        storeList.value = [];
+        toast.error('商铺列表加载失败');
       }
     };
 
@@ -296,16 +276,13 @@ export default {
           editor.form.businessImg = response.data;
           selectedFile.value = null;
           uploadFileName.value = '上传成功';
-          // ElMessage.success('图片上传成功');
         } else {
           console.error('上传失败:', response.message);
           uploadFileName.value = '上传失败';
-          // ElMessage.error('图片上传失败');
         }
       } catch (error) {
         console.error('上传图片出错:', error);
         uploadFileName.value = '上传出错';
-        // ElMessage.error('图片上传出错');
       }
     };
 
@@ -315,7 +292,6 @@ export default {
       editor.visible = true;
       selectedFile.value = null;
       uploadFileName.value = '';
-      // 重置错误信息
       nameError.value = '';
       addressError.value = '';
       explainError.value = '';
@@ -335,7 +311,6 @@ export default {
       editor.visible = true;
       selectedFile.value = null;
       uploadFileName.value = '';
-      // 重置错误信息
       nameError.value = '';
       addressError.value = '';
       explainError.value = '';
@@ -346,7 +321,6 @@ export default {
       editor.visible = false;
       selectedFile.value = null;
       uploadFileName.value = '';
-      // 重置错误信息
       nameError.value = '';
       addressError.value = '';
       explainError.value = '';
@@ -370,90 +344,57 @@ export default {
       try {
         await request.delete(`/api/businesses/${storeDeleteSelectId.value}`);
         storeList.value = storeList.value.filter(s => s.id !== storeDeleteSelectId.value);
-        // ElMessage.success('商铺删除成功');
+        toast.success('商铺删除成功');
       } catch (error) {
         console.error('删除商铺失败:', error);
-        storeList.value = storeList.value.filter(s => s.id !== storeDeleteSelectId.value);
-        // ElMessage.success('商铺删除成功');
+        toast.error(error?.response?.data?.message || '商铺删除失败');
       } finally {
         closeModal();
       }
     };
 
     const saveStore = async () => {
-      // 先验证所有字段
       if (!validateAll()) {
-        // ElMessage.warning('请检查输入内容是否符合要求');
+        toast.warning('请检查输入内容是否符合要求');
         return;
       }
 
       try {
         if (editor.mode === 'create') {
-          // 构建符合Business实体类的请求体
           const businessData = {
             businessName: editor.form.businessName,
             businessAddress: editor.form.businessAddress,
             businessExplain: editor.form.businessExplain,
             businessImg: editor.form.businessImg,
-            orderTypeId: editor.form.orderTypeId, // 新增的商铺类型
-            userId: ownerId.value, // 必传字段
+            orderTypeId: editor.form.orderTypeId,
+            userId: ownerId.value,
           };
 
           const response = await request.post('/api/businesses/apply', businessData);
           
           if (response.success) {
-            // 确保response.data包含所有必要字段
-            const newStore = {
-              id: response.data.id || Date.now(), // 确保有id字段
-              businessName: response.data.businessName || editor.form.businessName,
-              businessAddress: response.data.businessAddress || editor.form.businessAddress,
-              businessExplain: response.data.businessExplain || editor.form.businessExplain,
-              businessImg: response.data.businessImg || editor.form.businessImg,
-              orderTypeId: response.data.orderTypeId || editor.form.orderTypeId
-            };
-            
-            // 将新商铺添加到列表最前面
-            storeList.value.unshift(newStore);
-            
+            await loadStores();
+            toast.success('商铺申请已提交');
           } else {
-            // ElMessage.error(response.message || '商铺申请失败');
+            throw new Error(response.message || '商铺申请失败');
           }
         } else {
-          // 编辑逻辑保持不变
           const updateData = {
             businessName: editor.form.businessName,
             businessAddress: editor.form.businessAddress,
             businessExplain: editor.form.businessExplain,
             businessImg: editor.form.businessImg,
-            orderTypeId: editor.form.orderTypeId // 新增的商铺类型
+            orderTypeId: editor.form.orderTypeId
           };
           
           await request.patch(`/api/businesses/own/${editor.form.id}`, updateData);
-          const idx = storeList.value.findIndex(s => s.id === editor.form.id);
-          if (idx >= 0) storeList.value[idx] = { ...storeList.value[idx], ...updateData };
-          // ElMessage.success('商铺更新成功');
+          await loadStores();
+          toast.success('商铺更新成功');
         }
         editor.visible = false;
       } catch (error) {
         console.error('保存商铺失败:', error);
-        if (editor.mode === 'create') {
-          // 本地模拟时也确保所有字段都有值
-          storeList.value.unshift({ 
-            id: Date.now(),
-            businessName: editor.form.businessName,
-            businessAddress: editor.form.businessAddress,
-            businessExplain: editor.form.businessExplain,
-            businessImg: editor.form.businessImg,
-            orderTypeId: editor.form.orderTypeId,
-            userId: ownerId.value
-          });
-          // ElMessage.success('商铺添加成功(本地模拟)');
-        } else {
-          const idx = storeList.value.findIndex(s => s.id === editor.form.id);
-          if (idx >= 0) storeList.value[idx] = { ...storeList.value[idx], ...editor.form };
-          // ElMessage.success('商铺更新成功(本地模拟)');
-        }
-        editor.visible = false;
+        toast.error(error?.response?.data?.message || error.message || '商铺保存失败');
       }
     };
 
@@ -489,7 +430,6 @@ export default {
       validateAddress,
       validateExplain,
       validateType,
-      // 删除弹窗相关
       showConfirmModal,
       closeModal,
       confirmDelete
@@ -499,22 +439,7 @@ export default {
 </script>
 
 <style scoped>
-/* 原有样式保持不变 */
 .wrapper { width: 100%; min-height: 100vh; background: #fff; }
-.topbar { 
-	width: 100%; 
-	height: 12vw; 
-	background: #409eff; 
-	color: #fff; 
-	font-size: 4.8vw; 
-	position: fixed; 
-	left: 0; 
-	top: 0; 
-	z-index: 1000; 
-	display: flex; 
-	justify-content: center; 
-	align-items: center; 
-}
 .wrapper .header {
 	width: 100%;
   height: 12vw;
@@ -529,22 +454,7 @@ export default {
   justify-content: center;
   align-items: center;
 }
-.wrapper title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color:white;
-}
 .content { margin-top: 50px; padding: 4vw; }
-.toolbar { display: flex; gap: 2vw; margin-bottom: 2vw; }
-.back { 
-	background: #eee; 
-	color: #333; 
-	border: none; 
-	border-radius: 1.2vw; 
-	padding: 1.6vw 3vw; 
-	font-size: 3.6vw; 
-}
 .add { 
 	background: #1e80ff; 
 	color: #fff; 
@@ -689,7 +599,6 @@ export default {
   box-shadow: 0 6px 16px rgba(30,128,255,.35);
 }
 
-/* 新增的上传相关样式 */
 .upload-area {
   display: flex;
   align-items: center;
@@ -734,7 +643,6 @@ export default {
   border: 1px solid #eee;
 }
 
-/* 新增的验证相关样式 */
 .limit {
   color: #999;
   font-size: 2.8vw;
@@ -746,7 +654,6 @@ export default {
   margin-bottom: 1vw;
 }
 
-/* 删除确认弹窗样式 - 与UserAddress保持一致 */
 .modal-overlay {
   position: fixed;
   top: 0;

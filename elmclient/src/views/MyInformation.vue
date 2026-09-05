@@ -158,7 +158,6 @@
 </template>
 
 <script>
-// (保持 script 部分不变)
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import AddressManager from '../components/AddressManager.vue';
 import request from '../utils/request';
@@ -170,7 +169,7 @@ import { clearAuth, getToken, updateStoredUser } from '../utils/auth';
 import { DEFAULT_USER_AVATAR } from '../utils/profileDefaults';
 
 export default {
-  name: 'MyApplication',
+  name: 'MyInformation',
   components: {
     AddressManager
   },
@@ -329,7 +328,6 @@ export default {
         if (response) {
           userInfo.value = response;
           updateStoredUser(userInfo.value);
-          console.log('用户信息加载成功:', userInfo.value);
         }
       } catch (error) {
         console.error('获取用户信息失败:', error);

@@ -374,13 +374,7 @@ const getMerchantApplications = async () => {
   try {
     const res = await request.get('/api/permission/merchant-applications');
     if (res.success && Array.isArray(res.data)) {
-      // 补充申请时间（若接口未返回，可根据实际调整）
-      console.log("第一个申请列表后端:",res.data);
-      merchantApplications.value = res.data.map((app) => ({
-        ...app,
-        createTime: app.createTime || new Date().toISOString(),
-      }));
-      console.log("第一个申请列表后端:",merchantApplications.value);
+      merchantApplications.value = res.data;
     }
   } catch (error) {
     console.error('获取商家申请列表失败:', error);
@@ -482,10 +476,7 @@ const handleWebSocketMessage = (message) => {
 const handleMerchantReview = async (app) => {
   modalType.value = 'merchant';
   modalTitle.value = `商家申请审核 - ${app.username}`;
-  //currentMerchantApp.value = app;
   currentMerchantApp.value = { ...app };
-
-  console.log('currentMerchantApp.value.id:', currentMerchantApp.value.id);
   // 打开弹窗前先获取用户详细信息
   await getPersonInfo(app.userId);
   showReviewModal.value = true;

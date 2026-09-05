@@ -130,7 +130,6 @@ export default {
         const route = useRoute();
         const router = useRouter();
         const userInfo = ref(null);
-        console.log("BusinessInfo组件初始化，路由参数:", route.query);
 
         // 基础数据
         const businessId = ref(null);
@@ -232,7 +231,6 @@ export default {
                 const res = await request.get('/api/user');
                 if (res) {
                     userInfo.value = res;
-                    console.log(userInfo.value);
                     updateStoredUser(res);
                 } else {
                     console.error('获取用户信息失败');
@@ -253,7 +251,6 @@ export default {
         // 获取购物车列表
         const fetchCartList = async () => {
             if (!userInfo.value?.id || !businessId.value) {
-                console.log('用户未登录或商家ID为空，不获取购物车');
                 cartItems.value = [];
                 return;
             }
@@ -278,8 +275,6 @@ export default {
 
         // 添加商品到购物车
         const addToCart = async (food) => {
-            console.log(`添加商品到购物车: ${food.foodName}, foodId: ${food.id}`);
-
             // 检查用户是否登录
             if (!userInfo.value?.id) {
                 requireLogin('登录后即可加入购物车');
@@ -294,8 +289,6 @@ export default {
                 const currentQuantity = getCartQuantity(food.id);
                 const newQuantity = currentQuantity + 1;
 
-                console.log('当前数量:', currentQuantity, '新数量:', newQuantity);
-
                 if (currentQuantity > 0) {
                     // 如果商品已在购物车中，更新数量
                     await updateCartItem(food.id, newQuantity);
@@ -306,7 +299,6 @@ export default {
 
                 // 重新获取购物车列表以更新显示
                 await fetchCartList();
-                console.log('添加商品成功');
             } catch (error) {
                 console.error('添加商品到购物车失败:', error);
                 toast.error(error?.response?.data?.message || error?.message || '添加商品失败，请重试');
@@ -316,8 +308,6 @@ export default {
         // 添加新商品到购物车
         const addNewCartItem = async (foodId) => {
             try {
-                console.log('添加新商品到购物车, foodId:', foodId);
-
                 await addCartItem(foodId, 1);
                 return true;
             } catch (error) {
@@ -329,8 +319,6 @@ export default {
         // 更新购物车商品数量
         const updateCartItem = async (foodId, newQuantity) => {
             try {
-                console.log('更新购物车商品数量, foodId:', foodId, 'newQuantity:', newQuantity);
-
                 // 先找到对应的购物车项ID
                 const cartItem = cartItems.value.find(item => item.foodId === foodId);
                 if (!cartItem) {
@@ -347,8 +335,6 @@ export default {
 
         // 从购物车移除商品（减少数量）
         const removeFromCart = async (food) => {
-            console.log(`从购物车移除商品: ${food.foodName}, foodId: ${food.id}`);
-
             // 检查用户是否登录
             if (!userInfo.value?.id) {
                 requireLogin('登录后即可调整购物车');
@@ -358,7 +344,6 @@ export default {
             try {
                 const currentQuantity = getCartQuantity(food.id);
                 if (currentQuantity <= 0) {
-                    console.log('商品不在购物车中');
                     return;
                 }
 
@@ -374,7 +359,6 @@ export default {
 
                 // 重新获取购物车列表以更新显示
                 await fetchCartList();
-                console.log('移除商品成功');
             } catch (error) {
                 console.error('从购物车移除商品失败:', error);
                 toast.error('移除商品失败，请重试');
@@ -384,11 +368,8 @@ export default {
         // 从购物车删除商品
         const deleteCartItem = async (foodId) => {
             try {
-                console.log('从购物车删除商品, foodId:', foodId);
-
                 const cartItem = cartItems.value.find(item => item.foodId === foodId);
                 if (!cartItem) {
-                    console.log('商品不在购物车中，无需删除');
                     return;
                 }
 
@@ -416,13 +397,10 @@ export default {
 
                 const userId = userInfo.value?.id;
                 if (!userId) {
-                    console.log("用户未登录，不加载互动状态");
                     isLiked.value = false;
                     isFavorited.value = false;
                     return;
                 }
-
-                console.log(`加载互动状态，userId: ${userId}, merchantId: ${businessId.value}`);
 
                 const interaction = await getMyInteraction(businessId.value);
                 isLiked.value = Boolean(interaction?.liked);
@@ -439,7 +417,6 @@ export default {
                 // 如果已经是目标状态，则不再执行
                 if ((type === 'like' && isLiked.value === newValue) ||
                     (type === 'favorite' && isFavorited.value === newValue)) {
-                    console.log(`已经是目标状态，无需更新: ${type}=${newValue}`);
                     return;
                 }
 
@@ -455,8 +432,6 @@ export default {
                     liked: type === 'like' ? newValue : isLiked.value,
                     collected: type === 'favorite' ? newValue : isFavorited.value
                 };
-
-                console.log(`更新互动状态:`, dto);
 
                 await updateMyInteraction(dto);
                 if (type === 'like') {
@@ -497,14 +472,10 @@ export default {
         // 获取商家信息
         const fetchBusinessInfo = async () => {
             loadingBusiness.value = true;
-            console.log(`开始获取商家信息，businessId: ${businessId.value}`);
-
             try {
                 const response = await request.get(`/api/businesses/${businessId.value}`);
-                console.log("商家信息API完整响应:", response);
 
                 if (response.success === true) {
-                    console.log("API请求成功，开始处理数据");
                     business.value = {
                         id: response.data.id,
                         businessName: response.data.businessName,
@@ -523,9 +494,7 @@ export default {
                     };
                     const savedMode = localStorage.getItem(`businessServiceMode:${businessId.value}`) || 'delivery';
                     deliveryMode.value = savedMode === 'pickup' && response.data.dineInAvailable === false ? 'delivery' : savedMode;
-                    console.log("商家信息设置成功:", business.value);
                 } else {
-                    console.log("API请求失败，进入else分支");
                     const errorMsg = response.message || "获取商家信息失败";
                     console.error("商家信息API返回失败:", errorMsg);
                     throw new Error(errorMsg);
@@ -540,19 +509,13 @@ export default {
         // 获取食品列表
         const fetchFoodList = async () => {
             loadingFoods.value = true;
-            console.log(`开始获取食品列表，businessId: ${businessId.value}`);
-
             try {
                 const response = await request.get("/api/foods/list", {
                     params: { businessId: businessId.value }
                 });
-                console.log("食品列表API响应:", response);
-
                 if (response.success) {
                     // 过滤掉下架商品（shelveStatus === 0）
                     const availableFoods = response.data.filter(food => food.shelveStatus === 1);
-                    console.log("可用食品列表:", availableFoods);
-
                     foodArr.value = availableFoods.map(item => ({
                         id: item.id,
                         foodId: item.id,
@@ -567,7 +530,6 @@ export default {
                         category: item.category || '其他',
                         purchaseLimit: item.purchaseLimit
                     }));
-                    console.log("食品列表设置成功:", foodArr.value);
                 } else {
                     const errorMsg = response.message || "获取食品列表失败";
                     console.error("食品列表API返回失败:", errorMsg);
@@ -580,13 +542,11 @@ export default {
                 foodArr.value = [];
             } finally {
                 loadingFoods.value = false;
-                console.log("食品列表加载完成");
             }
         };
 
         // 跳转到购物车页面
         const goToCart = () => {
-            console.log("跳转到订单页面，当前购物车商品数量:", totalQuantity.value);
             if (totalQuantity.value === 0) {
                 toast.error("请先添加商品到购物车");
                 return;

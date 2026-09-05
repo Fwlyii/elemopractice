@@ -81,6 +81,18 @@ check_absent "页面不再绕过统一实时连接服务" \
   'new[[:space:]]+WebSocket|getWebSocketUrl|client-\$\{Date\.now|admin-\$\{Date\.now' \
   "$frontend_dir/views"
 
+check_absent "生产前端不保留调试输出" \
+  'console\.log\(' \
+  "$frontend_dir"
+
+check_absent "前端启动入口不挂载未管理的全局工具" \
+  'globalProperties|\$axios|\$qs' \
+  "$frontend_dir/main.js"
+
+check_absent "管理端接口失败时不伪造本地成功数据" \
+  '本地模拟|Date\.now\(\).*id' \
+  "$frontend_dir/views/AdminShop.vue"
+
 if [[ "$failed" -ne 0 ]]; then
   echo "架构约束检查未通过。"
   exit 1

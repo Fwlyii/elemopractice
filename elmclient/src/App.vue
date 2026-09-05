@@ -2,9 +2,7 @@
   <div class="app-container">
     <BackButton v-if="showBackButton" />
     <div class="content">
-      <keep-alive include="Discover">
-        <router-view />
-      </keep-alive>
+      <router-view />
     </div>
     <Footer v-if="showFooter" />
     <BusinessFooter v-if="showBusinessFooter" />
@@ -24,6 +22,17 @@ import { useRoute } from 'vue-router';
 import request from './utils/request';
 import { applyTheme, getStoredTheme } from './utils/theme';
 import { getAuthRole, getToken } from './utils/auth';
+
+const ROUTES_WITHOUT_GLOBAL_BACK = new Set([
+  'Index', 'MyInformation', 'SuccessfulPayment', 'BusinessInfo',
+  'UserAddress', 'Assets', 'AiChat', 'Favorites', 'ListDetail'
+]);
+
+const ROUTES_WITHOUT_CUSTOMER_FOOTER = new Set([
+  'BusinessInfo', 'Payment', 'SuccessfulPayment', 'Cart', 'Favorites',
+  'Notifications', 'UserAddress', 'AddUserAddress', 'ListDetail',
+  'Register', 'Login', 'EditUserAddress'
+]);
 
 export default {
   components: {
@@ -59,25 +68,22 @@ export default {
       if (route.path.startsWith('/merchant') || route.path.startsWith('/admin') || route.path.startsWith('/rider')) {
         return false;
       }
-      // 这些页面已有自己的返回按钮，或本身就是一级页面；不要再叠一层全局按钮。
-      return !['Home', 'Index', 'MyInformation', 'SuccessfulPayment', 'BusinessInfo', 'UserAddress', 'Assets', 'AiChat', 'Favorites', 'ListDetail'].includes(route.name);
-         });
-
+      return !ROUTES_WITHOUT_GLOBAL_BACK.has(route.name);
+    });
 
     const showFooter = computed(() => {
       const isMerchantApplication = route.name === 'MerchantApply';
       if ((route.path.startsWith('/merchant') && !isMerchantApplication) || route.path.startsWith('/admin') || isRiderArea.value) {
         return false;
       }
-      return !['BusinessInfo', 'Payment', 'SuccessfulPayment', 'Orders', 'Cart','Favorites','Notifications','UserAddress','AddUserAddress','ListDetail','Register','Login','EditUserAddress'].includes(route.name);
+      return !ROUTES_WITHOUT_CUSTOMER_FOOTER.has(route.name);
     });
 
     const showBusinessFooter = computed(() => {
-     if(['MerchantBusinessInfo', 'MerchantApply'].includes(route.name)){
+      if (['MerchantBusinessInfo', 'MerchantApply'].includes(route.name)) {
         return false;
       }
       return route.path.startsWith('/merchant');
-      
     });
 
     const isRiderArea = computed(() => {
@@ -92,17 +98,14 @@ export default {
 
     const showRiderFooter = computed(() => isRiderContext.value);
 
-    const showAdminFooter = computed(() => {
-      return route.path.startsWith('/admin');
-    });
+    const showAdminFooter = computed(() => route.path.startsWith('/admin'));
 
-    return { showFooter, showBusinessFooter, showAdminFooter, showRiderFooter, showBackButton};
+    return { showFooter, showBusinessFooter, showAdminFooter, showRiderFooter, showBackButton };
   },
 };
 </script>
 
 <style>
-/* 保持所有原有样式不变 */
 html,
 body,
 div,

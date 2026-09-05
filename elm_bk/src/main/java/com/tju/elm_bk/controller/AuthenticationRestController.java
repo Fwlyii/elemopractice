@@ -65,33 +65,9 @@ public class AuthenticationRestController {
         }
     }
 
-    public static class JWTToken {
-        private String idToken;
-        private String role;
-        private boolean applicationOnly;
-
-        public JWTToken(String idToken, String role, boolean applicationOnly) {
-            this.idToken = idToken;
-            this.role = role;
-            this.applicationOnly = applicationOnly;
-        }
-
-        @JsonProperty("id_token")
-        public String getIdToken() {
-            return idToken;
-        }
-
-        public void setIdToken(String idToken) {
-            this.idToken = idToken;
-        }
-
-        public String getRole() {
-            return role;
-        }
-
-        @JsonProperty("application_only")
-        public boolean isApplicationOnly() {
-            return applicationOnly;
-        }
+    public record JWTToken(
+            @JsonProperty("id_token") String idToken,
+            String role,
+            @JsonProperty("application_only") boolean applicationOnly) {
     }
 }

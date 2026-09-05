@@ -1,6 +1,5 @@
 package com.tju.elm_bk.entity;
 
-import com.alibaba.druid.support.monitor.annotation.MTable;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

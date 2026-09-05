@@ -178,8 +178,6 @@ export default {
         const response = await request.get("/api/businesses/id_list");
         if (response.success) {
           merchantList.value = response.data || [];
-          console.log("获取商铺列表成功:", merchantList.value);
-          
           // 默认选择第一个商铺
           if (merchantList.value.length > 0) {
             selectedMerchantId.value = merchantList.value[0].merchantId;

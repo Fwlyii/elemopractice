@@ -35,16 +35,13 @@ const AdminBusiness = () => import('../views/AdminBusiness.vue')
 const AdminShop = () => import('../views/AdminShop.vue')
 const AdminRiders = () => import('../views/AdminRiders.vue')
 
-// 定义路由
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: Index,
-    meta: { public: true }
+    redirect: '/index'
   },
   {
-    path: '/Index',
+    path: '/index',
     name: 'Index',
     component: Index,
     meta: { public: true }
@@ -66,10 +63,6 @@ const routes = [
     name: 'Login',
     component: Login,
     meta: { public: true }
-  },
-  {
-    path: '/orders',
-    redirect: '/orderList'
   },
   {
     path: '/userAddress',
@@ -148,7 +141,6 @@ const routes = [
     component: Preferences,
     meta: { role: 'user' }
   },
- //
   {
     path: '/search',
     name: 'Search',
@@ -156,23 +148,11 @@ const routes = [
     meta: { public: true }
   },
   {
-    path: '/search-test',
-    redirect: '/search'
-  },
-  {
     path: '/cart',
     name: 'Cart',
     component: Cart,
     meta: { role: 'user' }
   },
-  // 兼容上一版演示链接，统一跳转到新的商家工作台路径。
-  { path:'/merchantOrders', redirect:'/merchant/orders' },
-  { path:'/merchantProfile', redirect:'/merchant/profile' },
-  { path:'/merchantBusiness', redirect:'/merchant/business' },
-  { path:'/merchantBusinessInfo', redirect:'/merchant/businessInfo' },
-  { path:'/businessInformation', redirect:'/merchant/profile' },
-  { path:'/businessView', redirect:'/merchant/business' },
-  { path:'/businessOrderManage', redirect:'/merchant/orders' },
   {
     path: '/merchant/apply',
     name: 'MerchantApply',
@@ -203,8 +183,12 @@ const routes = [
     component: MerchantOrders,
     meta: { role: 'merchant' }
   },
-  { path: '/merchant/reviews', name: 'MerchantReviews', component: MerchantReviews, meta: { role: 'merchant' } },
-  { path:'/submitItems', redirect:'/merchant/business' },
+  {
+    path: '/merchant/reviews',
+    name: 'MerchantReviews',
+    component: MerchantReviews,
+    meta: { role: 'merchant' }
+  },
   {
     path: '/ai-chat',
     name: 'AiChat',
@@ -223,8 +207,6 @@ const routes = [
     component: RiderDashboard,
     meta: { title: '骑手工作台', role: 'rider' }
   },
- //
-//管理端
   {
     path:'/admin/home',
     name:'AdminHome',
@@ -256,16 +238,8 @@ const routes = [
     meta: { role: 'admin' }
   },
   { path: '/:pathMatch(.*)*', redirect: '/index' }
-  //
-
 ]
-  
-  //
- //
 
-
-
-// 创建路由实例
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes

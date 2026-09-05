@@ -25,9 +25,7 @@ request.interceptors.request.use(
       // 从 localStorage/sessionStorage 获取 token
       const token = getToken();
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`; // 拼接 Bearer 格式
-        // 临时注释掉token头，避免CORS问题
-        // config.headers.token = token; // 添加 token 头
+        config.headers.Authorization = `Bearer ${token}`;
       }
     }
     const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;

@@ -40,7 +40,7 @@
             </div>
 
             <div class="order-content">
-              <img class="thumb" :src="item.businessImg || require('@/assets/default-business.png')" alt="商家图片" @error="handleImageError">
+              <img class="thumb" :src="item.businessImg || require('@/assets/business-default.png')" alt="商家图片" @error="handleImageError">
               <div class="meta">
                 <p class="name">{{ item.businessName || '未知商家' }} <i class="fa fa-angle-right"></i></p>
                 <p class="time">{{ formatTime(item.orderDate || item.createTime) }}</p>
@@ -337,7 +337,7 @@ export default {
     };
 
     const handleImageError = (event) => {
-      event.target.src = require('@/assets/default-business.png');
+      event.target.src = require('@/assets/business-default.png');
     };
 
     onMounted(() => {
