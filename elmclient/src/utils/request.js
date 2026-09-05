@@ -30,21 +30,14 @@ request.interceptors.request.use(
         // config.headers.token = token; // 添加 token 头
       }
     }
-    //【【------------ 为了上传图片，需要在请求头中添加 'Content-Type': 'application/x-www-form-urlencoded'，否则会报错。
-    //------------------------------------------------------------
-    // 处理 POST 请求（从 main.js 迁移）
-    // if (config.method === 'post' && typeof config.data === 'object') {
-    //     config.data = JSON.stringify(config.data);
-    //   }
-    if (config.url.includes('/upload')) {
-      // 移除默认的 Content-Type，让浏览器自动设置
+    const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+    if (isFormData) {
+      // multipart 的 boundary 必须由浏览器生成，不能沿用 Axios 实例的 JSON Content-Type。
       delete config.headers['Content-Type'];
     } else if (config.method === 'post' && typeof config.data === 'object') {
       // 其他 POST 请求处理
       config.data = JSON.stringify(config.data);
     }
-    //【【------------ 为了上传图片，需要在请求头中添加 'Content-Type': 'application/x-www-form-urlencoded'，否则会报错。
-    //------------------------------------------------------------】】
     return config;
   },
   (error) => {

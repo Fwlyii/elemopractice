@@ -30,8 +30,11 @@ services:
       SPRING_DATASOURCE_PASSWORD: elm_demo_password
       JWT_SECRET: ${JWT_SECRET:?请先通过启动脚本生成或在.env中配置JWT_SECRET}
       APP_DEMO_ENABLED: "true"
+      APP_UPLOAD_DIR: /app/uploads
       DEEPSEEK_API_KEY: ""
       TZ: Asia/Shanghai
+    volumes:
+      - ./runtime-uploads:/app/uploads
     ports:
       - "127.0.0.1:18080:8080"
     depends_on:

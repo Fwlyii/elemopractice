@@ -7,11 +7,13 @@ import com.tju.elm_bk.dto.FoodCreateDTO;
 import com.tju.elm_bk.exception.APIException;
 import com.tju.elm_bk.mapper.AssetMapper;
 import com.tju.elm_bk.service.CurrentUserService;
+import com.tju.elm_bk.service.ImageStorageService;
 import com.tju.elm_bk.service.impl.AssetServiceImpl;
 import com.tju.elm_bk.websocket.WebSocketServer;
 import jakarta.websocket.Session;
 import jakarta.websocket.CloseReason;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 
@@ -50,8 +53,8 @@ class SecurityHardeningTest {
     }
 
     @Test
-    void uploadRejectsSpoofedMimeTypeUsingActualFileSignature() {
-        FileUploadController controller = new FileUploadController();
+    void uploadRejectsSpoofedMimeTypeUsingActualFileSignature(@TempDir Path tempDir) {
+        FileUploadController controller = new FileUploadController(new ImageStorageService(tempDir.toString()));
         MockMultipartFile fakeImage = new MockMultipartFile(
                 "file", "payload.png", "image/png", "<script>alert(1)</script>".getBytes());
 

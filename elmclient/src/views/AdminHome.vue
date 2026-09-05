@@ -7,7 +7,7 @@
 
       <div class="user-card">
         <div class="avatar">
-          <img src="@/assets/default-avatar.png" alt="用户头像" class="avatar-img" />
+          <img :src="DEFAULT_USER_AVATAR" alt="用户头像" class="avatar-img" />
         </div>
         <div class="user-details">
           <div class="user-name">
@@ -219,6 +219,7 @@ import request from '../utils/request';
 import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '@/utils/endpoints';
 import { clearAuth, getStoredUser, updateStoredUser } from '@/utils/auth';
+import { DEFAULT_USER_AVATAR } from '@/utils/profileDefaults';
 
 // 路由实例
 const router = useRouter();

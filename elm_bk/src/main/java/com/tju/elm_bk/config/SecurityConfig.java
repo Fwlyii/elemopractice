@@ -70,7 +70,8 @@ public class SecurityConfig {
                 "/ws/**",
                 "/api/ai/chat/health",
                 "/api/businesses/search",
-                "/api/businesses/carousel"
+                "/api/businesses/carousel",
+                "/uploads/**"
         };
 
         http

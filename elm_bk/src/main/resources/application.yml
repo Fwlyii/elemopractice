@@ -48,6 +48,9 @@ springdoc:
     path: /swagger-ui
 
 app:
+  upload:
+    # 用户上传图片保存在本地持久化目录；Docker 演示环境会将该目录挂载到宿主机。
+    directory: ${APP_UPLOAD_DIR:./uploads}
   demo:
     # 模拟支付、模拟充值和免费会员只能在显式开启的演示环境使用。
     enabled: ${APP_DEMO_ENABLED:false}

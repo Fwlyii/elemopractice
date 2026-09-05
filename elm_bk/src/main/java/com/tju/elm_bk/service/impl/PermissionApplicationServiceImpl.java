@@ -17,7 +17,6 @@ import com.tju.elm_bk.vo.MerchantApplicationsVO;
 import com.tju.elm_bk.websocket.WebSocketServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.codehaus.jettison.json.JSONException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import com.alibaba.fastjson.JSONObject;
@@ -75,11 +74,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
         applicationMapper.insert(application);
 
         //6. 通过WebSocket向管理员推送消息
-        try {
-            sendMerchantApplyNotification(currentUserId, currentUser.getUsername(), application.getId());
-        } catch (JSONException e) {
-            throw new APIException("消息发送失败");
-        }
+        sendMerchantApplyNotification(currentUserId, currentUser.getUsername(), application.getId());
         return application;
     }
 
@@ -149,11 +144,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
         businessPermissionDTO.setCreateTime(LocalDateTime.now());
         businessPermissionDTO.setUpdateTime(LocalDateTime.now());
         businessMapper.insertBusinessPermission(businessPermissionDTO);
-        try {
-            sendShopApplyNotification(currentUserId, currentUser.getUsername());
-        } catch (JSONException e) {
-            throw new APIException("消息发送失败");
-        }
+        sendShopApplyNotification(currentUserId, currentUser.getUsername());
         BusinessPermissionVO businessPermissionVO = new BusinessPermissionVO();
         BeanUtils.copyProperties(businessPermissionDTO, businessPermissionVO);
         return businessPermissionVO;
@@ -328,7 +319,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
      * @param userId 申请人ID
      * @param username 申请人用户名
      */
-    private void sendMerchantApplyNotification(Long userId, String username,Long applicationId) throws JSONException {
+    private void sendMerchantApplyNotification(Long userId, String username,Long applicationId) {
         // 构建消息体（包含type、userId、content）
         JSONObject message = new JSONObject();
         message.put("applicationId", applicationId);
@@ -344,7 +335,7 @@ public class PermissionApplicationServiceImpl implements PermissionApplicationSe
      * @param userId 申请人ID
      * @param username 申请人用户名
      */
-    private void sendShopApplyNotification(Long userId, String username) throws JSONException {
+    private void sendShopApplyNotification(Long userId, String username) {
         // 构建消息体（包含type、userId、content）
         JSONObject message = new JSONObject();
         message.put("currentTime", LocalDateTime.now().format(TIME_FORMATTER));

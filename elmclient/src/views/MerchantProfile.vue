@@ -62,12 +62,13 @@ import { useRouter } from 'vue-router';
 import { toast } from '../utils/toast'; 
 import request from '../utils/request';
 import { listMyBusinesses } from '../services/businessService';
+import { DEFAULT_USER_AVATAR } from '../utils/profileDefaults';
 
 export default {
   name: 'MerchantProfile',
   setup() {
     const router = useRouter();
-    const defaultAvatar = require('@/assets/default-avatar.png'); // 备用默认头像
+    const defaultAvatar = DEFAULT_USER_AVATAR;
 
     const merchant = ref(null);
     const stores = ref([]); // 仅保留门店数量与状态摘要，明细统一在工作台维护

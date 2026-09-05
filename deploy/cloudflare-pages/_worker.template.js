@@ -2,6 +2,7 @@ const BACKEND_ORIGIN = "__BACKEND_ORIGIN__";
 
 const isBackendPath = (pathname) =>
   pathname === "/upload" ||
+  pathname.startsWith("/uploads/") ||
   pathname.startsWith("/api/") ||
   pathname.startsWith("/ws/");
 

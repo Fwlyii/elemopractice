@@ -9,7 +9,7 @@
 
     <div class="user-card">
       <div class="avatar" @click="triggerFileInput">
-        <img :src="userInfo?.photo || require('@/assets/default-avatar.png')" alt="用户头像" @error="handleImageError">
+        <img :src="userInfo?.photo || defaultUserAvatar" alt="用户头像" @error="handleImageError">
         <div class="avatar-overlay">
           <i class="fas fa-camera"></i>
           <span>更换头像</span>
@@ -22,8 +22,8 @@
         </div>
         <div class="user-full-name">
           <i class="fas fa-id-card-alt full-name-icon"></i>
-          <span class="first-name">{{ userInfo?.firstName || '未设置姓氏' }}</span>
-          <span class="last-name">{{ userInfo?.lastName || '未设置名字' }}</span>
+          <span class="last-name">{{ userInfo?.lastName || '未设置姓氏' }}</span>
+          <span class="first-name">{{ userInfo?.firstName || '未设置名字' }}</span>
         </div>
         <div class="user-phone">
           <i class="fas fa-phone phone-icon"></i>
@@ -159,11 +159,11 @@
         <h3>编辑个人信息</h3>
         <div class="modal-item">
           <label>姓氏</label>
-          <input v-model="editFormData.firstName" placeholder="输入姓氏" />
+          <input v-model="editFormData.lastName" placeholder="输入姓氏" />
         </div>
         <div class="modal-item">
           <label>名字</label>
-          <input v-model="editFormData.lastName" placeholder="输入名字" />
+          <input v-model="editFormData.firstName" placeholder="输入名字" />
         </div>
         <div class="modal-item">
           <label>手机号</label>
@@ -193,6 +193,7 @@ import { toast } from '../utils/toast';
 import { getWebSocketUrl } from '../utils/endpoints';
 import { getRoleDefinition, hasAuthority, roleCanEnter } from '../utils/roles';
 import { clearAuth, getToken, updateStoredUser } from '../utils/auth';
+import { DEFAULT_USER_AVATAR } from '../utils/profileDefaults';
 
 export default {
   name: 'MyApplication',
@@ -203,6 +204,7 @@ export default {
     const route = useRoute();
     const router = useRouter();
     const userInfo = ref({});
+    const defaultUserAvatar = DEFAULT_USER_AVATAR;
     const loading = ref(false);
     const errorMessage = ref('');
     const showEditModal = ref(false);
@@ -485,7 +487,7 @@ export default {
       const image = event?.target;
       if (!image || image.dataset.fallbackApplied === 'true') return;
       image.dataset.fallbackApplied = 'true';
-      image.src = require('@/assets/default-avatar.png');
+      image.src = defaultUserAvatar;
     };
     const navigateTo = (page) => {
       const pageRoutes = {
@@ -507,6 +509,7 @@ export default {
     };
     return {
       userInfo,
+      defaultUserAvatar,
       formattedPhone,
       loading,
       uploading,

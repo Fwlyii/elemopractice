@@ -1,5 +1,6 @@
 package com.tju.elm_bk.controller;
 
+import com.tju.elm_bk.constants.ProfileDefaults;
 import com.tju.elm_bk.dto.*;
 import com.tju.elm_bk.entity.Authority;
 import com.tju.elm_bk.entity.Person;
@@ -10,6 +11,7 @@ import com.tju.elm_bk.mapper.PersonMapper;
 import com.tju.elm_bk.mapper.UserMapper;
 import com.tju.elm_bk.result.HttpResult;
 import com.tju.elm_bk.service.PersonService;
+import com.tju.elm_bk.service.ImageStorageService;
 import com.tju.elm_bk.service.UserModelDetailsService;
 import com.tju.elm_bk.service.UserService;
 import com.tju.elm_bk.vo.PersonVO;
@@ -21,12 +23,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +51,7 @@ public class UserRestController {
     private final PersonService personService;
     private final UserService userService;
     private final PersonMapper personMapper;
+    private final ImageStorageService imageStorageService;
 
     @PostMapping("/users")
     @Operation(summary = "新增用户(仅登录账号)", description = "创建一个新的用户")
@@ -240,14 +246,34 @@ public class UserRestController {
         return responseVO;
     }
 
-    @PostMapping("/register")
-    @Operation(summary = "新增用户(仅允许顾客注册)", description = "创建一个新的用户")
+    @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "注册顾客账号", description = "不上传头像时由后端使用平台默认头像")
     @Transactional
     public HttpResult<PersonVO> addUser(@Valid @RequestBody PersonCreateDTO newUser) {
+        validateRegistration(newUser);
+        return persistRegisteredUser(newUser, ProfileDefaults.DEFAULT_AVATAR_URL);
+    }
+
+    @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "注册顾客账号并上传可选头像", description = "头像仅支持 JPG、PNG 或 WebP，最大 5MB")
+    @Transactional
+    public HttpResult<PersonVO> addUserWithAvatar(
+            @Valid @RequestPart("user") PersonCreateDTO newUser,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatar) throws IOException {
+        validateRegistration(newUser);
+        String photoUrl = avatar == null || avatar.isEmpty()
+                ? ProfileDefaults.DEFAULT_AVATAR_URL
+                : imageStorageService.storeImage(avatar);
+        return persistRegisteredUser(newUser, photoUrl);
+    }
+
+    private void validateRegistration(PersonCreateDTO newUser) {
         String username = newUser.getUsername();
         if (username == null || username.trim().isEmpty()) {
             throw new APIException("用户名不能为空");
         }
+        username = username.trim();
+        newUser.setUsername(username);
         if (newUser.getPhone() == null || !newUser.getPhone().matches("^1[3-9]\\d{9}$")) {
             throw new APIException("手机号必须为11位有效手机号");
         }
@@ -265,6 +291,9 @@ public class UserRestController {
         if (existingUser != null) {
             throw new APIException("用户名已存在，请更换其他用户名");
         }
+    }
+
+    private HttpResult<PersonVO> persistRegisteredUser(PersonCreateDTO newUser, String photoUrl) {
         User user = new User();
         BeanUtils.copyProperties(newUser, user);
         LocalDateTime now = LocalDateTime.now();
@@ -274,9 +303,11 @@ public class UserRestController {
         user.setIsDeleted(false);
 
         // 加密密码
-        user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setPassword(passwordEncoder.encode(newUser.getPassword()));
         Person person = new Person();
         BeanUtils.copyProperties(newUser, person);
+        // 头像地址只能来自后端默认值或经过校验并由后端保存的文件，不能信任请求体中的 URL。
+        person.setPhoto(photoUrl);
 
 
         // 保存用户
@@ -284,29 +315,18 @@ public class UserRestController {
         person.setId(user.getId());
         personService.addPerson(person);
 
-         //分配默认USER角色
+        // 顾客自助注册只能获得 USER 权限，客户端不能指定更高权限。
         Authority userAuthority = authorityMapper.findByName("USER");
         if (userAuthority != null) {
             userMapper.insertUserAuthority(user.getId(), userAuthority.getName());
-        }else{
+        } else {
             throw new APIException("USER权限不存在");
         }
-//        if (user.getAuthorities() == null || user.getAuthorities().isEmpty()) {
-//            Authority userAuthority = authorityMapper.findByName("USER");
-//            if (userAuthority != null) {
-//                userMapper.insertUserAuthority(user.getId(), userAuthority.getName());
-//            }
-//        } else {
-//            // 保存用户指定的角色
-//            for (Authority authority : user.getAuthorities()) {
-//                userMapper.insertUserAuthority(user.getId(), authority.getName());
-//            }
-//        }
 
         User user1 = userService.getUserWithAuthorities(user.getUsername());
         PersonVO personVO = new PersonVO();
 
-        BeanUtils.copyProperties(newUser, personVO);
+        BeanUtils.copyProperties(person, personVO);
         BeanUtils.copyProperties(user1, personVO);
         // 返回包含权限信息的用户对象
         return HttpResult.success(personVO);
