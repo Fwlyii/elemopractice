@@ -1,6 +1,9 @@
 <template>
   <div class="notifications-container">
     <div class="header">
+      <button class="header-back" type="button" aria-label="返回" @click="router.back()">
+        <i class="fas fa-chevron-left"></i>
+      </button>
       <h1 class="title">消息与通知</h1>
       <div v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</div>
     </div>
@@ -11,15 +14,20 @@
       <p>加载消息中...</p>
     </div>
 
-    <!-- 错误状态 -->
-    <div v-if="error" class="error-state">
+    <!-- 历史接口真正不可用时才显示错误；实时通道断开不遮住消息列表。 -->
+    <div v-else-if="historyError && messages.length === 0" class="error-state">
       <i class="fas fa-exclamation-circle"></i>
-      <p>{{ error }}</p>
-      <button class="retry-btn" @click="initWebSocket">重新连接</button>
+      <p>{{ historyError }}</p>
+      <button class="retry-btn" @click="retryAll">重新加载</button>
     </div>
 
     <!-- 消息列表 -->
     <div v-else class="notification-list">
+      <div v-if="realtimeNotice" class="sync-notice">
+        <i class="fas fa-sync-alt"></i>
+        <span>{{ realtimeNotice }}</span>
+        <button type="button" @click="retryRealtime">重试</button>
+      </div>
       <div v-for="message in messages" :key="message.id" class="notification-item" @click="markAsRead(message)">
         <div class="icon-wrapper" :class="{ 'unread': message.unread }">
           <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -44,47 +52,59 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import request from '@/utils/request';
 import { toast } from '@/utils/toast';
-import { getWebSocketUrl } from '@/utils/endpoints';
+import { getStoredUser } from '@/utils/auth';
+import { createRealtimeConnection, REALTIME_STATE } from '@/services/realtimeService';
 
 // 状态管理
 const messages = ref([]);
+const router = useRouter();
 const loading = ref(true);
-const error = ref('');
-const webSocket = ref(null);
-const isConnected = ref(false);
-
-const userFromLocal = localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null;
-const userFromSession = sessionStorage.getItem('userInfo') ? JSON.parse(sessionStorage.getItem('userInfo')) : null;
-const	user = userFromLocal || userFromSession;
-const currentUserId = user.id;
+const historyError = ref('');
+const realtimeState = ref(REALTIME_STATE.IDLE);
+const currentUserId = getStoredUser()?.id;
+let realtimeConnection = null;
 
 // 计算未读消息数量
 const unreadCount = computed(() => {
   return messages.value.filter(msg => msg.unread).length;
 });
 
-// 初始化：加载历史消息并连接WebSocket
-onMounted(() => {
-  fetchHistoryMessages();
-  initWebSocket();
+const realtimeNotice = computed(() => {
+  if ([REALTIME_STATE.RECONNECTING, REALTIME_STATE.OFFLINE].includes(realtimeState.value)) {
+    return '实时同步恢复中，消息列表仍会定时刷新';
+  }
+  if (realtimeState.value === REALTIME_STATE.UNAUTHORIZED) return '登录状态已失效，请重新登录';
+  return '';
+});
+
+// 初始化：历史消息优先展示，实时通道作为增强能力独立连接。
+onMounted(async () => {
+  await fetchHistoryMessages();
+  realtimeConnection = createRealtimeConnection({
+    onMessage: handleNewMessage,
+    onStatusChange: ({ state }) => { realtimeState.value = state; },
+    onFallbackRefresh: () => fetchHistoryMessages({ silent: true })
+  });
+  realtimeConnection.start();
 });
 
 // 组件卸载时关闭WebSocket连接
 onUnmounted(() => {
-  if (webSocket.value) {
-    webSocket.value.close();
-  }
+  realtimeConnection?.stop();
 });
 
 /**
  * 加载历史消息
  */
-const fetchHistoryMessages = async () => {
+const fetchHistoryMessages = async ({ silent = false } = {}) => {
+  if (!silent) loading.value = true;
   try {
     const res = await request.get('/api/notifications');
     if (res.success) {
+      historyError.value = '';
       messages.value = res.data.map(msg => ({
         ...msg,
         unread: msg.isRead !== 1, // isRead=0 → 未读 → unread=true；isRead=1 → 已读 → unread=false
@@ -93,82 +113,19 @@ const fetchHistoryMessages = async () => {
     }
   } catch (err) {
     console.error('加载历史消息失败:', err);
-    toast.error('加载消息失败');
+    if (!silent) historyError.value = '消息加载失败，请稍后重试';
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 };
 
-/**
- * 初始化WebSocket连接
- */
-const initWebSocket = () => {
-  // 清除之前的连接
-  if (webSocket.value) {
-    webSocket.value.close();
-  }
+const retryRealtime = () => {
+  realtimeConnection?.retry();
+};
 
-  error.value = '';
-  loading.value = true;
-
-  try {
-    // // 获取当前用户ID，如果未登录则不连接
-    // if (!currentUserId.value) {
-    //   error.value = '请先登录以接收消息通知';
-    //   loading.value = false;
-    //   return;
-    // }
-
-    // 创建WebSocket连接
-    const sid = `client-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const wsUrl = getWebSocketUrl(`/ws/${sid}`);
-    
-    webSocket.value = new WebSocket(wsUrl);
-
-    // 连接成功
-    webSocket.value.onopen = () => {
-      console.log('WebSocket连接成功');
-      isConnected.value = true;
-      error.value = '';
-      loading.value = false;
-      //toast.success('已连接消息通知');
-    };
-
-    // 接收消息
-    webSocket.value.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        handleNewMessage(message);
-      } catch (err) {
-        console.error('解析消息失败:', err);
-      }
-    };
-
-    // 连接关闭
-    webSocket.value.onclose = (event) => {
-      console.log('WebSocket连接关闭，代码:', event.code);
-      isConnected.value = false;
-      
-      // 不是手动关闭的连接，尝试重连
-      if (event.code !== 1000) {
-        error.value = '消息连接已断开，正在尝试重连...';
-        // 3秒后重连
-        setTimeout(initWebSocket, 3000);
-      }
-    };
-
-    // 连接错误
-    webSocket.value.onerror = (err) => {
-      console.error('WebSocket错误:', err);
-      isConnected.value = false;
-      error.value = '消息连接出错，请检查网络';
-      loading.value = false;
-    };
-  } catch (err) {
-    console.error('初始化WebSocket失败:', err);
-    error.value = '无法建立消息连接';
-    loading.value = false;
-  }
+const retryAll = async () => {
+  await fetchHistoryMessages();
+  retryRealtime();
 };
 
 /**
@@ -176,18 +133,16 @@ const initWebSocket = () => {
  */
 const handleNewMessage = (message) => {
   // 只处理当前用户的消息
-  if (message.userId && message.userId !== currentUserId.value) {
+  if (message.userId && String(message.userId) !== String(currentUserId)) {
     return;
   }
-  // 2. 验证消息合法性（确保是审核相关的有效消息）
-  const isValidMessage = message.type !== undefined && message.content;
-  if (!isValidMessage) {
+  const content = message.notificationContent || message.content;
+  if (!content) {
     console.warn('收到无效的WebSocket消息:', message);
     return;
   }
 
-  // 3. 显示即时提示（告知用户有新消息）
-  toast.info(`新消息：${message.notificationContent}`);
+  toast.info(`新消息：${content}`);
 
   // 4. 延迟调用接口重新拉取消息列表（避免后端写入数据库延迟导致漏消息）
   // 延迟300ms是为了确保后端已将新消息写入数据库，再前端拉取
@@ -286,6 +241,18 @@ const formatTime = (timeStr) => {
   margin: 0;
 }
 
+.header-back {
+  position: absolute;
+  left: 14px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
 .unread-badge {
   position: absolute;
   top: 15px;
@@ -303,8 +270,30 @@ const formatTime = (timeStr) => {
 }
 
 .notification-list {
-  padding: 0;
-  margin: 15vw;
+  padding: 70px 16px 24px;
+  margin: 0 auto;
+  max-width: 600px;
+}
+
+.sync-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border: 1px solid #dcebf7;
+  border-radius: 7px;
+  background: #f4f9fd;
+  color: #617b92;
+  font-size: 12px;
+}
+
+.sync-notice button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #168bd1;
+  cursor: pointer;
 }
 
 .notification-item {

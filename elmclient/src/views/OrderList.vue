@@ -116,7 +116,7 @@ import { ref, onMounted, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import request from "../utils/request";
 import { toast } from '../utils/toast';
-import { getWebSocketUrl } from '../utils/endpoints';
+import { createRealtimeConnection } from '../services/realtimeService';
 import { CUSTOMER_ORDER_GROUPS, ORDER_STATUS, isOrderCountedAsSpend, orderStatusClass, orderStatusText } from '../utils/orderPresentation';
 import { formatDateTime } from '../utils/formatters';
 
@@ -128,10 +128,7 @@ export default {
     const router = useRouter();
     const loading = ref(false);
     const searchKeyword = ref('');
-    // --- WebSocket 相关 ---
-    const socket = ref(null);
-    const userId = ref(null); // 存储当前用户ID
-    let socketStopped = false;
+    let realtimeConnection = null;
 
     // 标签定义 - 与API状态对应
     const tabs = ["全部", "待支付", "待商家", "配送中", "已完成", "已取消"];
@@ -151,8 +148,8 @@ export default {
     };
 
     // 获取订单列表
-    const fetchOrders = async (status = null) => {
-      loading.value = true;
+    const fetchOrders = async (status = null, { silent = false } = {}) => {
+      if (!silent) loading.value = true;
       try {
         const params = {};
         if (status !== null) {
@@ -166,13 +163,13 @@ export default {
           orderArr.value = response.data || [];
         } else {
           console.error('获取订单列表失败:', response.data.message);
-          toast.error('获取订单列表失败: ' + response.data.message);
+          if (!silent) toast.error('获取订单列表失败: ' + response.data.message);
         }
       } catch (error) {
         console.error("请求订单列表失败:", error);
-        toast.error("获取订单列表失败，请稍后重试！");
+        if (!silent) toast.error("获取订单列表失败，请稍后重试！");
       } finally {
-        loading.value = false;
+        if (!silent) loading.value = false;
       }
     };
 
@@ -339,36 +336,6 @@ export default {
       selectId.value = 0;
     };
 
-    // 初始化WebSocket
-    const initWebSocket = () => {
-      if (socketStopped) return;
-      userId.value = userInfo.value.id;
-      if (!userId.value) return;
-
-      socket.value = new WebSocket(getWebSocketUrl(`/ws/${userId.value}`));
-
-      socket.value.onmessage = () => {
-        fetchOrders();
-      };
-
-      socket.value.onclose = () => {
-        // 断线重连（可选，视需求添加）
-        if (!socketStopped) setTimeout(initWebSocket, 2000);
-      };
-
-      socket.value.onerror = (err) => {
-        console.error("WebSocket 错误:", err);
-      };
-    };
-
-    // 关闭WebSocket（组件销毁时调用）
-    const closeWebSocket = () => {
-      socketStopped = true;
-      if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-        socket.value.close();
-      }
-    };
-
     const handleImageError = (event) => {
       event.target.src = require('@/assets/default-business.png');
     };
@@ -383,15 +350,17 @@ export default {
         router.push({ path: "/login" });
         return;
       }
-      socketStopped = false;
-      initWebSocket();
+      realtimeConnection = createRealtimeConnection({
+        onMessage: () => fetchOrders(null, { silent: true }),
+        onFallbackRefresh: () => fetchOrders(null, { silent: true })
+      });
+      realtimeConnection.start();
       // 初始加载全部订单
       fetchOrders();
     });
 
     onUnmounted(() => {
-      // 组件销毁时关闭WebSocket
-      closeWebSocket();
+      realtimeConnection?.stop();
     });
 
     return {

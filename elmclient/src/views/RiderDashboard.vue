@@ -103,7 +103,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '@/utils/request';
 import { toast } from '@/utils/toast';
-import { getWebSocketUrl } from '@/utils/endpoints';
+import { createRealtimeConnection } from '@/services/realtimeService';
 import { taskStatusText } from '@/utils/orderPresentation';
 
 const route = useRoute();
@@ -111,9 +111,7 @@ const router = useRouter();
 const profile = ref(null), availableTasks = ref([]), activeTasks = ref([]), historyTasks = ref([]);
 const loading = ref(true), refreshing = ref(false), switching = ref(false), actingId = ref(null), activeTab = ref('available');
 const exceptionModal = ref(null);
-const socket = ref(null);
-let reconnectTimer = null;
-let destroyed = false;
+let realtimeConnection = null;
 const exceptionForm = reactive({ exceptionType: 'STORE_DELAY', description: '' });
 const tabs = [
   { key:'available', label:'接单广场', icon:'fas fa-compass' },
@@ -151,29 +149,14 @@ const loadTasks = async () => {
   const [active, history, available] = await Promise.all(calls);
   activeTasks.value = active.data || []; historyTasks.value = history.data || []; availableTasks.value = available?.data || [];
 };
-const refreshAll = async () => { refreshing.value = true; try { await loadProfile(); if(profile.value?.auditStatus === 1) await loadTasks(); } catch(e){ toast.error(e.response?.data?.message || '数据同步失败'); } finally { refreshing.value=false; } };
+const refreshAll = async ({ silent = false } = {}) => { if(!silent) refreshing.value = true; try { await loadProfile(); if(profile.value?.auditStatus === 1) await loadTasks(); } catch(e){ if(!silent) toast.error(e.response?.data?.message || '数据同步失败'); } finally { if(!silent) refreshing.value=false; } };
 const toggleOnline = async () => { switching.value=true; try { const res=await request.patch('/api/v1/riders/me/online',{online:!profile.value.online}); profile.value=res.data; await loadTasks(); toast.success(profile.value.online?'已上线，可以接单了':'已安全下线'); } catch(e){toast.error(e.response?.data?.message||'状态更新失败');}finally{switching.value=false;} };
 const act = async (task, action) => { actingId.value=task.id; try { await request.post(`/api/v1/delivery-tasks/${task.id}/${action}`); toast.success(action==='accept'?'抢单成功，请安全前往商家':'配送状态已更新'); activeTab.value='active'; await refreshAll(); } catch(e){toast.error(e.response?.data?.message||'操作失败');}finally{actingId.value=null;} };
 const navigate = keyword => window.open(`https://uri.amap.com/search?keyword=${encodeURIComponent(keyword || '')}`,'_blank');
 const openException = task => { exceptionModal.value=task; exceptionForm.exceptionType='STORE_DELAY'; exceptionForm.description=''; };
 const submitException = async () => { if(!exceptionForm.description) return toast.warning('请填写情况说明'); try{await request.post(`/api/v1/delivery-tasks/${exceptionModal.value.id}/exceptions`,exceptionForm);toast.success('异常已上报，调度员将尽快处理');exceptionModal.value=null;await refreshAll();}catch(e){toast.error(e.response?.data?.message||'上报失败');} };
-const initSocket = () => {
-  if (!profile.value?.userId || destroyed) return;
-  socket.value = new WebSocket(getWebSocketUrl(`/ws/${profile.value.userId}`));
-  socket.value.onmessage = async event => {
-    try {
-      const message = JSON.parse(event.data);
-      if (message.type === 'delivery_update') await refreshAll();
-    } catch (error) {
-      console.warn('配送消息解析失败', error);
-    }
-  };
-  socket.value.onclose = () => {
-    if (!destroyed) reconnectTimer = window.setTimeout(initSocket, 2500);
-  };
-};
-onMounted(async()=>{try{await loadProfile();if(!profile.value){router.replace('/rider/apply');return;}if(profile.value.auditStatus===1){await loadTasks();initSocket();}}catch(e){toast.error(e.response?.data?.message||'加载失败');}finally{loading.value=false;}});
-onUnmounted(()=>{destroyed=true;if(reconnectTimer)window.clearTimeout(reconnectTimer);if(socket.value)socket.value.close();});
+onMounted(async()=>{try{await loadProfile();if(!profile.value){router.replace('/rider/apply');return;}if(profile.value.auditStatus===1){await loadTasks();realtimeConnection=createRealtimeConnection({onMessage:message=>{if(message.type==='delivery_update')refreshAll({silent:true});},onFallbackRefresh:()=>refreshAll({silent:true})});realtimeConnection.start();}}catch(e){toast.error(e.response?.data?.message||'加载失败');}finally{loading.value=false;}});
+onUnmounted(()=>{realtimeConnection?.stop();});
 </script>
 
 <style scoped>

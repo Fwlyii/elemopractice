@@ -190,7 +190,7 @@ import AddressManager from '../components/AddressManager.vue';
 import request from '../utils/request';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '../utils/toast';
-import { getWebSocketUrl } from '../utils/endpoints';
+import { createRealtimeConnection } from '../services/realtimeService';
 import { getRoleDefinition, hasAuthority, roleCanEnter } from '../utils/roles';
 import { clearAuth, getToken, updateStoredUser } from '../utils/auth';
 import { DEFAULT_USER_AVATAR } from '../utils/profileDefaults';
@@ -212,8 +212,7 @@ export default {
     const unreadMessageCount = ref(0);
     const uploading = ref(false);
     const fileInput = ref(null);
-    const webSocket = ref(null);
-    const isConnected = ref(false);
+    let realtimeConnection = null;
     const riderMode = computed(() => route.query.role === 'rider');
     const hasBusiness = computed(() => hasAuthority(userInfo.value, 'BUSINESS'));
     const hasRider = computed(() => hasAuthority(userInfo.value, 'RIDER'));
@@ -231,51 +230,6 @@ export default {
       return userInfo.value.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
     });
 
-    const initWebSocket = () => {
-      // 清除之前的连接
-      if (webSocket.value) {
-        webSocket.value.close();
-      }
-
-      try {
-        const sid = `client-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const wsUrl = getWebSocketUrl(`/ws/${sid}`);
-
-        webSocket.value = new WebSocket(wsUrl);
-
-        webSocket.value.onopen = () => {
-          console.log('WebSocket 连接成功');
-          isConnected.value = true;
-          //toast.success('已连接消息通知');
-        };
-
-        webSocket.value.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            handleNewMessage(message);
-          } catch (err) {
-            console.error('解析消息失败:', err);
-          }
-        };
-
-        webSocket.value.onclose = (event) => {
-          console.log('WebSocket 连接关闭，代码:', event.code);
-          isConnected.value = false;
-          if (event.code !== 1000) {
-            setTimeout(initWebSocket, 3000);
-          }
-        };
-
-        webSocket.value.onerror = (err) => {
-          console.error('WebSocket 错误:', err);
-          isConnected.value = false;
-        };
-      } catch (err) {
-        console.error('初始化 WebSocket 失败:', err);
-      }
-    };
-
-
     onMounted(async () => {
       const token = getToken();
       if (!token) {
@@ -283,18 +237,21 @@ export default {
         router.push({ path: '/login' });
         return;
       }
-      initWebSocket();
       await loadUserData();
       await checkNewMessages();
+      realtimeConnection = createRealtimeConnection({
+        onMessage: handleNewMessage,
+        onFallbackRefresh: checkNewMessages
+      });
+      realtimeConnection.start();
     });
     onUnmounted(() => {
-      if (webSocket.value) {
-        webSocket.value.close();
-      }
+      realtimeConnection?.stop();
     });
     const handleNewMessage = (message) => {
-      toast.info(`新消息：${message.content}`);
-      if (message.content.includes('您的成为商家申请已通过审核')) {
+      const content = message.notificationContent || message.content || '您有一条新消息';
+      toast.info(`新消息：${content}`);
+      if (content.includes('您的成为商家申请已通过审核')) {
         if (userInfo.value.authorities && Array.isArray(userInfo.value.authorities)) {
           const hasBusinessAuth = hasAuthority(userInfo.value, 'BUSINESS');
           if (!hasBusinessAuth) {

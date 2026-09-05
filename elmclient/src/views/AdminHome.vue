@@ -217,7 +217,7 @@ import { ref, onMounted, onUnmounted, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { toast } from '../utils/toast';
-import { getWebSocketUrl } from '@/utils/endpoints';
+import { createRealtimeConnection } from '@/services/realtimeService';
 import { clearAuth, getStoredUser, updateStoredUser } from '@/utils/auth';
 import { DEFAULT_USER_AVATAR } from '@/utils/profileDefaults';
 
@@ -245,8 +245,7 @@ const loadingShop = ref(false); // 店铺申请加载状态
 const merchantApplications = ref([]); // 商家申请列表
 const shopApplications = ref([]); // 店铺申请列表
 
-// WebSocket实例
-const webSocket = ref(null);
+let realtimeConnection = null;
 const currentPersonInfo = ref(null); // 存储用户详细信息
 const loadingPersonInfo = ref(false); // 加载状态
 
@@ -281,15 +280,14 @@ onMounted(() => {
   // 3. 获取待审核列表
   getMerchantApplications();
   getShopApplications();
-  // 4. 初始化WebSocket
-  initWebSocket();
+  // 4. 实时审核通知；用户标识和重连策略由统一服务负责。
+  realtimeConnection = createRealtimeConnection({ onMessage: handleWebSocketMessage });
+  realtimeConnection.start();
 });
 
 // 销毁WebSocket连接
 onUnmounted(() => {
-  if (webSocket.value) {
-    webSocket.value.close();
-  }
+  realtimeConnection?.stop();
 });
 
 // ====================== 接口请求 ======================
@@ -456,54 +454,12 @@ const submitShopAudit = async (id, auditResult) => {
   }
 };
 
-// ====================== WebSocket相关 ======================
-/**
- * 初始化WebSocket连接
- */
-const initWebSocket = () => {
-  // 1. 生成唯一的客户端标识sid（可以使用时间戳+随机数）
-  const sid = `admin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  // 2. 构造WebSocket连接地址（匹配后端的/ws/{sid}端点）
-  const wsUrl = getWebSocketUrl(`/ws/${sid}`);
-
-  webSocket.value = new WebSocket(wsUrl);
-
-  // 3. 连接成功
-  webSocket.value.onopen = () => {
-    console.log(`WebSocket连接成功，客户端标识：${sid}`);
-    // 可以在这里存储sid，用于后续可能的单独消息发送
-    sessionStorage.setItem('websocket_sid', sid);
-  };
-
-  // 4. 接收消息（保持不变）
-  webSocket.value.onmessage = (event) => {
-    try {
-      const message = JSON.parse(event.data);
-      handleWebSocketMessage(message);
-    } catch (error) {
-      console.error('解析WebSocket消息失败:', error);
-    }
-  };
-
-  // 5. 连接关闭（保持不变，增加重连逻辑）
-  webSocket.value.onclose = (event) => {
-    console.log(`WebSocket连接关闭（sid: ${sid}），正在重连...`, event);
-    // 延迟重连，避免频繁尝试
-    setTimeout(initWebSocket, 3000);
-  };
-
-  // 6. 连接错误（保持不变）
-  webSocket.value.onerror = (error) => {
-    console.error(`WebSocket连接错误（sid: ${sid}）:`, error);
-  };
-};
-
 /**
  * 处理WebSocket消息
  */
 const handleWebSocketMessage = (message) => {
-  const { applicationId, type, userId, username, content } = message;
+  const { type } = message;
+  const content = message.notificationContent || message.content || '有新的审核任务';
   // 提示消息
   toast.info(content);
 
@@ -572,11 +528,8 @@ const closeModal = () => {
  * 退出登录
  */
 const logout = () => {
+  realtimeConnection?.stop();
   clearAuth();
-  // 关闭WebSocket连接
-  if (webSocket.value) {
-    webSocket.value.close();
-  }
   // 跳转到登录页
   router.push('/index');
   toast.success('已成功退出登录');
