@@ -131,7 +131,7 @@ export default {
         const token = getToken();
         if (!token) {
           toast.warning('用户未登录，请先登录！');
-          router.push({ path: '/login' });
+          router.push({ path: '/login', query: { role: 'merchant' } });
           return;
         }
         shops.value = await listMyBusinesses(status);
@@ -140,7 +140,7 @@ export default {
         if (error.response && error.response.status === 401) {
           toast.error('登录已过期，请重新登录！');
           clearAuth();
-          router.push({ path: '/login' });
+          router.push({ path: '/login', query: { role: 'merchant' } });
         } else {
           errorMessage.value = '获取商铺列表失败，请重试！';
           toast.error('获取商铺列表失败，请重试！');
@@ -166,7 +166,7 @@ export default {
           const token = getToken();
           if (!token) {
             toast.warning('用户未登录，请先登录！');
-            router.push({ path: '/login' });
+            router.push({ path: '/login', query: { role: 'merchant' } });
             return;
           }
           await request.delete(`/api/businesses/${shopId}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -188,7 +188,7 @@ export default {
         const token = getToken();
         if (!token) {
           toast.warning('用户未登录，请先登录！');
-          router.push({ path: '/login' });
+          router.push({ path: '/login', query: { role: 'merchant' } });
           return;
         }
 

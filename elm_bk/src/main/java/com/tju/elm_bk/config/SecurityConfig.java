@@ -86,6 +86,16 @@ public class SecurityConfig {
                                 "/api/v1/reviews/business/{businessId}",
                                 "/api/ai/chat/recommendations").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
+                        // 顾客、商家、骑手与管理员会话使用单一端权限。把主要的顾客私有
+                        // 接口集中声明为 USER，避免运营账号通过手写请求调用顾客流程。
+                        .requestMatchers("/api/carts/**", "/api/addresses/**",
+                                "/api/v1/assets/**", "/api/v1/preferences/**")
+                                .hasAuthority("USER")
+                        .requestMatchers("/api/orders/list/business").hasAuthority("BUSINESS")
+                        .requestMatchers("/api/orders/**").hasAuthority("USER")
+                        .requestMatchers("/api/merchant/interaction/collections/**",
+                                "/api/merchant/interaction/status/**",
+                                "/api/merchant/interaction/update").hasAuthority("USER")
                         .anyRequest().authenticated()
                 )
                 .headers(httpSecurity -> httpSecurity  // 显式参数名

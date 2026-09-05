@@ -7,20 +7,18 @@ import jakarta.servlet.http.HttpServletResponse;
 import com.tju.elm_bk.service.UserModelDetailsService;
 import com.tju.elm_bk.entity.User;
 import com.tju.elm_bk.mapper.UserMapper;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.io.IOException;
 
-@Slf4j
 @Component
 public class JWTFilter extends OncePerRequestFilter {
 
@@ -40,12 +38,12 @@ public class JWTFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String uri = request.getRequestURI();//请求后缀 协议://域名"/xxx/xxx"
+        String uri = request.getRequestURI();
         if (uri.startsWith("/ws/")) {
             filterChain.doFilter(request, response);
             return;
         }
-        log.info("收到请求 " + uri);
+        LOG.debug("收到请求 {}", uri);
         try {
             String jwt = resolveToken(request);
             String requestURI = request.getRequestURI();
@@ -56,12 +54,13 @@ public class JWTFilter extends OncePerRequestFilter {
                 // 必须以数据库中的最新状态为准，避免禁用账号或撤权后旧令牌继续生效。
                 User account = userMapper.findByUsernameWithAuthorities(tokenAuthentication.getName());
                 if (account == null || !Boolean.TRUE.equals(account.getActivated())
-                        || !tokenProvider.isCurrentForAccount(jwt, account.getUpdateTime())) {
+                        || !tokenProvider.isCurrentForAccount(jwt, account.getUpdateTime())
+                        || !tokenProvider.isRoleBoundAndCurrentForAccount(jwt, account)) {
                     throw new IllegalArgumentException("账号状态已变化，请重新登录");
                 }
                 UserDetails currentUser = userDetailsService.loadUserByUsername(tokenAuthentication.getName());
                 Authentication authentication = new UsernamePasswordAuthenticationToken(
-                        currentUser, jwt, currentUser.getAuthorities());
+                        currentUser, jwt, tokenAuthentication.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 LOG.debug("set Authentication to security context for '{}', uri: {}", authentication.getName(), requestURI);
             } else {

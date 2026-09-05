@@ -74,32 +74,38 @@ const routes = [
   {
     path: '/userAddress',
     name: 'UserAddress',
-    component: UserAddress
+    component: UserAddress,
+    meta: { role: 'user' }
   },
   {
     path: '/payment',
     name: 'Payment',
-    component: Payment
+    component: Payment,
+    meta: { role: 'user' }
   },
   {
     path: '/orderList',
     name: 'OrderList',
-    component: OrderList
+    component: OrderList,
+    meta: { role: 'user' }
   },
   {
     path: '/listDetail',
     name: 'ListDetail',
-    component: ListDetail
+    component: ListDetail,
+    meta: { role: 'user' }
   },
   {
     path: '/addUserAddress',
     name: 'AddUserAddress',
-    component: AddUserAddress
+    component: AddUserAddress,
+    meta: { role: 'user' }
   },
   {
     path: '/editUserAddress',
     name: 'EditUserAddress',
-    component: EditUserAddress
+    component: EditUserAddress,
+    meta: { role: 'user' }
   },
   {
     path: '/register',
@@ -110,32 +116,37 @@ const routes = [
   {
     path: '/successfulPayment',
     name: 'SuccessfulPayment',
-    component: SuccessfulPayment
+    component: SuccessfulPayment,
+    meta: { role: 'user' }
   },
   {
     path: '/myInformation',
     name: 'MyInformation',
-    component: MyInformation
+    component: MyInformation,
+    meta: { role: 'user' }
   },
   {
     path: '/favorites',
     name: 'Favorites',
     component: Favorites,
+    meta: { role: 'user' }
   },
   {
     path: '/notifications',
     name: 'Notifications',
-    component: Notifications,
+    component: Notifications
   },
   {
     path: '/assets',
     name: 'Assets',
     component: Assets,
+    meta: { role: 'user' }
   },
   {
     path: '/preferences',
     name: 'Preferences',
     component: Preferences,
+    meta: { role: 'user' }
   },
  //
   {
@@ -151,7 +162,8 @@ const routes = [
   {
     path: '/cart',
     name: 'Cart',
-    component: Cart
+    component: Cart,
+    meta: { role: 'user' }
   },
   // 兼容上一版演示链接，统一跳转到新的商家工作台路径。
   { path:'/merchantOrders', redirect:'/merchant/orders' },
@@ -165,7 +177,7 @@ const routes = [
     path: '/merchant/apply',
     name: 'MerchantApply',
     component: MerchantApply,
-    meta: { title: '申请成为商家' }
+    meta: { title: '申请成为商家', role: 'merchant', allowApplicant: true }
   },
   {
     path: '/merchant/profile',
@@ -203,7 +215,7 @@ const routes = [
     path: '/rider/apply',
     name: 'RiderApply',
     component: RiderApply,
-    meta: { title: '申请成为骑手' }
+    meta: { title: '申请成为骑手', role: 'rider', allowApplicant: true }
   },
   {
     path: '/rider/dashboard',

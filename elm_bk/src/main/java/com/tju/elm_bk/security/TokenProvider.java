@@ -1,6 +1,8 @@
 package com.tju.elm_bk.security;
 
-import org.springframework.security.core.userdetails.User;
+import com.tju.elm_bk.entity.Authority;
+import com.tju.elm_bk.entity.User;
+import com.tju.elm_bk.service.LoginRolePolicy;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -19,8 +22,9 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import javax.crypto.SecretKey;
 
@@ -30,6 +34,7 @@ public class TokenProvider {
     private static final Logger LOG = LoggerFactory.getLogger(TokenProvider.class);
     private static final String AUTHORITIES_KEY = "auth";
     private static final String ISSUED_AT_MILLIS_KEY = "iat_ms";
+    private static final String SESSION_ROLE_KEY = "session_role";
 
     private final SecretKey key;
     private final long tokenValidityInMilliseconds;
@@ -50,6 +55,21 @@ public class TokenProvider {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
+        return buildToken(authentication.getName(), authorities, null, rememberMe);
+    }
+
+    public String createRoleBoundToken(Authentication authentication, boolean rememberMe, String sessionRole) {
+        String authorities = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(","));
+        if (authorities.isBlank() || authorities.contains(",")) {
+            throw new IllegalArgumentException("角色会话必须且只能包含一个权限");
+        }
+        return buildToken(authentication.getName(), authorities, sessionRole, rememberMe);
+    }
+
+    private String buildToken(String subject, String authorities, String sessionRole, boolean rememberMe) {
+
         long now = (new Date()).getTime();
         Date validity;
         if (rememberMe) {
@@ -58,11 +78,15 @@ public class TokenProvider {
             validity = new Date(now + this.tokenValidityInMilliseconds);
         }
 
-        return Jwts.builder()
-                .setSubject(authentication.getName())
+        JwtBuilder builder = Jwts.builder()
+                .setSubject(subject)
                 .claim(AUTHORITIES_KEY, authorities)
                 .claim(ISSUED_AT_MILLIS_KEY, now)
-                .setIssuedAt(new Date(now))
+                .setIssuedAt(new Date(now));
+        if (StringUtils.hasText(sessionRole)) {
+            builder.claim(SESSION_ROLE_KEY, sessionRole);
+        }
+        return builder
                 .signWith(key, SignatureAlgorithm.HS512)
                 .setExpiration(validity)
                 .compact();
@@ -81,7 +105,8 @@ public class TokenProvider {
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-        User principal = new User(
+        org.springframework.security.core.userdetails.User principal =
+                new org.springframework.security.core.userdetails.User(
                 claims.getSubject(),
                 "",
                 true,
@@ -118,6 +143,27 @@ public class TokenProvider {
             if (issuedAtMillis == null) return false;
             long accountUpdatedMillis = accountUpdatedAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             return issuedAtMillis.longValue() >= accountUpdatedMillis;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public boolean isRoleBoundAndCurrentForAccount(String token, User account) {
+        if (account == null || account.getAuthorities() == null) return false;
+        try {
+            Claims claims = Jwts.parserBuilder().setSigningKey(key).build()
+                    .parseClaimsJws(token).getBody();
+            String sessionRole = claims.get(SESSION_ROLE_KEY, String.class);
+            String authorityClaim = claims.get(AUTHORITIES_KEY, String.class);
+            if (!StringUtils.hasText(sessionRole) || !StringUtils.hasText(authorityClaim)
+                    || authorityClaim.contains(",")) return false;
+            List<String> currentAuthorities = account.getAuthorities().stream()
+                    .filter(Objects::nonNull)
+                    .map(Authority::getName)
+                    .filter(StringUtils::hasText)
+                    .collect(Collectors.toList());
+            return LoginRolePolicy.isCurrentSession(
+                    sessionRole, authorityClaim, currentAuthorities);
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

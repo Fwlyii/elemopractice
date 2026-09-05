@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'token';
 const USER_KEY = 'userInfo';
+const ROLE_KEY = 'authRole';
 
 const parseJson = (storage, key) => {
   try {
@@ -16,15 +17,18 @@ export const getToken = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.
 
 export const getStoredUser = () => parseJson(localStorage, USER_KEY) || parseJson(sessionStorage, USER_KEY);
 
+export const getAuthRole = () => localStorage.getItem(ROLE_KEY) || sessionStorage.getItem(ROLE_KEY);
+
 export const isAuthenticated = () => Boolean(getToken());
 
 export const authStorage = (rememberMe = false) => rememberMe ? localStorage : sessionStorage;
 
-export const saveAuth = (token, user, rememberMe = false) => {
+export const saveAuth = (token, user, rememberMe = false, role = null) => {
   clearAuth();
   const storage = authStorage(rememberMe);
   storage.setItem(TOKEN_KEY, token);
   storage.setItem(USER_KEY, JSON.stringify(user));
+  if (role) storage.setItem(ROLE_KEY, role);
 };
 
 export const updateStoredUser = (user) => {
@@ -37,6 +41,7 @@ export const clearAuth = () => {
   [localStorage, sessionStorage].forEach(storage => {
     storage.removeItem(TOKEN_KEY);
     storage.removeItem(USER_KEY);
+    storage.removeItem(ROLE_KEY);
   });
   sessionStorage.removeItem('businessUser');
 };

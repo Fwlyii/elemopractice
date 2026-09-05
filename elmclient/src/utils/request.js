@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { apiBaseUrl } from './endpoints';
-import { clearAuth, getToken } from './auth';
+import { clearAuth, getAuthRole, getToken } from './auth';
 
 // 1. 创建 Axios 实例
 const request = axios.create({
@@ -55,10 +55,14 @@ request.interceptors.response.use(
     // 可选接口返回 401，也不能被全局拦截器强行踢到登录页，否则退出登录后会形成跳转循环。
     const hadToken = Boolean(getToken());
     if (error.response?.status === 401 && hadToken && !error.config?.skipAuthRedirect) {
+      const role = getAuthRole();
       clearAuth();
       const currentPath = `${window.location.pathname}${window.location.search}`;
-      const redirect = currentPath.startsWith('/login') ? '' : `?redirect=${encodeURIComponent(currentPath)}`;
-      window.location.assign(`/login${redirect}`);
+      const params = new URLSearchParams();
+      if (role) params.set('role', role);
+      if (!currentPath.startsWith('/login')) params.set('redirect', currentPath);
+      const query = params.toString();
+      window.location.assign(`/login${query ? `?${query}` : ''}`);
     }
     return Promise.reject(error);
   }

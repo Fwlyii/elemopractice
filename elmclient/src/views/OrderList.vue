@@ -347,7 +347,7 @@ export default {
 
       if (!userInfo.value) {
         toast.error("用户未登录，请先登录！");
-        router.push({ path: "/login" });
+        router.push({ path: "/login", query: { role: "user" } });
         return;
       }
       realtimeConnection = createRealtimeConnection({

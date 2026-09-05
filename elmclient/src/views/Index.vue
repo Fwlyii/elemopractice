@@ -459,7 +459,7 @@ export default {
         };
         const goToLChoose = () => {
             // 跳转到登录页面
-            router.push({ path: '/login' });
+            router.push({ path: '/login', query: { role: 'user' } });
         };
         const goToRChoose = () => {
             router.push({ path: '/register' });

@@ -205,7 +205,7 @@ export default {
       const token = getToken();
       if (!token) {
         toast.warning('用户未登录，请先登录！');
-        router.push({ path: '/login' });
+        router.push({ path: '/login', query: { role: riderMode.value ? 'rider' : 'user' } });
         return;
       }
       await loadUserData();
@@ -318,7 +318,7 @@ export default {
         const token = getToken();
         if (!token) {
           toast.warning('用户未登录，请先登录！');
-          router.push({ path: '/login' });
+          router.push({ path: '/login', query: { role: riderMode.value ? 'rider' : 'user' } });
           return;
         }
         const response = await request.get('/api/person', {
@@ -336,7 +336,7 @@ export default {
         if (error.response && error.response.status === 401) {
           toast.error('登录已过期，请重新登录！');
           clearAuth();
-          router.push({ path: '/login' });
+          router.push({ path: '/login', query: { role: riderMode.value ? 'rider' : 'user' } });
         } else {
           errorMessage.value = '获取用户信息失败，请重试！';
           toast.error('获取用户信息失败，请重试！');

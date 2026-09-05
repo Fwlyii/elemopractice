@@ -87,21 +87,29 @@ const login = async () => {
   if (!password.value) return toast.error('请输入密码');
   submitting.value = true;
   try {
-    const auth = await request.post('/api/auth', { username: userName.value, password: password.value, rememberMe: rememberMe.value });
+    const auth = await request.post('/api/auth', {
+      username: userName.value,
+      password: password.value,
+      rememberMe: rememberMe.value,
+      role: selectedRole.value
+    });
     if (!auth?.id_token) return toast.error(auth?.message || '登录失败');
     // 登录身份切换时先清掉上一个账号的认证信息，避免路由守卫读到旧的 localStorage。
     // 这对“记住我”后再切换用户/商家/骑手尤其重要。
-    saveAuth(auth.id_token, null, rememberMe.value);
+    saveAuth(auth.id_token, null, rememberMe.value, auth.role || selectedRole.value);
     const userRes = await request.get('/api/user');
     updateStoredUser(userRes);
     if (rememberMe.value) localStorage.setItem('savedUserName', userName.value);
     else localStorage.removeItem('savedUserName');
 
-    const roleAllowed = roleCanEnter(userRes, selectedRole.value);
-    if (!roleAllowed) {
-      const roleName = activeRole.value.label;
-      toast.warning(`当前账号没有${roleName}权限，请切换身份或先完成申请`);
-      if (activeRole.value.applyTarget) router.push(activeRole.value.applyTarget);
+    if (auth.application_only && activeRole.value.applyTarget) {
+      toast.info(`请先完成${activeRole.value.label}入驻申请`);
+      router.push(activeRole.value.applyTarget);
+      return;
+    }
+    if (!roleCanEnter(userRes, selectedRole.value)) {
+      clearAuth();
+      toast.error('账号权限刚刚发生变化，请重新登录');
       return;
     }
 	    toast.success(`已进入${activeRole.value.label}端`);

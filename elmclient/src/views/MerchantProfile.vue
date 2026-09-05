@@ -21,9 +21,6 @@
         </div>
       </div>
       <div class="user-actions">
-        <button class="switch-btn" @click="switchToCustomer">
-          <i class="fas fa-user"></i> 切换为顾客
-        </button>
         <button class="logout-btn" @click="logout">
           <i class="fas fa-sign-out-alt"></i> 退出登录
         </button>
@@ -63,6 +60,7 @@ import { toast } from '../utils/toast';
 import request from '../utils/request';
 import { listMyBusinesses } from '../services/businessService';
 import { DEFAULT_USER_AVATAR } from '../utils/profileDefaults';
+import { clearAuth } from '../utils/auth';
 
 export default {
   name: 'MerchantProfile',
@@ -126,17 +124,10 @@ export default {
     };
 
     const logout = () => {
-      sessionStorage.removeItem('merchant');
-      sessionStorage.removeItem('user');
-      // 清空所有本地存储，确保完全退出
-      localStorage.clear();
-      sessionStorage.clear();
+      clearAuth();
       router.push({ path: '/index' });
     };
 
-    const switchToCustomer = () => {
-      router.push({ path: '/myInformation' });
-    };
     const goToWorkbench = () => {
       router.push('/merchant/business');
     };
@@ -156,7 +147,6 @@ export default {
       pendingStoreCount,
       defaultAvatar,
       logout,
-      switchToCustomer,
       goToWorkbench,
       handleImageError
     };
@@ -467,25 +457,6 @@ export default {
     0 4px 12px rgba(255, 107, 107, 0.3);
 }
 
-.switch-btn {
-  flex: 1;
-  padding: 12px;
-  text-align: center;
-  background: linear-gradient(135deg, #ff9a9e, #fad0c4);
-  color: white;
-  font-weight: 600;
-  border-radius: 12px;
-  border: none;
-  font-size: 0.9rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 10px;
-}
-.switch-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-}
 .logout-btn {
   flex: 1;
   padding: 12px;
@@ -504,7 +475,6 @@ export default {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
-.switch-btn i,
 .logout-btn i {
   margin-right: 6px;
 }
@@ -594,7 +564,6 @@ export default {
     gap: 10px;
   }
 
-  .switch-btn,
   .logout-btn {
     width: 100%;
     padding: 14px;
@@ -657,10 +626,9 @@ export default {
 .user-name { color: #244d73; font-size: 17px; margin-bottom: 2px; }
 .user-phone { color: #7189a2; font-size: 12px; }
 .user-actions { gap: 10px; }
-.switch-btn, .logout-btn { padding: 10px 12px; border-radius: 7px; border: 1px solid transparent; box-shadow: none; font-size: 12px; margin-bottom: 0; }
-.switch-btn { background: #edf7ff; color: #1479c3; border-color: #cfe6f8; }
+.logout-btn { padding: 10px 12px; border-radius: 7px; border: 1px solid transparent; box-shadow: none; font-size: 12px; margin-bottom: 0; }
 .logout-btn { background: #fff5f3; color: #c65a4d; border-color: #f2d8d3; }
-.switch-btn:hover, .logout-btn:hover { transform: none; box-shadow: none; }
+.logout-btn:hover { transform: none; box-shadow: none; }
 .merchant-entry-card {
   width: 100%;
   padding: 20px;

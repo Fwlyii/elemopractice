@@ -23,7 +23,7 @@ import { computed, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import request from './utils/request';
 import { applyTheme, getStoredTheme } from './utils/theme';
-import { getToken } from './utils/auth';
+import { getAuthRole, getToken } from './utils/auth';
 
 export default {
   components: {
@@ -46,7 +46,7 @@ export default {
     // 先应用本地主题避免刷新闪白；登录用户再从服务端恢复跨设备偏好。
     onMounted(async () => {
       applyTheme(getStoredTheme());
-      if (!getToken()) return;
+      if (!getToken() || getAuthRole() !== 'user') return;
       try {
         const preference = await request.get('/api/v1/preferences/me');
         if (preference?.success && preference.data?.theme) applyTheme(preference.data.theme);

@@ -1,7 +1,7 @@
 <template>
   <main class="apply-page">
     <section class="hero">
-      <button class="back" @click="$router.push('/myInformation')">← 返回个人中心</button>
+      <button class="back" @click="$router.push('/index')">← 返回首页</button>
       <div class="hero-icon"><i class="fas fa-motorcycle"></i></div>
       <p class="eyebrow">ELEM 即时配送网络</p>
       <h1>把每一份热乎，准时送达</h1>

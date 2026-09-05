@@ -54,6 +54,29 @@ check_absent "用户个人页不再承担多身份切换" \
   '身份中心|goToRole\(|identity-(section|grid|item)' \
   "$frontend_dir/views/MyInformation.vue"
 
+check_absent "用户端登录不再被无条件放行" \
+  '!role\.authority' \
+  "$frontend_dir/utils/roles.js"
+
+if ! rg -q "role:[[:space:]]*selectedRole\.value" "$frontend_dir/views/Login.vue"; then
+  echo "[FAIL] 登录请求必须把所选登录端交给后端校验"
+  failed=1
+else
+  echo "[ OK ] 登录请求会把所选登录端交给后端校验"
+fi
+
+check_absent "商家页面不再提供跨端切换入口" \
+  '切换为顾客|switchToCustomer' \
+  "$frontend_dir/views/MerchantProfile.vue"
+
+check_absent "商家登录失效时不再误跳用户端" \
+  "path:[[:space:]]*['\"]\/login['\"][[:space:]]*}" \
+  "$frontend_dir/views/MerchantBusiness.vue" "$frontend_dir/views/MerchantApply.vue"
+
+check_absent "页面退出登录不再清空无关本地偏好" \
+  '(localStorage|sessionStorage)\.clear\(' \
+  "$frontend_dir/views"
+
 check_absent "页面不再绕过统一实时连接服务" \
   'new[[:space:]]+WebSocket|getWebSocketUrl|client-\$\{Date\.now|admin-\$\{Date\.now' \
   "$frontend_dir/views"

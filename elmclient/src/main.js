@@ -9,7 +9,7 @@ import './assets/styles/global.css';
 import qs from 'qs';
 import request from './utils/request';
 import { getRoleDefinition, roleCanEnter } from './utils/roles';
-import { getStoredUser } from './utils/auth';
+import { clearAuth, getAuthRole, getStoredUser, getToken } from './utils/auth';
 import {
   getCurDate,
   setSessionStorage,
@@ -43,22 +43,42 @@ app.config.globalProperties.$toast = toast;
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const user = getStoredUser();
+  const token = getToken();
+  const sessionRole = getAuthRole();
 
-  // 路由自己声明所需角色；新增工作台页只需配置 meta，不再修改守卫分支。
-  const roleKey = typeof to.meta.role === 'string' ? to.meta.role : null;
+  // “我的”和消息页被用户端、骑手端共用，其余页面直接读取路由声明。
+  const sharedRiderPage = ['/myInformation', '/notifications'].includes(to.path)
+    && to.query.role === 'rider';
+  const roleKey = sharedRiderPage
+    ? 'rider'
+    : (typeof to.meta.role === 'string' ? to.meta.role : null);
   if (roleKey) {
     const role = getRoleDefinition(roleKey);
-    if (!user) return next(`/login?role=${roleKey}`);
-    if (!roleCanEnter(user, roleKey)) return next(role.applyTarget || '/myInformation');
-  }
-  if (to.path === '/myInformation' && to.query.role === 'rider') {
-    if (!user) return next('/login?role=rider');
-    if (!roleCanEnter(user, 'rider')) return next('/rider/apply');
+    if (!user || !token) return next({ path: '/login', query: { role: roleKey, redirect: to.fullPath } });
+    // 历史令牌没有端信息，必须重新登录；否则仅靠数据库多权限会再次串端。
+    if (!sessionRole) {
+      clearAuth();
+      return next({ path: '/login', query: { role: roleKey, redirect: to.fullPath } });
+    }
+    if (sessionRole !== roleKey) {
+      const currentRole = getRoleDefinition(sessionRole);
+      const target = roleCanEnter(user, sessionRole)
+        ? currentRole.target
+        : (currentRole.applyTarget || '/login');
+      return next(target);
+    }
+    if (to.meta.allowApplicant) {
+      if (roleCanEnter(user, roleKey)) return next(role.target);
+      return next();
+    }
+    if (!roleCanEnter(user, roleKey)) {
+      return next(role.applyTarget || { path: '/login', query: { role: roleKey } });
+    }
   }
 
   
   // 浏览商家和登录注册可匿名访问，其余功能都需要登录。
-  if (!to.meta.public && !user) {
+  if (!to.meta.public && (!user || !token)) {
     return next({ path: '/login', query: { redirect: to.fullPath } });
   }
   next();

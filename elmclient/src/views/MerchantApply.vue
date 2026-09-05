@@ -30,7 +30,7 @@ const submitting = ref(false);
 const submitted = ref(false);
 
 onMounted(() => {
-  if (!isAuthenticated()) router.replace({ path: '/login', query: { role: 'user', redirect: '/merchant/apply' } });
+  if (!isAuthenticated()) router.replace({ path: '/login', query: { role: 'merchant', redirect: '/merchant/apply' } });
 });
 
 const submit = async () => {

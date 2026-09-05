@@ -138,6 +138,7 @@ public class WebSocketServer {
             User user = mapper.findByUsernameWithAuthorities(username);
             return user != null && Boolean.TRUE.equals(user.getActivated())
                     && provider.isCurrentForAccount(token, user.getUpdateTime())
+                    && provider.isRoleBoundAndCurrentForAccount(token, user)
                     && Objects.equals(String.valueOf(user.getId()), sid);
         } catch (Exception ignored) {
             return false;

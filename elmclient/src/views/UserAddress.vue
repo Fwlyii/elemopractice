@@ -97,7 +97,7 @@ export default {
 		const listDeliveryAddressByUserId = () => {
 			if (!user.value?.id) {
 				toast.error('登录已过期，请重新登录');
-				router.push({ path: '/login' });
+				router.push({ path: '/login', query: { role: 'user' } });
 				return;
 			}
 			// 查询送货地址
